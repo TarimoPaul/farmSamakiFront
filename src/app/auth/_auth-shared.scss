@@ -1,0 +1,396 @@
+// Shared visual language for the auth screens (login / signup): split-screen
+// form panel (left) + solid brand panel (right). Every color/radius/font
+// here comes from the :root tokens in src/styles.scss - re-theme the app
+// (including dark mode) by editing those tokens only, nothing in this file.
+
+.toggle-slot-group {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.auth-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  // Light theme: soft brand-tinted wash. Dark theme intentionally skips this
+  // (see [data-theme='dark'] override below) - the same radial blobs read as
+  // a muddy smear on a dark background instead of a clean solid surface.
+  background:
+    radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--brand) 35%, transparent), transparent 45%),
+    radial-gradient(circle at 85% 80%, color-mix(in srgb, var(--brand-dark) 45%, transparent), transparent 50%),
+    var(--surface);
+
+  @media (max-height: 780px) {
+    padding: 1.25rem 1.5rem;
+  }
+
+  @media (max-height: 680px) {
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+.auth-shell {
+  width: 100%;
+  max-width: 1120px;
+  max-height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  background: var(--surface);
+  border-radius: 28px;
+  box-shadow:
+    0 40px 80px -24px rgba(15, 20, 26, 0.35),
+    0 16px 32px -16px rgba(15, 20, 26, 0.25);
+
+  @media (max-width: 1023px) {
+    grid-template-columns: 1fr;
+    padding: 0.5rem;
+    border-radius: 22px;
+  }
+}
+
+// ── Left: form panel ────────────────────────────────────────────────────
+.form-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.75rem;
+}
+
+.form-panel__inner {
+  width: 100%;
+  max-width: 380px;
+}
+
+.brand-mini {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 2.5rem;
+}
+
+.brand-mini__icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--brand);
+  color: var(--brand-contrast);
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.brand-mini__name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--on-surface);
+}
+
+.form-title {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--on-surface);
+}
+
+.form-subtitle {
+  margin: 0.4rem 0 1.5rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+// ── Fields ───────────────────────────────────────────────────────────────
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.field__optional {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-within {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent);
+  }
+
+  &--error {
+    border-color: var(--error);
+  }
+}
+
+.field__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  color: var(--muted);
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.field__control input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0.75rem 0 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  color: var(--on-surface);
+  font-family: var(--font-sans);
+
+  &::placeholder {
+    color: var(--muted);
+  }
+}
+
+.field__toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-right: 2px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 8px;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    color: var(--brand);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+}
+
+.field__error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--error);
+}
+
+// ── Alerts ───────────────────────────────────────────────────────────────
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.alert--error {
+  background: var(--error-bg);
+  border: 1px solid color-mix(in srgb, var(--error) 35%, transparent);
+  color: var(--error);
+}
+
+.alert--notice {
+  background: var(--notice-bg);
+  border: 1px solid color-mix(in srgb, var(--notice) 35%, transparent);
+  color: var(--notice);
+}
+
+.alert svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+// ── Forgot-password row ─────────────────────────────────────────────────
+.form-row-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.5rem;
+}
+
+.link-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brand);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+// ── Button ───────────────────────────────────────────────────────────────
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--brand-contrast) 40%, transparent);
+  border-top-color: var(--brand-contrast);
+  animation: auth-spin 0.7s linear infinite;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.form-switch {
+  margin: 0;
+  font-size: 0.88rem;
+  text-align: center;
+  color: var(--muted);
+
+  a {
+    color: var(--brand);
+    font-weight: 700;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.form-footer {
+  width: 100%;
+  max-width: 380px;
+  margin: 2rem 0 0;
+  font-size: 0.75rem;
+  text-align: left;
+  color: var(--muted);
+}
+
+// ── Right: brand panel ──────────────────────────────────────────────────
+.brand-panel {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  padding: 3rem 2.75rem;
+  border-radius: 22px;
+  background: linear-gradient(160deg, var(--brand) 0%, var(--brand-dark) 100%);
+  color: var(--brand-contrast);
+
+  @media (max-width: 1023px) {
+    display: none;
+  }
+}
+
+.brand-panel__content {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  padding-top: 1.5rem;
+}
+
+.brand-panel__headline {
+  margin: 0 0 0.6rem;
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.24;
+  letter-spacing: -0.02em;
+}
+
+.brand-panel__text {
+  margin: 0 0 2rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+}

@@ -1,0 +1,168 @@
+<div class="auth-page">
+  <div class="toggle-slot-group">
+    <app-language-toggle [lang]="languageService.lang()" (toggled)="languageService.toggle()" />
+    <app-theme-toggle [theme]="themeService.theme()" (toggled)="themeService.toggle()" />
+  </div>
+
+  <div class="auth-shell">
+    <!-- Left: form panel -->
+    <section class="form-panel">
+      <div class="form-panel__inner">
+        <div class="brand-mini">
+          <span class="brand-mini__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+            </svg>
+          </span>
+          <span class="brand-mini__name">SAMAKI FARM</span>
+        </div>
+
+        <h1 class="form-title">{{ t().title }}</h1>
+        <p class="form-subtitle">{{ t().subtitle }}</p>
+
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          @if (formError()) {
+            <div class="alert alert--error" role="alert" aria-live="assertive">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{{ formError() }}</span>
+            </div>
+          }
+
+          @if (noticeMessage()) {
+            <div class="alert alert--notice" role="status" aria-live="polite">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 7v5l3 3" />
+              </svg>
+              <span>{{ noticeMessage() }}</span>
+            </div>
+          }
+
+          <div class="field">
+            <label class="field__label" for="identifier">{{ t().identifierLabel }}</label>
+            <div class="field__control" [class.field__control--error]="identifier.invalid && identifier.touched">
+              <input
+                id="identifier"
+                type="text"
+                formControlName="identifier"
+                autocomplete="username"
+                [placeholder]="t().identifierPlaceholder"
+                [attr.aria-invalid]="identifier.invalid && identifier.touched"
+                [attr.aria-describedby]="identifier.invalid && identifier.touched ? 'identifier-error' : null"
+              />
+              <span class="field__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+              </span>
+            </div>
+            @if (identifier.invalid && identifier.touched) {
+              <p class="field__error" id="identifier-error">{{ t().identifierError }}</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="password">{{ t().passwordLabel }}</label>
+            <div class="field__control" [class.field__control--error]="password.invalid && password.touched">
+              <input
+                id="password"
+                [type]="hidePassword() ? 'password' : 'text'"
+                formControlName="password"
+                autocomplete="current-password"
+                placeholder="••••••••"
+                [attr.aria-invalid]="password.invalid && password.touched"
+                [attr.aria-describedby]="password.invalid && password.touched ? 'password-error' : null"
+              />
+              <button
+                type="button"
+                class="field__toggle"
+                (click)="togglePasswordVisibility()"
+                [attr.aria-label]="hidePassword() ? t().showPassword : t().hidePassword"
+              >
+                @if (hidePassword()) {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                      d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                    />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                }
+              </button>
+            </div>
+            @if (password.invalid && password.touched) {
+              <p class="field__error" id="password-error">{{ t().passwordError }}</p>
+            }
+          </div>
+
+          <div class="form-row-end">
+            <button type="button" class="link-button" (click)="onForgotPassword()">{{ t().forgotPassword }}</button>
+          </div>
+
+          <button type="submit" class="btn-primary" [disabled]="loading()">
+            @if (loading()) {
+              <span class="btn-spinner" aria-hidden="true"></span>
+              <span>{{ t().submitting }}</span>
+            } @else {
+              <span>{{ t().submit }}</span>
+            }
+          </button>
+
+          <p class="form-switch">{{ t().noAccount }} <a routerLink="/signup">{{ t().signup }}</a></p>
+        </form>
+      </div>
+
+      <p class="form-footer">{{ t().footer }} {{ currentYear }}</p>
+    </section>
+
+    <!-- Right: brand panel -->
+    <aside class="brand-panel" aria-hidden="true">
+      <div class="brand-panel__content">
+        <h2 class="brand-panel__headline">{{ t().brandHeadline }}</h2>
+        <p class="brand-panel__text">{{ t().brandText }}</p>
+
+        <!-- Decorative dashboard mock-up - stands in for a real product
+             screenshot until we have one worth shipping here. -->
+        <div class="dash-mock">
+          <div class="dash-mock__topbar">
+            <span class="dash-mock__dot"></span>
+            <span class="dash-mock__dot"></span>
+            <span class="dash-mock__dot"></span>
+          </div>
+          <div class="dash-mock__body">
+            <div class="dash-mock__sidebar">
+              <span class="dash-mock__sidebar-item dash-mock__sidebar-item--active"></span>
+              <span class="dash-mock__sidebar-item"></span>
+              <span class="dash-mock__sidebar-item"></span>
+              <span class="dash-mock__sidebar-item"></span>
+            </div>
+            <div class="dash-mock__main">
+              <span class="dash-mock__title"></span>
+              <div class="dash-mock__stats">
+                <span class="dash-mock__stat"></span>
+                <span class="dash-mock__stat"></span>
+              </div>
+              <span class="dash-mock__row"></span>
+              <span class="dash-mock__row dash-mock__row--short"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="brand-panel__modules">
+          <span class="module-pill">{{ t().moduleProduction }}</span>
+          <span class="module-pill">{{ t().moduleFeeding }}</span>
+          <span class="module-pill">{{ t().moduleWater }}</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

@@ -1,0 +1,282 @@
+<div class="dash-page">
+  <div class="dash-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar__brand">
+        <span class="sidebar__brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+          </svg>
+        </span>
+        <span class="sidebar__brand-text">
+          <span class="sidebar__brand-name">{{ t().brandName }}</span>
+          <span class="sidebar__brand-sub">{{ t().brandSub }}</span>
+        </span>
+      </div>
+
+      <nav class="sidebar__nav">
+        <span class="nav-item nav-item--active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+          </svg>
+          {{ t().navDashboard }}
+        </span>
+
+        <span class="nav-item nav-item--disabled" [title]="t().comingSoon" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+          {{ t().navUnits }}
+        </span>
+
+        <span class="nav-item nav-item--disabled" [title]="t().comingSoon" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          {{ t().navCycles }}
+        </span>
+
+        <span class="nav-item nav-item--disabled" [title]="t().comingSoon" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          {{ t().navFeeding }}
+        </span>
+
+        <span class="nav-item nav-item--disabled" [title]="t().comingSoon" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+          </svg>
+          {{ t().navWater }}
+        </span>
+
+        <span class="nav-item nav-item--disabled" [title]="t().comingSoon" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          {{ t().navWorkers }}
+        </span>
+
+        <span class="nav-item nav-item--disabled" [title]="t().comingSoon" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
+          </svg>
+          {{ t().navSettings }}
+        </span>
+      </nav>
+
+      <div class="sidebar__footer">
+        <span class="sidebar__footer-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+          </svg>
+        </span>
+        <div>
+          <p class="sidebar__footer-title">{{ t().systemInfoTitle }}</p>
+          @if (currentUser(); as user) {
+            <p class="sidebar__footer-text">{{ t().loggedInAs }} {{ user.role }}</p>
+          }
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="dash-main">
+      <header class="dash-topbar">
+        <label class="dash-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input type="text" [placeholder]="t().searchPlaceholder" disabled />
+        </label>
+
+        <div class="dash-user">
+          @if (currentUser(); as user) {
+            <span class="dash-user__avatar">{{ initials(user.name) }}</span>
+            <span class="dash-user__info">
+              <span class="dash-user__name">{{ user.name }}</span>
+              <span class="dash-user__role">{{ user.role }}</span>
+            </span>
+          }
+          <app-language-toggle [lang]="languageService.lang()" (toggled)="languageService.toggle()" />
+          <app-theme-toggle [theme]="themeService.theme()" (toggled)="themeService.toggle()" />
+          <button type="button" class="dash-logout" (click)="logout()" [attr.aria-label]="t().logout">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      @if (loading()) {
+        <p class="dash-status">{{ t().loading }}</p>
+      } @else if (errorMessage()) {
+        <p class="dash-status dash-status--error">{{ errorMessage() }}</p>
+      } @else {
+        <section class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-card__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+            </span>
+            <span class="stat-card__label">{{ t().statTotalUnits }}</span>
+            <span class="stat-card__value">{{ totalUnits() }}</span>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-card__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+              </svg>
+            </span>
+            <span class="stat-card__label">{{ t().statActiveUnits }}</span>
+            <span class="stat-card__value">{{ activeUnits() }}</span>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-card__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+            </span>
+            <span class="stat-card__label">{{ t().statActiveCycles }}</span>
+            <span class="stat-card__value">{{ activeCycles().length }}</span>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-card__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.5 12c.9-3.3 4.7-5.5 8-5.5 3.3 0 5.7 2.4 6.5 5.5-.8 3.1-3.2 5.5-6.5 5.5-3.3 0-7.1-2.2-8-5.5z" />
+                <path d="M21 12l2.5-2.5v5L21 12z" />
+              </svg>
+            </span>
+            <span class="stat-card__label">{{ t().statFingerlings }}</span>
+            <span class="stat-card__value">{{ totalFingerlings() }}</span>
+          </div>
+        </section>
+
+        <section class="chart-card">
+          <div class="card-heading">
+            <div>
+              <h2>{{ t().chartTitle }}</h2>
+              <p>{{ t().chartSubtitle }}</p>
+            </div>
+          </div>
+
+          <div class="bar-chart">
+            @for (bar of unitsByType(); track bar.type) {
+              <div class="bar-chart__col">
+                <span class="bar-chart__count">{{ bar.count }}</span>
+                <div class="bar-chart__track">
+                  <div class="bar-chart__fill" [style.height.%]="bar.percent"></div>
+                </div>
+                <span class="bar-chart__label">{{ bar.type }}</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="table-card">
+          <div class="card-heading">
+            <div>
+              <h2>{{ t().tableTitle }}</h2>
+              <p>{{ t().tableSubtitle }}</p>
+            </div>
+          </div>
+
+          @if (activeCycles().length === 0) {
+            <p class="dash-status">{{ t().tableEmpty }}</p>
+          } @else {
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ t().colUnit }}</th>
+                  <th>{{ t().colSpecies }}</th>
+                  <th>{{ t().colStockingDate }}</th>
+                  <th>{{ t().colExpectedHarvest }}</th>
+                  <th>{{ t().colStatus }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (cycle of activeCycles(); track cycle.cycleId) {
+                  <tr>
+                    <td>{{ cycle.unit.code }}</td>
+                    <td>{{ cycle.speciesName }}</td>
+                    <td>{{ cycle.stockingDate }}</td>
+                    <td>{{ cycle.expectedHarvestDate ?? '-' }}</td>
+                    <td><span class="pill" [ngClass]="statusClass(cycle.status)">{{ statusLabel(cycle.status) }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </section>
+      }
+    </main>
+
+    <!-- Right column -->
+    <aside class="dash-side">
+      <div class="side-card">
+        <h3>{{ t().sideSummary }}</h3>
+        <div class="side-stat">
+          <span>{{ t().sideAllUnits }}</span>
+          <strong>{{ totalUnits() }}</strong>
+        </div>
+        <div class="side-stat">
+          <span>{{ t().sideActiveUnits }}</span>
+          <strong>{{ activeUnits() }}</strong>
+        </div>
+        <div class="side-stat">
+          <span>{{ t().sideTotalVolume }}</span>
+          <strong>{{ totalVolumeM3() }}</strong>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>{{ t().sideByStatus }}</h3>
+        <div class="mini-bars">
+          @for (bar of unitsByStatus(); track bar.status) {
+            <div class="mini-bars__row">
+              <span class="mini-bars__label">{{ statusLabel(bar.status) }}</span>
+              <div class="mini-bars__track">
+                <div class="mini-bars__fill" [style.width.%]="bar.percent"></div>
+              </div>
+              <span class="mini-bars__count">{{ bar.count }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>{{ t().sideThisWeek }}</h3>
+        <div class="mini-cal">
+          @for (day of weekDates; track day.getTime(); let i = $index) {
+            <div class="mini-cal__day" [class.mini-cal__day--today]="isToday(day)">
+              <span class="mini-cal__weekday">{{ weekdayLabels()[i] }}</span>
+              <span class="mini-cal__date">{{ day.getDate() }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="side-card side-card--ring">
+        <h3>{{ t().sideActiveRing }}</h3>
+        <div class="ring" [style.--percent]="activePercent()">
+          <span class="ring__value">{{ activePercent() }}%</span>
+        </div>
+        <p class="ring__caption">{{ t().sideActiveRingCaption }}</p>
+      </div>
+    </aside>
+  </div>
+</div>

@@ -1,1 +1,70 @@
 /* You can add global styles to this file, and also import other style files */
+
+:root {
+  // Light theme (default). Re-skin the whole app by editing these tokens
+  // only - every shared-ui component and page (login, signup, dashboard)
+  // consumes them, nothing is hardcoded. Palette: bright sky-blue (primary),
+  // light gray (neutral/secondary), dark charcoal (text/ink) - matching the
+  // reference "Minimal GUI" palette. Dark-mode overrides live in the
+  // [data-theme='dark'] block below and mirror the same token names.
+  --brand: #2e9fe0;
+  --brand-dark: #1d7db8;
+  --brand-soft: #e3f3fc;
+  --brand-contrast: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f1f1f1;
+  --on-surface: #4a4a4a;
+  --muted: #8a8a8a;
+  --border: #e3e3e3;
+  --error: #d32f2f;
+  --error-bg: rgba(211, 47, 47, 0.08);
+  --notice: #b45309;
+  --notice-bg: rgba(180, 83, 9, 0.1);
+  --radius: 12px;
+  --font-sans:
+    -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root[data-theme='dark'] {
+  // Cool-toned slate charcoal (not flat gray-black) - the kind of dark
+  // palette used by Linear/GitHub/Vercel, chosen to read as solid and
+  // deliberate rather than a muddy near-black.
+  --brand: #4fc1e9;
+  --brand-dark: #2e9fe0;
+  --brand-soft: rgba(79, 193, 233, 0.14);
+  --brand-contrast: #071824;
+  --surface: #161a20;
+  --surface-alt: #0d1015;
+  --on-surface: #e8eaed;
+  --muted: #8b929b;
+  --border: #262b33;
+  --error: #f87171;
+  --error-bg: rgba(248, 113, 113, 0.12);
+  --notice: #fbbf24;
+  --notice-bg: rgba(251, 191, 36, 0.12);
+}
+
+// The login/signup pages' soft brand-tinted background wash (see
+// .auth-page in auth/_auth-shared.scss) is deliberately light-mode only -
+// in dark mode it reads as a muddy smear rather than a clean surface, so
+// it's flattened to a solid color here. This lives in the global
+// stylesheet (not the component partial) because :root-based selectors
+// don't survive Angular's per-component style encapsulation.
+:root[data-theme='dark'] .auth-page {
+  background: var(--surface-alt);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
