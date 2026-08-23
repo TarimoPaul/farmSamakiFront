@@ -1,1 +1,43 @@
 @use '../auth-shared' as *;
+
+// Post-registration confirmation. Replaces the form in place rather than
+// navigating: there is no session to navigate into - registering creates a
+// PENDING_APPROVAL person and no token.
+.signup-done {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.signup-done__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.85rem;
+  border-radius: 50%;
+  color: var(--brand);
+  background: var(--brand-soft);
+
+  svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+.signup-done__hint {
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted, rgba(0, 0, 0, 0.55));
+}
+
+// The confirmation's call to action is a link, not a submit button - same
+// look, so .btn-primary's flex centering has to be restated for an <a>.
+.btn-primary--link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}

@@ -9,8 +9,16 @@ import { LanguageService } from '../../core/services/language';
 import { LanguageToggle } from '../../shared/ui/language-toggle/language-toggle';
 import { LOGIN_I18N } from './login.i18n';
 
-type ErrorKey = 'errorInvalidCredentials' | 'errorAccountDisabled' | 'errorNetwork';
-type NoticeKey = 'errorPendingApproval';
+/** Credential/transport failures - shown as an error banner. */
+type ErrorKey = 'errorInvalidCredentials' | 'errorTooManyRequests' | 'errorNetwork';
+
+/**
+ * Account-state answers - shown as NOTICES, not errors. The password was
+ * accepted in both cases; the account simply is not usable yet. Styling them
+ * as credential errors would tell the user to re-check a password that was
+ * in fact correct.
+ */
+type NoticeKey = 'noticePendingApproval' | 'noticeAccountDisabled';
 
 @Component({
   selector: 'app-login',
@@ -90,14 +98,22 @@ export class Login {
           // outcome.user.role here instead of always going to /dashboard.
           this.router.navigateByUrl('/dashboard');
           break;
+        case 'must-change-password':
+          // Login succeeded and the token is usable - but only against
+          // /api/auth/change-password until the password is changed.
+          this.router.navigateByUrl('/change-password');
+          break;
         case 'invalid-credentials':
           this.formErrorKey.set('errorInvalidCredentials');
           break;
         case 'pending-approval':
-          this.noticeKey.set('errorPendingApproval');
+          this.noticeKey.set('noticePendingApproval');
           break;
         case 'account-disabled':
-          this.formErrorKey.set('errorAccountDisabled');
+          this.noticeKey.set('noticeAccountDisabled');
+          break;
+        case 'too-many-requests':
+          this.formErrorKey.set('errorTooManyRequests');
           break;
         case 'network-error':
           this.formErrorKey.set('errorNetwork');

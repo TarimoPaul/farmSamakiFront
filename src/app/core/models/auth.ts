@@ -1,12 +1,32 @@
+/**
+ * Shapes here mirror the backend contract exactly (samaki-farm-backend:
+ * AuthController + ApiResponse). Anything the API does not send is not
+ * modelled here - the previous version guessed at a `/auth/signup` payload
+ * that no endpoint ever accepted.
+ */
+
+export type UserStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'DISABLED';
+
 export interface UserSummary {
   id: string;
   name: string;
-  role: string;
+  phone: string;
+  status: UserStatus;
+  /** null for ROOT and for approved users not yet assigned to a farm. */
+  farmId: number | null;
+  /** null when the user has no membership yet; 'ROOT' for the superadmin. */
+  role: string | null;
 }
 
 export interface LoginResponse {
   token: string;
   user: UserSummary;
+  /**
+   * The forced-password-change gate. Login itself still succeeds (200 + a
+   * usable token), but every route outside /api/auth/** answers
+   * 403 MUST_CHANGE_PASSWORD until the password is changed.
+   */
+  mustChangePassword: boolean;
 }
 
 export interface LoginRequest {
@@ -15,21 +35,65 @@ export interface LoginRequest {
   password: string;
 }
 
+/**
+ * Every way a login attempt can end, as data rather than exceptions.
+ *
+ * `pending-approval` and `account-disabled` are NOT credential failures -
+ * the password was correct and the backend said so deliberately (it checks
+ * the password first precisely so these can be reported without leaking
+ * which numbers are registered). The UI shows them as notices.
+ */
 export type LoginOutcome =
   | { kind: 'success'; user: UserSummary }
+  | { kind: 'must-change-password'; user: UserSummary }
   | { kind: 'invalid-credentials' }
   | { kind: 'pending-approval' }
   | { kind: 'account-disabled' }
+  | { kind: 'too-many-requests' }
   | { kind: 'network-error' };
 
-export interface SignupRequest {
-  farmName: string;
-  farmLocation?: string;
-  ownerName: string;
+/** POST /api/auth/register - no farm, no membership, no token. */
+export interface RegisterRequest {
+  name: string;
   phone: string;
   email?: string;
   password: string;
 }
+
+export interface RegistrationResponse {
+  userId: string;
+  status: UserStatus;
+}
+
+/**
+ * `message` carries the backend's own text for the cases where it is more
+ * specific than anything we could write here (which phone/email is already
+ * taken, which field failed validation). Backend messages are Swahili
+ * regardless of UI language - see the note in signup.ts.
+ */
+export type RegisterOutcome =
+  | { kind: 'pending' }
+  | { kind: 'already-registered'; message: string }
+  | { kind: 'invalid'; message: string }
+  | { kind: 'too-many-requests' }
+  | { kind: 'network-error' };
+
+/** POST /api/auth/change-password - token + current password, NO OTP. */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * `wrong-current-password` comes back as 401 INVALID_CREDENTIALS. That is a
+ * *field* error, not an expired session - which is why the interceptor keys
+ * on errorCode UNAUTHENTICATED rather than on the 401 status alone.
+ */
+export type ChangePasswordOutcome =
+  | { kind: 'success' }
+  | { kind: 'wrong-current-password' }
+  | { kind: 'rejected'; message: string }
+  | { kind: 'network-error' };
 
 export interface ForgotPasswordRequest {
   phone: string;
