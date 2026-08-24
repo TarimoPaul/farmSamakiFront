@@ -18,6 +18,18 @@ export interface UserSummary {
   role: string | null;
 }
 
+/**
+ * `GET /api/auth/me` - "who am I, and what am I allowed to do".
+ *
+ * `permissions` is the reason this endpoint exists, and the only way the
+ * frontend can learn them: the login response carries the role NAME only, and
+ * a role's permissions are editable at runtime. Everything else repeats
+ * UserSummary so a screen never has to stitch two responses together.
+ */
+export interface MeResponse extends UserSummary {
+  permissions: string[];
+}
+
 export interface LoginResponse {
   token: string;
   user: UserSummary;

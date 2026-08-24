@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, catchError, map, of, tap } from 'rxjs';
+import { Observable, catchError, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response';
 import { ERROR_CODE } from '../models/error-codes';
@@ -11,6 +11,7 @@ import {
   LoginOutcome,
   LoginRequest,
   LoginResponse,
+  MeResponse,
   RegisterOutcome,
   RegisterRequest,
   RegistrationResponse,
@@ -21,6 +22,7 @@ import {
 const TOKEN_KEY = 'samakiFarm.token';
 const USER_KEY = 'samakiFarm.user';
 const MUST_CHANGE_KEY = 'samakiFarm.mustChangePassword';
+const PERMISSIONS_KEY = 'samakiFarm.permissions';
 
 /** Reads ApiResponse.errorCode off a failed HttpErrorResponse, if present. */
 function errorCodeOf(err: HttpErrorResponse): string | null {
@@ -52,6 +54,62 @@ export class AuthService {
   /** Signed in AND past the gate - the condition for reaching the app itself. */
   readonly canUseApp = computed(() => this.isLoggedIn() && !this.mustChangePassword());
 
+  /**
+   * What this user is allowed to do, from `GET /api/auth/me`. THE source for
+   * every piece of UI gating - see PERMISSION and hasPermission().
+   *
+   * Persisted like the token, and for the same reason: on a page refresh the
+   * nav and the route guards need an answer immediately, and waiting for /me
+   * would mean rendering the app once without its admin entries and again
+   * with them. The stored copy is a cache, never the authority - it is
+   * refreshed on every login and once per app start, and the backend refuses
+   * the call anyway if it is wrong.
+   */
+  readonly permissions = signal<readonly string[]>(this.readStoredPermissions());
+
+  /** In-flight (or completed) /me call, so concurrent guards ask only once. */
+  private mePermissions$: Observable<readonly string[]> | null = null;
+
+  hasPermission(code: string): boolean {
+    return this.permissions().includes(code);
+  }
+
+  /**
+   * `GET /api/auth/me` - refreshes both the permission set and the stored user
+   * (a role edit or a farm assignment changes what the token's holder can do
+   * without the token itself changing).
+   */
+  loadMe(): Observable<MeResponse> {
+    return this.http.get<ApiResponse<MeResponse>>(`${this.baseUrl}/me`).pipe(
+      map((res) => res.data!),
+      tap((me) => this.storePermissions(me)),
+    );
+  }
+
+  /**
+   * Resolves once permissions are known - immediately if they already are.
+   *
+   * Route guards use this rather than reading the signal directly: on a hard
+   * refresh straight into an admin URL the stored copy may be missing (a
+   * session that predates this feature, or cleared site data), and denying the
+   * route on a cache miss would bounce a user who is in fact allowed in.
+   *
+   * The call is shared, so several guards resolving in one navigation make one
+   * request. A failure resolves rather than throws: the session-level part is
+   * already handled by AuthErrorHandler, and anything else should leave the
+   * guard to decide on the permissions it has.
+   */
+  ensurePermissions(): Observable<readonly string[]> {
+    if (!this.mePermissions$) {
+      this.mePermissions$ = this.loadMe().pipe(
+        map((me) => me.permissions as readonly string[]),
+        catchError(() => of(this.permissions())),
+        shareReplay({ bufferSize: 1, refCount: false }),
+      );
+    }
+    return this.mePermissions$;
+  }
+
   login(req: LoginRequest): Observable<ApiResponse<LoginResponse>> {
     return this.http
       .post<ApiResponse<LoginResponse>>(`${this.baseUrl}/login`, req)
@@ -72,14 +130,23 @@ export class AuthService {
       : { phone: identifier, password };
 
     return this.login(req).pipe(
-      map((res): LoginOutcome => {
+      switchMap((res): Observable<LoginOutcome> => {
         const data = res.data!;
         // Login SUCCEEDS while gated - the token is real and works against
         // /api/auth/change-password. The gate is a routing concern, not a
         // failed login.
-        return data.mustChangePassword
-          ? { kind: 'must-change-password', user: data.user }
-          : { kind: 'success', user: data.user };
+        if (data.mustChangePassword) {
+          return of({ kind: 'must-change-password', user: data.user });
+        }
+        // Permissions are fetched BEFORE the caller navigates. Login returns
+        // the role name only, and a screen that renders before /me answers
+        // would draw its nav without the admin entries and then flicker them
+        // in. A failed /me is not a failed login - the app opens with whatever
+        // permissions are known and the guards re-ask.
+        return this.loadMe().pipe(
+          map((): LoginOutcome => ({ kind: 'success', user: data.user })),
+          catchError((): Observable<LoginOutcome> => of({ kind: 'success', user: data.user })),
+        );
       }),
       catchError((err: HttpErrorResponse): Observable<LoginOutcome> => {
         if (err.status === 0) {
@@ -186,8 +253,13 @@ export class AuthService {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(MUST_CHANGE_KEY);
+    localStorage.removeItem(PERMISSIONS_KEY);
     this.currentUser.set(null);
     this.mustChangePassword.set(false);
+    this.permissions.set([]);
+    // Drop the cached /me: the next session must ask again rather than
+    // inherit the previous user's answer.
+    this.mePermissions$ = null;
   }
 
   getToken(): string | null {
@@ -221,6 +293,31 @@ export class AuthService {
       this.raiseGate();
     } else {
       this.clearGate();
+    }
+  }
+
+  private storePermissions(me: MeResponse): void {
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(me.permissions));
+    this.permissions.set(me.permissions);
+
+    // /me is also the freshest UserSummary we ever get - role and farmId can
+    // change under a token that stays valid.
+    const { permissions: _permissions, ...user } = me;
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    this.currentUser.set(user);
+  }
+
+  private readStoredPermissions(): readonly string[] {
+    const raw = localStorage.getItem(PERMISSIONS_KEY);
+    if (!raw) {
+      return [];
+    }
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as string[]).filter((p) => typeof p === 'string') : [];
+    } catch {
+      localStorage.removeItem(PERMISSIONS_KEY);
+      return [];
     }
   }
 
