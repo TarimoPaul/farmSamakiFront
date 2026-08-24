@@ -86,8 +86,9 @@ export interface ChangePasswordRequest {
 
 /**
  * `wrong-current-password` comes back as 401 INVALID_CREDENTIALS. That is a
- * *field* error, not an expired session - which is why the interceptor keys
- * on errorCode UNAUTHENTICATED rather than on the 401 status alone.
+ * *field* error, not an expired session - which is why session handling keys
+ * on errorCode UNAUTHENTICATED rather than on the 401 status alone (see
+ * AuthErrorHandler).
  */
 export type ChangePasswordOutcome =
   | { kind: 'success' }

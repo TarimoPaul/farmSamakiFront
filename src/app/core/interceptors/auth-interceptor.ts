@@ -1,29 +1,34 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth';
+import { AuthErrorHandler } from '../services/auth-error-handler';
 import { ApiResponse } from '../models/api-response';
-import { ERROR_CODE } from '../models/error-codes';
 
 /**
- * Attaches the bearer token, and turns the two session-level failures into
- * navigation so no individual component has to handle them.
+ * Attaches the bearer token, and hands every failed response's `errorCode` to
+ * AuthErrorHandler, which owns what a session-level failure does.
  *
- * Both branches key on `errorCode`, NOT on the status code, and that
- * distinction is load-bearing:
+ * The session logic used to live here as two inline `if` blocks. It moved out
+ * because GraphQL needs exactly the same behaviour and cannot reuse an
+ * interceptor: a resolver failure comes back as HTTP **200** with an
+ * `errors[]` array, so this catchError never runs for it. One copy of the
+ * rule, two callers - see AuthErrorHandler.
+ *
+ * Keying is on `errorCode`, NOT on the status code, and that distinction is
+ * load-bearing:
  *
  *  - 401 UNAUTHENTICATED = no valid session -> sign out, go to /login.
  *  - 401 INVALID_CREDENTIALS = a wrong password was typed into a form
  *    (login, or the current-password field on change-password). Signing the
- *    user out for that would be wrong, so it is deliberately left to fall
- *    through to the component as a field error.
+ *    user out for that would be wrong, so the handler deliberately ignores
+ *    it and it falls through to the component as a field error.
  *
  * Errors are re-thrown either way - the caller still decides what to show.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
-  const router = inject(Router);
+  const authErrorHandler = inject(AuthErrorHandler);
   const token = authService.getToken();
 
   const request = token
@@ -33,20 +38,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(request).pipe(
     catchError((err: HttpErrorResponse) => {
       const code = (err.error as ApiResponse<unknown> | undefined)?.errorCode ?? null;
-
-      if (err.status === 401 && code === ERROR_CODE.UNAUTHENTICATED) {
-        authService.logout();
-        router.navigateByUrl('/login');
-      }
-
-      if (err.status === 403 && code === ERROR_CODE.MUST_CHANGE_PASSWORD) {
-        // The gate can be raised server-side mid-session (an admin sets the
-        // flag while the user is signed in), so it is picked up here and not
-        // only from the login response.
-        authService.raiseGate();
-        router.navigateByUrl('/change-password');
-      }
-
+      authErrorHandler.handle(code);
       return throwError(() => err);
     }),
   );

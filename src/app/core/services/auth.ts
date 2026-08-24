@@ -156,8 +156,9 @@ export class AuthService {
           return of({ kind: 'network-error' });
         }
         // 401 INVALID_CREDENTIALS here means "the current password you typed
-        // is wrong" - a field error. It is NOT an expired session, and the
-        // interceptor leaves it alone because the code is not UNAUTHENTICATED.
+        // is wrong" - a field error. It is NOT an expired session, and
+        // AuthErrorHandler leaves it alone because the code is not one of the
+        // session-level ones.
         if (errorCodeOf(err) === ERROR_CODE.INVALID_CREDENTIALS) {
           return of({ kind: 'wrong-current-password' });
         }
@@ -197,7 +198,7 @@ export class AuthService {
     return !!this.getToken();
   }
 
-  /** Raised by the interceptor when any call answers 403 MUST_CHANGE_PASSWORD. */
+  /** Raised by AuthErrorHandler whenever any call reports MUST_CHANGE_PASSWORD. */
   raiseGate(): void {
     localStorage.setItem(MUST_CHANGE_KEY, 'true');
     this.mustChangePassword.set(true);
