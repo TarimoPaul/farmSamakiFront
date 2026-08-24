@@ -1,0 +1,113 @@
+<app-shell>
+  <section class="farms">
+    <header class="farms__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+
+      <app-button (clicked)="openCreate()">{{ t().newFarm }}</app-button>
+    </header>
+
+    @if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="loadFarms()">{{ t().retry }}</app-button>
+      </div>
+    } @else {
+      <div class="card">
+        <app-data-table
+          [columns]="farmColumns()"
+          [rows]="farms()"
+          [rowKey]="farmKey"
+          [selectable]="true"
+          [selectedKey]="selectedFarm()?.farmId ?? null"
+          (rowSelected)="selectFarm($event)"
+        >
+          <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
+        </app-data-table>
+      </div>
+
+      <!-- Members: a DIFFERENT permission from the one that opens this screen,
+           so it is gated separately and simply is not here without it. -->
+      <section class="card" data-panel="members" *appHasPermission="PERMISSION.MANAGE_USERS">
+        <header class="card__head">
+          <h2 class="card__title">
+            @if (selectedFarm(); as farm) {
+              {{ t().membersOf }} {{ farm.name }}
+            } @else {
+              {{ t().membersTitle }}
+            }
+          </h2>
+        </header>
+
+        @if (!selectedFarm()) {
+          <p class="panel-status">{{ t().membersHint }}</p>
+        } @else if (membersLoading()) {
+          <p class="panel-status">{{ t().loading }}</p>
+        } @else if (membersErrorMessage(); as message) {
+          <p class="panel-error panel-error--inline" role="alert">{{ message }}</p>
+        } @else {
+          <app-data-table
+            [columns]="memberColumns()"
+            [rows]="members()"
+            [rowKey]="memberKey"
+          >
+            <app-empty-state
+              slot="empty"
+              [title]="t().membersEmptyTitle"
+              [message]="t().membersEmptyMessage"
+            />
+          </app-data-table>
+        }
+      </section>
+    }
+  </section>
+
+  <app-modal
+    [open]="createOpen()"
+    [title]="t().formTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeCreate()"
+  >
+    <form class="farm-form" [formGroup]="form" (ngSubmit)="submitCreate()">
+      <app-form-field [label]="t().fieldName" for="farm-name" [required]="true" [error]="nameError()">
+        <input id="farm-name" class="text-input" type="text" formControlName="name" autocomplete="off" />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldLocation" for="farm-location">
+        <input
+          id="farm-location"
+          class="text-input"
+          type="text"
+          formControlName="location"
+          [placeholder]="t().fieldLocationHint"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      @if (createError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+
+      <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeCreate()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submitCreate()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-toast
+    [open]="!!toastMessage()"
+    variant="success"
+    [message]="toastMessage() ?? ''"
+    (closed)="dismissToast()"
+  />
+</app-shell>
