@@ -10,6 +10,8 @@ import { ThemeToggle } from '../shared/ui/theme-toggle/theme-toggle';
 import { LanguageService } from '../core/services/language';
 import { LanguageToggle } from '../shared/ui/language-toggle/language-toggle';
 import { DASHBOARD_I18N } from './dashboard.i18n';
+import { ApiError, isApiError } from '../core/models/api-error';
+import { apiErrorMessage } from '../core/i18n/error-messages';
 
 const DASHBOARD_QUERY = `
   query {
@@ -46,6 +48,18 @@ interface DashboardData {
 const UNIT_TYPES = ['TANK', 'POND', 'BWAWA'] as const;
 const UNIT_STATUSES = ['ACTIVE', 'IDLE', 'MAINTENANCE'] as const;
 
+/**
+ * For a throw that is not an ApiError at all - a bug in our own mapping, or
+ * something rxjs raised. It has no code, so it renders as the generic
+ * connection message rather than pretending to explain itself.
+ */
+const UNKNOWN_FAILURE = new ApiError({
+  message: 'Unrecognised failure',
+  errorCode: null,
+  status: 0,
+  source: 'http',
+});
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -62,9 +76,20 @@ export class Dashboard implements OnInit {
   readonly units = signal<ProductionUnit[]>([]);
   readonly cycles = signal<Cycle[]>([]);
   readonly loading = signal(true);
-  readonly fetchFailed = signal(false);
 
-  readonly errorMessage = computed(() => (this.fetchFailed() ? this.fetchErrorText() : null));
+  /**
+   * The failure itself, not a boolean. The dashboard can now say WHY it is
+   * empty - "you do not have permission", "your account has no farm yet" -
+   * because GraphqlService hands over the backend's `errorCode` instead of a
+   * message-only Error. It used to show one flat "Failed to load data." for
+   * every cause, including an expired session.
+   */
+  readonly error = signal<ApiError | null>(null);
+
+  readonly errorMessage = computed(() => {
+    const error = this.error();
+    return error ? apiErrorMessage(error, this.languageService.lang()) : null;
+  });
 
   readonly today = new Date();
   readonly weekDates = this.buildWeekDates(this.today);
@@ -118,8 +143,12 @@ export class Dashboard implements OnInit {
         this.cycles.set(data.cycles);
         this.loading.set(false);
       },
-      error: () => {
-        this.fetchFailed.set(true);
+      error: (err: unknown) => {
+        // Session-level codes (expired token, disabled account, forced
+        // password change) have already been acted on by AuthErrorHandler
+        // before this runs - this screen is on its way out, and only needs
+        // to stop showing the spinner.
+        this.error.set(isApiError(err) ? err : UNKNOWN_FAILURE);
         this.loading.set(false);
       },
     });
@@ -169,10 +198,6 @@ export class Dashboard implements OnInit {
   logout(): void {
     this.authService.logout();
     this.router.navigateByUrl('/login');
-  }
-
-  private fetchErrorText(): string {
-    return this.languageService.lang() === 'sw' ? 'Imeshindikana kupata data.' : 'Failed to load data.';
   }
 
   private buildWeekDates(reference: Date): Date[] {
