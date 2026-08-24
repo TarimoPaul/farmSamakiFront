@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { Dashboard } from './dashboard';
 import { LanguageService } from '../core/services/language';
@@ -21,18 +21,19 @@ const FORBIDDEN_RESPONSE = {
   data: null,
 };
 
+// The real Router, because the dashboard now renders inside AppShell, whose
+// nav uses routerLink (and therefore ActivatedRoute). Only navigateByUrl is
+// stubbed - that is the one thing these tests assert about.
 function setup() {
-  const router = { url: '/dashboard', navigateByUrl: vi.fn().mockResolvedValue(true) };
   TestBed.configureTestingModule({
-    providers: [
-      provideHttpClient(),
-      provideHttpClientTesting(),
-      { provide: Router, useValue: router },
-    ],
+    providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
   });
+  const navigateByUrl = vi
+    .spyOn(TestBed.inject(Router), 'navigateByUrl')
+    .mockResolvedValue(true);
   const fixture = TestBed.createComponent(Dashboard);
   return {
-    router,
+    router: { navigateByUrl },
     fixture,
     component: fixture.componentInstance,
     httpMock: TestBed.inject(HttpTestingController),

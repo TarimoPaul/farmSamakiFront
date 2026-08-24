@@ -1,14 +1,10 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { AuthService } from '../core/services/auth';
 import { GraphqlService } from '../core/services/graphql';
 import { ProductionUnit } from '../core/models/production-unit';
 import { Cycle } from '../core/models/cycle';
-import { ThemeService } from '../core/services/theme';
-import { ThemeToggle } from '../shared/ui/theme-toggle/theme-toggle';
 import { LanguageService } from '../core/services/language';
-import { LanguageToggle } from '../shared/ui/language-toggle/language-toggle';
+import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { DASHBOARD_I18N } from './dashboard.i18n';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { apiErrorMessage } from '../core/i18n/error-messages';
@@ -63,13 +59,11 @@ const UNKNOWN_FAILURE = new ApiError({
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, ThemeToggle, LanguageToggle],
+  imports: [CommonModule, AppShell],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
 export class Dashboard implements OnInit {
-  readonly currentUser;
-  readonly themeService = inject(ThemeService);
   readonly languageService = inject(LanguageService);
   readonly t = computed(() => DASHBOARD_I18N[this.languageService.lang()]);
 
@@ -128,13 +122,7 @@ export class Dashboard implements OnInit {
     });
   });
 
-  constructor(
-    private readonly authService: AuthService,
-    private readonly graphqlService: GraphqlService,
-    private readonly router: Router,
-  ) {
-    this.currentUser = this.authService.currentUser;
-  }
+  constructor(private readonly graphqlService: GraphqlService) {}
 
   ngOnInit(): void {
     this.graphqlService.query<DashboardData>(DASHBOARD_QUERY).subscribe({
@@ -182,22 +170,8 @@ export class Dashboard implements OnInit {
     }
   }
 
-  initials(name: string): string {
-    return name
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join('');
-  }
-
   isToday(date: Date): boolean {
     return date.toDateString() === this.today.toDateString();
-  }
-
-  logout(): void {
-    this.authService.logout();
-    this.router.navigateByUrl('/login');
   }
 
   private buildWeekDates(reference: Date): Date[] {

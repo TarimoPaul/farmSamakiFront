@@ -1,19 +1,10 @@
+/**
+ * Dashboard CONTENT only. The chrome around it - brand, nav, topbar, log out -
+ * belongs to AppShell and lives in app-shell.i18n.ts, so a second screen does
+ * not have to import this dictionary to name its own nav entry.
+ */
 export const DASHBOARD_I18N = {
   sw: {
-    brandName: 'Samaki Farm',
-    brandSub: 'Dashibodi',
-    navDashboard: 'Dashibodi',
-    navUnits: 'Vitengo vya Uzalishaji',
-    navCycles: 'Mizunguko',
-    navFeeding: 'Malisho',
-    navWater: 'Ubora wa Maji',
-    navWorkers: 'Wafanyakazi',
-    navSettings: 'Mipangilio',
-    comingSoon: 'Inakuja hivi karibuni',
-    systemInfoTitle: 'Taarifa za mfumo',
-    loggedInAs: 'Umeingia kama',
-    searchPlaceholder: 'Tafuta (hivi karibuni)',
-    logout: 'Toka',
     loading: 'Inapakia...',
     statTotalUnits: 'Jumla ya Vitengo',
     statActiveUnits: 'Vinavyofanya Kazi',
@@ -44,20 +35,6 @@ export const DASHBOARD_I18N = {
     weekdayLabels: ['J2', 'J3', 'J4', 'J5', 'Ij', 'J1', 'Jm'],
   },
   en: {
-    brandName: 'Samaki Farm',
-    brandSub: 'Dashboard',
-    navDashboard: 'Dashboard',
-    navUnits: 'Production Units',
-    navCycles: 'Cycles',
-    navFeeding: 'Feeding',
-    navWater: 'Water Quality',
-    navWorkers: 'Workers',
-    navSettings: 'Settings',
-    comingSoon: 'Coming soon',
-    systemInfoTitle: 'System info',
-    loggedInAs: 'Logged in as',
-    searchPlaceholder: 'Search (coming soon)',
-    logout: 'Log out',
     loading: 'Loading...',
     statTotalUnits: 'Total Units',
     statActiveUnits: 'Active',
