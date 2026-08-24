@@ -1,0 +1,180 @@
+<app-shell>
+  <section class="approvals">
+    <header class="approvals__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+
+      <app-button variant="secondary" (clicked)="loadPending()">{{ t().refresh }}</app-button>
+    </header>
+
+    <!-- Everything EXCEPT the clean success gets a banner rather than a toast:
+         "approved but not assigned", "approved — assign via Members" and the
+         stale-queue notice are all instructions the admin still has to act on,
+         and a notice that disappears after four seconds would lose them. The
+         clean success is the one case with nothing left to do, so it gets the
+         toast at the bottom of this file instead. -->
+    @if (outcome(); as result) {
+      @if (result.kind !== 'approved-assigned') {
+        <div
+          class="notice"
+          [class.notice--warn]="result.kind === 'approved-not-assigned'"
+          [class.notice--info]="result.kind === 'approved-only' || result.kind === 'stale'"
+          role="status"
+        >
+          <p class="notice__text">
+            @switch (result.kind) {
+            @case ('approved-only') {
+                <strong>{{ result.name }}</strong> — {{ t().noticeApprovedOnly }}
+              }
+              @case ('approved-not-assigned') {
+                <strong>{{ result.name }}</strong> — {{ t().noticeApprovedNotAssigned }}
+                <span class="notice__detail">{{ result.detail }}</span>
+              }
+              @case ('stale') {
+                <strong>{{ result.name }}</strong> {{ t().noticeStale }}
+              }
+            }
+          </p>
+          <app-button variant="ghost" (clicked)="dismissOutcome()">
+            {{ t().noticeDismiss }}
+          </app-button>
+        </div>
+      }
+    }
+
+    <!-- Only for the approve-only caller: says up front that approving here
+         leaves the person without a farm. Gated by the ABSENCE of
+         manage_users, so an admin who can do both never sees it. -->
+    @if (!canAssign()) {
+      <p class="approvals__hint">{{ t().hintApproveOnly }}</p>
+    }
+
+    @if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="loadPending()">{{ t().retry }}</app-button>
+      </div>
+    } @else {
+      <div class="card">
+        <app-data-table
+          [columns]="columns()"
+          [rows]="pending()"
+          [rowKey]="userKey"
+          [rowActions]="actions"
+          [actionsLabel]="t().approve"
+        >
+          <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
+        </app-data-table>
+
+        <!-- One template, two tiers. The assign button needs manage_users, so
+             it is gated with the same directive the rest of the app uses; the
+             plain approve is what remains for an approve_users-only caller. -->
+        <ng-template #actions let-user>
+          <div class="row-actions">
+            <app-button
+              variant="secondary"
+              [loading]="approvingId() === user.id"
+              [disabled]="!!approvingId()"
+              (clicked)="approveOnly(user)"
+            >
+              {{ t().approve }}
+            </app-button>
+
+            <app-button *appHasPermission="PERMISSION.MANAGE_USERS" (clicked)="openAssign(user)">
+              {{ t().approveAndAssign }}
+            </app-button>
+          </div>
+        </ng-template>
+      </div>
+    }
+  </section>
+
+  <app-modal
+    [open]="!!assignTarget()"
+    [title]="t().formTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeAssign()"
+  >
+    @if (assignTarget(); as user) {
+      <form class="assign-form" [formGroup]="form" (ngSubmit)="submitAssign()">
+        <p class="assign-form__subject">
+          {{ t().formFor }} <strong>{{ user.name }}</strong> ({{ user.phone }})
+        </p>
+
+        @if (pickersLoading()) {
+          <p class="panel-status">{{ t().loadingPickers }}</p>
+        }
+
+        <!-- TIER ONE: a company administrator (manage_farms) picks any farm.
+             TIER TWO: everyone else assigns into their own farm, which is not
+             a choice, so it is stated rather than offered. -->
+        @if (canPickFarm()) {
+          <app-form-field
+            [label]="t().fieldFarm"
+            for="assign-farm"
+            [required]="true"
+            [error]="farmError()"
+          >
+            <select id="assign-farm" class="text-input" formControlName="farmId">
+              <option [ngValue]="null" disabled>{{ t().farmPlaceholder }}</option>
+              @for (farm of farms(); track farm.farmId) {
+                <option [ngValue]="farm.farmId">{{ farm.name }}</option>
+              }
+            </select>
+          </app-form-field>
+        } @else if (cannotAssignWithoutFarm()) {
+          <p class="form-error" role="alert">{{ t().ownFarmUnknown }}</p>
+        } @else {
+          <p class="assign-form__own-farm">
+            {{ t().ownFarmOnly }} <strong>{{ ownFarmName() }}</strong>
+          </p>
+        }
+
+        <app-form-field
+          [label]="t().fieldRole"
+          for="assign-role"
+          [required]="true"
+          [error]="roleError()"
+        >
+          <select id="assign-role" class="text-input" formControlName="roleId">
+            <option [ngValue]="null" disabled>{{ t().rolePlaceholder }}</option>
+            @for (role of roles(); track role.roleId) {
+              <option [ngValue]="role.roleId">{{ role.name }}</option>
+            }
+          </select>
+        </app-form-field>
+
+        @if (assignError(); as message) {
+          <p class="form-error" role="alert">{{ message }}</p>
+        }
+
+        <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
+        <button type="submit" hidden></button>
+      </form>
+    }
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeAssign()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button
+        [loading]="saving()"
+        [disabled]="cannotAssignWithoutFarm()"
+        (clicked)="submitAssign()"
+      >
+        {{ t().save }}
+      </app-button>
+    </div>
+  </app-modal>
+
+  <app-toast
+    [open]="outcome()?.kind === 'approved-assigned'"
+    variant="success"
+    [message]="outcome()?.kind === 'approved-assigned' ? t().noticeApprovedAssigned : ''"
+    (closed)="dismissOutcome()"
+  />
+</app-shell>

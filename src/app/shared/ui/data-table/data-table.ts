@@ -1,4 +1,5 @@
-import { Component, input, output } from '@angular/core';
+import { Component, TemplateRef, input, output } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 
 /**
  * One column: a header label and how to read the cell out of a row.
@@ -20,9 +21,16 @@ export interface DataTableColumn<T> {
  * Empty state is projected, not configured, because each screen's empty state
  * says something different ("no farms yet" invites creating one; "no members
  * yet" points at another screen).
+ *
+ * `rowActions` adds a trailing column of per-row controls. It is a template
+ * rather than a column, because a control needs the screen's own handlers and
+ * permission gating around it - things a `value: (row) => string` cannot
+ * express. Omit it and the table renders exactly as it did before it existed
+ * (no extra header, no extra cell), which is how Farms still uses it.
  */
 @Component({
   selector: 'app-data-table',
+  imports: [NgTemplateOutlet],
   template: `
     <div class="table-wrap">
       <table class="data-table">
@@ -30,6 +38,11 @@ export interface DataTableColumn<T> {
           <tr>
             @for (column of columns(); track column.label) {
               <th scope="col">{{ column.label }}</th>
+            }
+            @if (rowActions()) {
+              <th scope="col" class="data-table__actions-head">
+                <span class="visually-hidden">{{ actionsLabel() }}</span>
+              </th>
             }
           </tr>
         </thead>
@@ -46,6 +59,11 @@ export interface DataTableColumn<T> {
             >
               @for (column of columns(); track column.label) {
                 <td [class.data-table__cell--muted]="column.muted?.(row)">{{ column.value(row) }}</td>
+              }
+              @if (rowActions(); as actions) {
+                <td class="data-table__actions">
+                  <ng-container [ngTemplateOutlet]="actions" [ngTemplateOutletContext]="{ $implicit: row }" />
+                </td>
               }
             </tr>
           }
@@ -102,6 +120,28 @@ export interface DataTableColumn<T> {
     .data-table__row--selected td {
       background: color-mix(in srgb, var(--brand) 12%, transparent);
     }
+    .data-table__actions,
+    .data-table__actions-head {
+      width: 1%;
+      white-space: nowrap;
+      text-align: right;
+    }
+    .data-table__actions {
+      display: table-cell;
+    }
+    /* The actions header is present for column alignment but has no visible
+       label - screen readers still get one. */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
   `,
 })
 export class DataTable<T> {
@@ -112,4 +152,12 @@ export class DataTable<T> {
   selectable = input(false);
   selectedKey = input<string | number | null>(null);
   rowSelected = output<T>();
+
+  /**
+   * Per-row controls, as `<ng-template let-row>`. Absent by default, and
+   * absent means no extra column at all.
+   */
+  rowActions = input<TemplateRef<{ $implicit: T }> | null>(null);
+  /** Accessible name for the otherwise-blank actions header. */
+  actionsLabel = input('Actions');
 }

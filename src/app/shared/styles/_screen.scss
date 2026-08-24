@@ -1,0 +1,100 @@
+// The visual language shared by the signed-in admin screens (Farms,
+// Approvals, and the Members/Roles screens to come): page heading, card,
+// panel status/error, plain text input, field error.
+//
+// Lifted VERBATIM out of farms.scss when Approvals became the second screen
+// to need all of it — the alternative was a second copy that would drift.
+// Same idea as auth/_auth-shared.scss for the signed-out screens.
+//
+// Every colour/radius here comes from the :root tokens in src/styles.scss.
+
+.page-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--on-surface);
+}
+
+.page-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.card {
+  padding: 0.75rem 1rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.card__head {
+  padding: 0.5rem 0.25rem 0.75rem;
+}
+
+.card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--on-surface);
+}
+
+.panel-status {
+  margin: 0;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  text-align: center;
+}
+
+.panel-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: #fdecea;
+  color: #c0392b;
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+
+  &--inline {
+    display: block;
+    padding: 1rem;
+    font-size: 0.88rem;
+  }
+}
+
+// The auth screens use <app-input> (a ControlValueAccessor with a password
+// toggle); a plain text field does not need one, so it borrows the same look.
+.text-input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--on-surface);
+  font: inherit;
+
+  &::placeholder {
+    color: var(--muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent);
+  }
+}
+
+.form-error {
+  margin: 0;
+  color: #c0392b;
+  font-size: 0.85rem;
+}

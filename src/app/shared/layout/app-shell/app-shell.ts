@@ -11,7 +11,7 @@ import { ThemeToggle } from '../../ui/theme-toggle/theme-toggle';
 import { LanguageToggle } from '../../ui/language-toggle/language-toggle';
 import { SHELL_I18N } from './app-shell.i18n';
 
-type IconKey = 'grid' | 'farm' | 'box' | 'cycle' | 'feed' | 'drop' | 'users' | 'gear';
+type IconKey = 'grid' | 'farm' | 'box' | 'cycle' | 'feed' | 'drop' | 'users' | 'check' | 'gear';
 
 interface ShellNavItem {
   key: keyof (typeof SHELL_I18N)['sw'];
@@ -32,6 +32,12 @@ interface ShellNavItem {
 const NAV_ITEMS: readonly ShellNavItem[] = [
   { key: 'navDashboard', icon: 'grid', route: '/dashboard' },
   { key: 'navFarms', icon: 'farm', route: '/farms', permission: PERMISSION.MANAGE_FARMS },
+  {
+    key: 'navApprovals',
+    icon: 'check',
+    route: '/approvals',
+    permission: PERMISSION.APPROVE_USERS,
+  },
   { key: 'navUnits', icon: 'box' },
   { key: 'navCycles', icon: 'cycle' },
   { key: 'navFeeding', icon: 'feed' },

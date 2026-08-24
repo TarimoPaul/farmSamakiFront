@@ -1,0 +1,96 @@
+@use '../shared/styles/screen' as *;
+
+.approvals {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.approvals__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+// Said once, above the list, to a caller who can approve but not assign.
+.approvals__hint {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+// The outcome banner. Neutral by default; --warn is the partial failure,
+// which is the one state the admin must not scroll past.
+.notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--brand);
+  border-radius: var(--radius);
+  background: var(--surface);
+
+  &--info {
+    border-left-color: var(--notice);
+  }
+
+  &--warn {
+    border-left-color: #c0392b;
+    background: #fdecea;
+    color: #7d2820;
+  }
+}
+
+.notice__text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+// The backend's own reason for the half that failed, under the sentence
+// explaining what it means.
+.notice__detail {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.assign-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 0.25rem;
+}
+
+.assign-form__subject {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+// Shown instead of the farm picker to a farm-level admin: their target is
+// fixed, so it is reported, not offered.
+.assign-form__own-farm {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  color: var(--on-surface);
+  font-size: 0.87rem;
+}
