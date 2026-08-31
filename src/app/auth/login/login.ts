@@ -94,9 +94,12 @@ export class Login {
 
       switch (outcome.kind) {
         case 'success':
-          // TODO: once WORKER/VIEWER have their own landing pages, branch on
-          // outcome.user.role here instead of always going to /dashboard.
-          this.router.navigateByUrl('/dashboard');
+          // Not a fixed '/dashboard': an administrator with no farm of their
+          // own (ROOT above all) would open the app on NO_FARM_CONTEXT. The
+          // permissions this needs are already loaded - attemptLogin awaits
+          // /me before reporting success. TODO: once WORKER/VIEWER have their
+          // own landing pages, they get a branch inside landingUrl() too.
+          this.router.navigateByUrl(this.authService.landingUrl());
           break;
         case 'must-change-password':
           // Login succeeded and the token is usable - but only against

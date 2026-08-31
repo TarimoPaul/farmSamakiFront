@@ -221,6 +221,39 @@ a.nav-item {
   gap: 0.75rem;
 }
 
+// The farm switcher. Only ROOT sees it, so it sits quietly beside the user
+// block rather than taking a place in the nav.
+.dash-farm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-left: auto;
+}
+
+.dash-farm__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.dash-farm__select {
+  max-width: 220px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--on-surface);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+}
+
 .dash-search {
   flex: 1 1 auto;
   min-width: 0;

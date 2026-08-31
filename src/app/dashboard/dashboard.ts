@@ -1,6 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { GraphqlService } from '../core/services/graphql';
+import { AuthService } from '../core/services/auth';
+import { FarmSelectionService } from '../core/services/farm-selection';
+import { PERMISSION } from '../core/models/permissions';
+import { ERROR_CODE } from '../core/models/error-codes';
 import { ProductionUnit } from '../core/models/production-unit';
 import { Cycle } from '../core/models/cycle';
 import { LanguageService } from '../core/services/language';
@@ -59,12 +64,14 @@ const UNKNOWN_FAILURE = new ApiError({
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, AppShell],
+  imports: [CommonModule, RouterLink, AppShell],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
-export class Dashboard implements OnInit {
+export class Dashboard {
   readonly languageService = inject(LanguageService);
+  private readonly authService = inject(AuthService);
+  private readonly farmSelection = inject(FarmSelectionService);
   readonly t = computed(() => DASHBOARD_I18N[this.languageService.lang()]);
 
   readonly units = signal<ProductionUnit[]>([]);
@@ -84,6 +91,32 @@ export class Dashboard implements OnInit {
     const error = this.error();
     return error ? apiErrorMessage(error, this.languageService.lang()) : null;
   });
+
+  /**
+   * "This account holds no farm", told apart from every other failure.
+   *
+   * On this screen it is not really an error: the dashboard is farm-scoped -
+   * productionUnits and cycles both resolve through the backend's
+   * requireFarmScope - and an account with no farm has nothing to show here
+   * BY DESIGN. ROOT is the standing example: its access comes from the isRoot
+   * flag rather than from a membership, so it will never have a farm, and
+   * "your account is not assigned to a farm yet" reads like a mistake someone
+   * could fix. It gets a panel that explains and points somewhere useful
+   * instead of the red failure line.
+   *
+   * The branch is on the backend's errorCode, not on the stored farmId: the
+   * backend is the authority on farm scope, and a farmId cached before an
+   * assignment would keep showing the panel to somebody who now has a farm.
+   */
+  readonly noFarm = computed(() => this.error()?.errorCode === ERROR_CODE.NO_FARM_CONTEXT);
+
+  /**
+   * Whether that panel offers a way out. Gated on the PERMISSION and never on
+   * the role name (see PERMISSION): whoever may manage farms is sent to do
+   * that, and anyone else is told to ask their administrator - which is the
+   * only thing that can actually put them on a farm.
+   */
+  readonly canManageFarms = computed(() => this.authService.hasPermission(PERMISSION.MANAGE_FARMS));
 
   readonly today = new Date();
   readonly weekDates = this.buildWeekDates(this.today);
@@ -124,7 +157,23 @@ export class Dashboard implements OnInit {
 
   constructor(private readonly graphqlService: GraphqlService) {}
 
-  ngOnInit(): void {
+  /**
+   * Loads on creation, and again whenever the selected farm changes.
+   *
+   * An effect rather than ngOnInit because ROOT switching farms is a new
+   * dashboard, not a new page: the header the query travels with has changed,
+   * so the numbers on screen are about a farm the user is no longer looking
+   * at. Reading the signal here is what subscribes this to it.
+   */
+  private readonly load = effect(() => {
+    this.farmSelection.selectedFarmId();
+    this.fetch();
+  });
+
+  private fetch(): void {
+    this.loading.set(true);
+    this.error.set(null);
+
     this.graphqlService.query<DashboardData>(DASHBOARD_QUERY).subscribe({
       next: (data) => {
         this.units.set(data.productionUnits);

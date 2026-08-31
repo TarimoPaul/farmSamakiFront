@@ -2,6 +2,18 @@
 
       @if (loading()) {
         <p class="dash-status">{{ t().loading }}</p>
+      } @else if (noFarm()) {
+        <section class="dash-notice">
+          <h2 class="dash-notice__title">
+            {{ canManageFarms() ? t().noFarmAdminTitle : t().noFarmTitle }}
+          </h2>
+          <p class="dash-notice__body">
+            {{ canManageFarms() ? t().noFarmAdminBody : t().noFarmBody }}
+          </p>
+          @if (canManageFarms()) {
+            <a class="dash-notice__action" routerLink="/farms">{{ t().noFarmAction }}</a>
+          }
+        </section>
       } @else if (errorMessage()) {
         <p class="dash-status dash-status--error">{{ errorMessage() }}</p>
       } @else {

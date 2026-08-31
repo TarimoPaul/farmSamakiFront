@@ -12,6 +12,47 @@
   }
 }
 
+// Shown when the account holds no farm. A state, not a failure - so it reads
+// as a panel rather than as the red .dash-status--error line above it.
+.dash-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2.75rem 1.5rem;
+  border-radius: 16px;
+  background: var(--surface-alt);
+  text-align: center;
+}
+
+.dash-notice__title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--on-surface);
+}
+
+.dash-notice__body {
+  margin: 0;
+  max-width: 48ch;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.dash-notice__action {
+  margin-top: 0.4rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    filter: brightness(0.95);
+  }
+}
+
 // ── Stat cards ───────────────────────────────────────────────────────────
 .stat-grid {
   display: grid;

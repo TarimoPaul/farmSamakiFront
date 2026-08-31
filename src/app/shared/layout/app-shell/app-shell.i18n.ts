@@ -21,6 +21,8 @@ export const SHELL_I18N = {
     loggedInAs: 'Umeingia kama',
     searchPlaceholder: 'Tafuta (hivi karibuni)',
     logout: 'Toka',
+    farmSwitcher: 'Shamba unalofanyia kazi',
+    farmSwitcherNone: 'Chagua shamba…',
   },
   en: {
     brandName: 'Samaki Farm',
@@ -38,6 +40,8 @@ export const SHELL_I18N = {
     loggedInAs: 'Logged in as',
     searchPlaceholder: 'Search (coming soon)',
     logout: 'Log out',
+    farmSwitcher: 'Farm you are working in',
+    farmSwitcherNone: 'Select a farm…',
   },
 } as const;
 

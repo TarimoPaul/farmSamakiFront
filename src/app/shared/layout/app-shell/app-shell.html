@@ -113,6 +113,26 @@
           <input type="text" [placeholder]="t().searchPlaceholder" disabled />
         </label>
 
+        @if (canSelectFarm()) {
+          <label class="dash-farm">
+            <span class="dash-farm__label">{{ t().farmSwitcher }}</span>
+            <select
+              class="dash-farm__select"
+              [attr.aria-label]="t().farmSwitcher"
+              (change)="selectFarm($event)"
+            >
+              <option value="" [selected]="activeFarmId() === null">
+                {{ t().farmSwitcherNone }}
+              </option>
+              @for (farm of farms(); track farm.farmId) {
+                <option [value]="farm.farmId" [selected]="farm.farmId === activeFarmId()">
+                  {{ farm.name }}
+                </option>
+              }
+            </select>
+          </label>
+        }
+
         <div class="dash-user">
           @if (currentUser(); as user) {
             <span class="dash-user__avatar">{{ initials(user.name) }}</span>

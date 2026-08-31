@@ -7,6 +7,7 @@ import { authInterceptor } from './auth-interceptor';
 import { ERROR_CODE } from '../models/error-codes';
 
 const TOKEN_KEY = 'samakiFarm.token';
+const SELECTED_FARM_KEY = 'samakiFarm.selectedFarmId';
 const URL = 'http://localhost:8082/api/farms';
 
 function setup() {
@@ -62,6 +63,31 @@ describe('authInterceptor', () => {
     const { request } = await get(http, httpMock, { success: true }, { status: 200, statusText: 'OK' });
 
     expect(request.request.headers.get('Authorization')).toBe('Bearer a-real-token');
+  });
+
+  it('sends the chosen farm as X-Farm-Id', async () => {
+    // ROOT working inside farm 19. The backend applies it for this request
+    // only - see FarmSelectionService.
+    const { http, httpMock } = setup();
+    localStorage.setItem(TOKEN_KEY, 'a-real-token');
+    localStorage.setItem(SELECTED_FARM_KEY, '19');
+
+    const { request } = await get(http, httpMock, { success: true }, { status: 200, statusText: 'OK' });
+
+    expect(request.request.headers.get('X-Farm-Id')).toBe('19');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer a-real-token');
+  });
+
+  it('sends no X-Farm-Id when no farm has been chosen', async () => {
+    // Every other account in the system is in this state, so the header must
+    // be absent rather than empty - the backend reads "no selection" from its
+    // absence.
+    const { http, httpMock } = setup();
+    localStorage.setItem(TOKEN_KEY, 'a-real-token');
+
+    const { request } = await get(http, httpMock, { success: true }, { status: 200, statusText: 'OK' });
+
+    expect(request.request.headers.has('X-Farm-Id')).toBe(false);
   });
 
   it('routes a 401 UNAUTHENTICATED to /login through the shared handler', async () => {

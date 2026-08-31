@@ -4,6 +4,8 @@ import { Observable, catchError, map, of, shareReplay, switchMap, tap } from 'rx
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response';
 import { ERROR_CODE } from '../models/error-codes';
+import { PERMISSION } from '../models/permissions';
+import { FarmSelectionService } from './farm-selection';
 import {
   ChangePasswordOutcome,
   ChangePasswordRequest,
@@ -23,6 +25,7 @@ const TOKEN_KEY = 'samakiFarm.token';
 const USER_KEY = 'samakiFarm.user';
 const MUST_CHANGE_KEY = 'samakiFarm.mustChangePassword';
 const PERMISSIONS_KEY = 'samakiFarm.permissions';
+const CAN_SELECT_FARM_KEY = 'samakiFarm.canSelectFarm';
 
 /** Reads ApiResponse.errorCode off a failed HttpErrorResponse, if present. */
 function errorCodeOf(err: HttpErrorResponse): string | null {
@@ -36,6 +39,7 @@ function messageOf(err: HttpErrorResponse, fallback: string): string {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly farmSelection = inject(FarmSelectionService);
   private readonly baseUrl = `${environment.apiUrl}/auth`;
 
   readonly currentUser = signal<UserSummary | null>(this.readStoredUser());
@@ -67,11 +71,41 @@ export class AuthService {
    */
   readonly permissions = signal<readonly string[]>(this.readStoredPermissions());
 
+  /**
+   * Whether this account may choose a farm it does not belong to - from /me.
+   *
+   * Persisted alongside the permissions, for the same reason: the switcher
+   * has to render correctly on the first paint after a refresh, not one /me
+   * later.
+   */
+  readonly canSelectFarm = signal<boolean>(localStorage.getItem(CAN_SELECT_FARM_KEY) === 'true');
+
   /** In-flight (or completed) /me call, so concurrent guards ask only once. */
   private mePermissions$: Observable<readonly string[]> | null = null;
 
   hasPermission(code: string): boolean {
     return this.permissions().includes(code);
+  }
+
+  /**
+   * Where a signed-in user belongs when no particular screen was asked for.
+   *
+   * NOT always /dashboard. The dashboard is farm-scoped - `productionUnits`
+   * and `cycles` both resolve through the backend's requireFarmScope, which
+   * refuses NO_FARM_CONTEXT to anyone holding no farm - and ROOT deliberately
+   * holds none (its access comes from the isRoot flag, not from a membership).
+   * Landing ROOT on the dashboard therefore opens the app on an explanation
+   * rather than on a screen.
+   *
+   * The branch is on the PERMISSION, never on the role name: whoever
+   * administers farms without belonging to one starts on /farms, which is the
+   * work they actually have. Someone with no farm and no `manage_farms` still
+   * goes to the dashboard - it tells them to ask their administrator, and
+   * there is nowhere better for them to be.
+   */
+  landingUrl(): string {
+    const hasFarm = this.currentUser()?.farmId != null;
+    return !hasFarm && this.hasPermission(PERMISSION.MANAGE_FARMS) ? '/farms' : '/dashboard';
   }
 
   /**
@@ -108,6 +142,22 @@ export class AuthService {
       );
     }
     return this.mePermissions$;
+  }
+
+  /**
+   * Re-asks /me and replaces the cached answer.
+   *
+   * ensurePermissions() caches for the whole session, and while the
+   * forced-password-change gate is up that cached answer is EMPTY: /me itself
+   * is refused with 403 MUST_CHANGE_PASSWORD, and the failure resolves to
+   * whatever was already known - nothing, on a first login. Clearing the gate
+   * is therefore the one moment the cache MUST be thrown away, or the user
+   * enters the app with no nav entries and no landing branch until they
+   * happen to reload the page.
+   */
+  refreshPermissions(): Observable<readonly string[]> {
+    this.mePermissions$ = null;
+    return this.ensurePermissions();
   }
 
   login(req: LoginRequest): Observable<ApiResponse<LoginResponse>> {
@@ -254,9 +304,14 @@ export class AuthService {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(MUST_CHANGE_KEY);
     localStorage.removeItem(PERMISSIONS_KEY);
+    localStorage.removeItem(CAN_SELECT_FARM_KEY);
     this.currentUser.set(null);
     this.mustChangePassword.set(false);
     this.permissions.set([]);
+    this.canSelectFarm.set(false);
+    // A chosen farm belongs to one session. Left behind, the next person to
+    // sign in on this browser would send someone else's choice in a header.
+    this.farmSelection.clear();
     // Drop the cached /me: the next session must ask again rather than
     // inherit the previous user's answer.
     this.mePermissions$ = null;
@@ -288,6 +343,8 @@ export class AuthService {
     localStorage.setItem(TOKEN_KEY, res.data.token);
     localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
     this.currentUser.set(res.data.user);
+    // Same reason as logout: whoever just signed in has chosen nothing yet.
+    this.farmSelection.clear();
 
     if (res.data.mustChangePassword) {
       this.raiseGate();
@@ -300,9 +357,17 @@ export class AuthService {
     localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(me.permissions));
     this.permissions.set(me.permissions);
 
+    // `=== true` rather than a cast: an older backend simply omits the field,
+    // and "undefined" must read as "may not", not as a truthy object.
+    const canSelectFarm = me.canSelectFarm === true;
+    localStorage.setItem(CAN_SELECT_FARM_KEY, String(canSelectFarm));
+    this.canSelectFarm.set(canSelectFarm);
+
     // /me is also the freshest UserSummary we ever get - role and farmId can
-    // change under a token that stays valid.
-    const { permissions: _permissions, ...user } = me;
+    // change under a token that stays valid. farmId in particular is the farm
+    // the BACKEND applied, which for ROOT is the answer to "did my selection
+    // take effect?".
+    const { permissions: _permissions, canSelectFarm: _canSelectFarm, ...user } = me;
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     this.currentUser.set(user);
   }

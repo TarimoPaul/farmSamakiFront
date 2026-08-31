@@ -12,7 +12,11 @@ export interface UserSummary {
   name: string;
   phone: string;
   status: UserStatus;
-  /** null for ROOT and for approved users not yet assigned to a farm. */
+  /**
+   * The farm this account is working in: its membership, or - for ROOT - the
+   * farm it selected (see FarmSelectionService). Null for ROOT before it has
+   * picked one, and for approved users not yet assigned to a farm.
+   */
   farmId: number | null;
   /** null when the user has no membership yet; 'ROOT' for the superadmin. */
   role: string | null;
@@ -28,6 +32,16 @@ export interface UserSummary {
  */
 export interface MeResponse extends UserSummary {
   permissions: string[];
+  /**
+   * May this account work in a farm it does not belong to? True for ROOT
+   * only, today.
+   *
+   * The UI cannot derive it: the moment ROOT picks a farm its `farmId` stops
+   * being null, so "has no farm" would stop telling ROOT apart from an
+   * ordinary member - and the farm switcher would vanish the first time it
+   * was used. See FarmSelectionService.
+   */
+  canSelectFarm: boolean;
 }
 
 export interface LoginResponse {

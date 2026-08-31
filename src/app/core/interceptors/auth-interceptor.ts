@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth';
 import { AuthErrorHandler } from '../services/auth-error-handler';
+import { FarmSelectionService } from '../services/farm-selection';
 import { ApiResponse } from '../models/api-response';
 
 /**
@@ -30,10 +31,22 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const authErrorHandler = inject(AuthErrorHandler);
   const token = authService.getToken();
+  const farmId = inject(FarmSelectionService).selectedFarmId();
 
-  const request = token
-    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
-    : req;
+  // X-Farm-Id is ROOT's "work in this farm for this request" (see
+  // FarmSelectionService). It goes on EVERY call, REST and GraphQL alike:
+  // both transports run through this interceptor, and the backend needs the
+  // farm on the request that reads the data as much as on /me, which reports
+  // back which farm was applied.
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (farmId !== null) {
+    headers['X-Farm-Id'] = String(farmId);
+  }
+
+  const request = Object.keys(headers).length > 0 ? req.clone({ setHeaders: headers }) : req;
 
   return next(request).pipe(
     catchError((err: HttpErrorResponse) => {

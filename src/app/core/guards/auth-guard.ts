@@ -67,7 +67,10 @@ export function permissionGuard(permission: string): CanActivateFn {
     return authService
       .ensurePermissions()
       .pipe(
-        map((permissions) => permissions.includes(permission) || router.parseUrl('/dashboard')),
+        map(
+          (permissions) =>
+            permissions.includes(permission) || router.parseUrl(authService.landingUrl()),
+        ),
       );
   };
 }
@@ -97,5 +100,7 @@ export const guestGuard: CanActivateFn = () => {
     return true;
   }
 
-  return router.parseUrl(authService.mustChangePassword() ? '/change-password' : '/dashboard');
+  return router.parseUrl(
+    authService.mustChangePassword() ? '/change-password' : authService.landingUrl(),
+  );
 };

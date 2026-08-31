@@ -118,7 +118,14 @@ export class ChangePassword {
         case 'success':
           // The gate is already cleared by the service. The existing token
           // stays valid, so the app is reachable immediately - no re-login.
-          this.router.navigateByUrl('/dashboard');
+          //
+          // /me is re-asked FIRST: while the gate was up it was refused, so
+          // the permission cache is empty, and both the landing branch below
+          // and the nav depend on it. A failed refresh still navigates - it
+          // resolves rather than throws (see ensurePermissions).
+          this.authService
+            .refreshPermissions()
+            .subscribe(() => this.router.navigateByUrl(this.authService.landingUrl()));
           break;
         case 'wrong-current-password':
           // Field error, not a session failure: nothing was changed.

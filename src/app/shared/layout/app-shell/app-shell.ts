@@ -1,9 +1,12 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { AuthService } from '../../../core/services/auth';
+import { FarmSelectionService } from '../../../core/services/farm-selection';
+import { FarmsService } from '../../../core/services/farms';
+import { Farm } from '../../../core/models/farm';
 import { ThemeService } from '../../../core/services/theme';
 import { LanguageService } from '../../../core/services/language';
 import { PERMISSION } from '../../../core/models/permissions';
@@ -69,6 +72,8 @@ export class AppShell {
   readonly languageService = inject(LanguageService);
 
   private readonly authService = inject(AuthService);
+  private readonly farmSelection = inject(FarmSelectionService);
+  private readonly farmsService = inject(FarmsService);
   private readonly router = inject(Router);
 
   readonly currentUser = this.authService.currentUser;
@@ -81,6 +86,52 @@ export class AppShell {
     ),
     { initialValue: this.router.url },
   );
+
+  /**
+   * The farm switcher - shown only to an account that may work in a farm it
+   * does not belong to, which /me answers directly (ROOT, today).
+   *
+   * It cannot be derived from `farmId === null`: that is true of ROOT only
+   * until it picks a farm, so the switcher would disappear the moment it was
+   * used. See MeResponse.canSelectFarm.
+   */
+  readonly canSelectFarm = this.authService.canSelectFarm;
+
+  readonly farms = signal<readonly Farm[]>([]);
+
+  /**
+   * The farm the BACKEND is applying, from /me - NOT the raw selection.
+   *
+   * A selection the backend refuses (a farm since deleted) leaves this null,
+   * so the control drops back to "Select a farm…" instead of naming a farm
+   * that is not in use.
+   */
+  readonly activeFarmId = computed(() => this.authService.currentUser()?.farmId ?? null);
+
+  /**
+   * The farm list, for the switcher.
+   *
+   * An effect rather than a constructor call because canSelectFarm can flip to
+   * true when /me answers, after this component already exists.
+   *
+   * It is fetched once per SHELL - and the shell is rebuilt on every
+   * navigation - rather than cached for the session. That is deliberate: it is
+   * ROOT-only traffic on a small endpoint, and a farm created on /farms has to
+   * appear in the switcher without a reload.
+   */
+  private farmsRequested = false;
+  private readonly loadFarms = effect(() => {
+    if (!this.canSelectFarm() || this.farmsRequested) {
+      return;
+    }
+    this.farmsRequested = true;
+    this.farmsService.list().subscribe({
+      next: (farms) => this.farms.set(farms),
+      // A failed list leaves the switcher empty rather than breaking the
+      // chrome around every screen; /farms itself reports the failure.
+      error: () => this.farms.set([]),
+    });
+  });
 
   /** Only the entries this user holds the permission for. */
   readonly navItems = computed(() =>
@@ -104,6 +155,31 @@ export class AppShell {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase())
       .join('');
+  }
+
+  /**
+   * Picks the farm, then re-asks /me.
+   *
+   * The refresh is what makes the control honest: `farmId` on the answer is
+   * the farm the backend actually applied, and that is what this displays.
+   * Screens showing farm data reload from the selection signal itself (see
+   * the Dashboard).
+   */
+  selectFarm(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.farmSelection.select(select.value === '' ? null : Number(select.value));
+
+    this.authService.refreshPermissions().subscribe(() => {
+      // Write the ANSWER back into the control.
+      //
+      // The option bindings cannot do this: when the backend refuses a pick -
+      // a farm deleted since the list was fetched - activeFarmId stays null,
+      // so nothing the template binds to has changed, and the option the user
+      // clicked would stay selected. The control would then name a farm that
+      // is not in use, which is the one thing it must never do.
+      const active = this.activeFarmId();
+      select.value = active === null ? '' : String(active);
+    });
   }
 
   logout(): void {

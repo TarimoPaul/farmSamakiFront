@@ -6,6 +6,16 @@
 export const DASHBOARD_I18N = {
   sw: {
     loading: 'Inapakia...',
+    // Hali ya "huna shamba" - si kosa. Ujumbe wa msimamizi ni tofauti na wa
+    // mtumiaji wa kawaida kwa sababu suluhisho ni tofauti kabisa: mmoja
+    // anachagua shamba mwenyewe, mwingine anasubiri kuwekwa kwenye moja.
+    noFarmAdminTitle: 'Huna shamba lililochaguliwa',
+    noFarmAdminBody:
+      'Dashibodi huonyesha data ya shamba MOJA, na akaunti yako ya usimamizi haiwekwi kwenye shamba lolote. Fungua Mashamba kuona na kusimamia mashamba yote.',
+    noFarmTitle: 'Bado hujapangiwa shamba',
+    noFarmBody:
+      'Akaunti yako imeidhinishwa lakini haijawekwa kwenye shamba lolote. Wasiliana na msimamizi wako akuweke kwenye shamba ili data yake ionekane hapa.',
+    noFarmAction: 'Nenda kwenye Mashamba',
     statTotalUnits: 'Jumla ya Vitengo',
     statActiveUnits: 'Vinavyofanya Kazi',
     statActiveCycles: 'Mizunguko Inayoendelea',
@@ -36,6 +46,13 @@ export const DASHBOARD_I18N = {
   },
   en: {
     loading: 'Loading...',
+    noFarmAdminTitle: 'No farm selected',
+    noFarmAdminBody:
+      'This dashboard shows ONE farm at a time, and your administrator account is not placed on any farm. Open Farms to see and manage every farm.',
+    noFarmTitle: 'You are not on a farm yet',
+    noFarmBody:
+      'Your account is approved but has not been placed on a farm. Ask your administrator to assign you to one so its data can appear here.',
+    noFarmAction: 'Go to Farms',
     statTotalUnits: 'Total Units',
     statActiveUnits: 'Active',
     statActiveCycles: 'Active Cycles',
