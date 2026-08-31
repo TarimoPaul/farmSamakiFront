@@ -18,8 +18,8 @@ import { AuthErrorHandler } from './auth-error-handler';
  *  - `manage_users`  — everything that changes what a person can DO:
  *                      listing a farm's members, assigning a membership.
  *
- * Changing a role, disabling, enabling and deleting are also `manage_users`
- * and belong to the Members screen; they are deliberately absent here.
+ * Disabling, enabling and deleting a person outright are also `manage_users`
+ * and are not built yet.
  */
 @Injectable({ providedIn: 'root' })
 export class UsersService {
@@ -107,6 +107,52 @@ export class UsersService {
   assignMembership(userId: string, req: AssignMembershipRequest): Observable<void> {
     return this.http
       .post<ApiResponse<void>>(`${this.baseUrl}/${userId}/memberships`, req)
+      .pipe(
+        map(() => undefined),
+        restError(this.authErrorHandler),
+      );
+  }
+
+  /**
+   * Changes the role someone holds on a farm they are ALREADY on.
+   *
+   * The farm is in the path, and the body is the same
+   * `AssignMembershipRequest` the assign endpoint takes - the backend reuses
+   * the DTO (`UserController.changeRole`) and only reads `roleId` off it, but
+   * `farmId` is `@NotNull` there, so omitting it is a 400 VALIDATION_ERROR
+   * rather than a no-op. Hence both.
+   *
+   * Same two-tier farm check as assignMembership, and the same
+   * `manage_users`. A user who is not on that farm is a 400
+   * ("Mtumiaji huyu hayupo kwenye shamba hili."), which the screen shows as
+   * the stale-list answer it is.
+   */
+  changeRole(userId: string, farmId: number, roleId: number | null): Observable<void> {
+    return this.http
+      .put<ApiResponse<void>>(`${this.baseUrl}/${userId}/memberships/${farmId}/role`, {
+        farmId,
+        roleId,
+      })
+      .pipe(
+        map(() => undefined),
+        restError(this.authErrorHandler),
+      );
+  }
+
+  /**
+   * Takes someone off a farm. Soft-deletes the MEMBERSHIP, not the person -
+   * the account survives, with no farm.
+   *
+   * The backend's one guard rail lives here: a farm's own owner
+   * (`farms.owner_id`) cannot be removed from it, and that arrives as
+   * **409 with no `errorCode`** - `GlobalExceptionHandler.handleConflict`
+   * builds its envelope with the single-argument `ApiResponse.error(message)`.
+   * So the screen recognises it by STATUS and shows the backend's sentence;
+   * see CONFLICT_STATUS in members.ts.
+   */
+  removeMembership(userId: string, farmId: number): Observable<void> {
+    return this.http
+      .delete<ApiResponse<void>>(`${this.baseUrl}/${userId}/memberships/${farmId}`)
       .pipe(
         map(() => undefined),
         restError(this.authErrorHandler),

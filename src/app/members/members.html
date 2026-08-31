@@ -1,0 +1,119 @@
+<app-shell>
+  <section class="members">
+    <header class="members__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+    </header>
+
+    <!-- A failed change or removal. It sits above the table because that is
+         where the row it refers to is, and it stays until dismissed: the
+         backend's guard-rail sentence is the whole explanation. -->
+    @if (actionError(); as message) {
+      <div class="panel-error" role="alert" data-testid="action-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="dismissActionError()">
+          {{ t().close }}
+        </app-button>
+      </div>
+    }
+
+    @if (activeFarmId() === null) {
+      <!-- Not an error: ROOT before it picks a farm, or an admin not yet
+           placed on one. Two different bodies because the fix is different -
+           one person chooses, the other has to be chosen for. -->
+      <div class="card no-farm" data-testid="no-farm">
+        <h2 class="card__title">{{ t().noFarmTitle }}</h2>
+        <p class="no-farm__body">
+          {{ canSelectFarm() ? t().noFarmAdminBody : t().noFarmBody }}
+        </p>
+      </div>
+    } @else if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert" data-testid="load-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="reload()">{{ t().retry }}</app-button>
+      </div>
+    } @else {
+      <div class="card">
+        <app-data-table
+          [columns]="columns()"
+          [rows]="members()"
+          [rowKey]="memberKey"
+          [rowActions]="rowActions"
+          [actionsLabel]="t().actions"
+        >
+          <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
+        </app-data-table>
+      </div>
+
+      <!-- Both controls are offered to everyone who can reach this screen:
+           it is all one permission, and the only guard rail the backend has
+           (an owner cannot leave their own farm) is not knowable from a
+           UserSummary. The backend decides; its answer is shown above. -->
+      <ng-template #rowActions let-member>
+        <app-button variant="secondary" (clicked)="openRoleChange(member)">
+          {{ t().changeRole }}
+        </app-button>
+        <app-button variant="danger" (clicked)="askRemove(member)">{{ t().remove }}</app-button>
+      </ng-template>
+    }
+  </section>
+
+  <app-modal
+    [open]="!!roleTarget()"
+    [title]="t().changeRoleTitle + ' ' + (roleTarget()?.name ?? '')"
+    [closeLabel]="t().close"
+    (dismissed)="closeRoleChange()"
+  >
+    <form class="role-form" [formGroup]="form" (ngSubmit)="submitRoleChange()">
+      <app-form-field
+        [label]="t().fieldRole"
+        for="member-role"
+        [required]="true"
+        [error]="roleError()"
+      >
+        <select id="member-role" class="text-input" formControlName="roleId">
+          <option [ngValue]="null">{{ t().rolePlaceholder }}</option>
+          @for (role of roles(); track role.roleId) {
+            <option [ngValue]="role.roleId">{{ role.name }}</option>
+          }
+        </select>
+      </app-form-field>
+
+      @if (rolesFailed()) {
+        <p class="form-error" role="alert">{{ t().rolesUnavailable }}</p>
+      }
+
+      <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="savingRole()" (clicked)="closeRoleChange()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="savingRole()" (clicked)="submitRoleChange()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-confirm-dialog
+    [open]="!!removeTarget()"
+    [title]="t().removeTitle"
+    [message]="(removeTarget()?.name ?? '') + ' ' + t().removeMessage"
+    [confirmLabel]="t().removeConfirm"
+    [cancelLabel]="t().cancel"
+    [loading]="removing()"
+    (confirmed)="confirmRemove()"
+    (cancelled)="cancelRemove()"
+  />
+
+  <app-toast
+    [open]="!!toastMessage()"
+    variant="success"
+    [message]="toastMessage() ?? ''"
+    (closed)="dismissToast()"
+  />
+</app-shell>

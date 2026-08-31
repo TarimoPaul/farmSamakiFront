@@ -1,0 +1,40 @@
+@use '../shared/styles/screen' as *;
+
+.members {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.members__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* The "no farm selected" panel: an explanation, not a failure, so it reads as
+   ordinary card copy rather than as an error. */
+.no-farm__body {
+  margin: 0.5rem 0 0;
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.role-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 0.25rem;
+}
+
+/* Two controls per row, kept on one line - the table's actions column is
+   sized to its content. */
+:host ::ng-deep .data-table__actions app-button + app-button {
+  margin-left: 0.5rem;
+}

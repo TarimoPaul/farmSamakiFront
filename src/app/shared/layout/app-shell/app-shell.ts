@@ -41,11 +41,11 @@ const NAV_ITEMS: readonly ShellNavItem[] = [
     route: '/approvals',
     permission: PERMISSION.APPROVE_USERS,
   },
+  { key: 'navMembers', icon: 'users', route: '/members', permission: PERMISSION.MANAGE_USERS },
   { key: 'navUnits', icon: 'box' },
   { key: 'navCycles', icon: 'cycle' },
   { key: 'navFeeding', icon: 'feed' },
   { key: 'navWater', icon: 'drop' },
-  { key: 'navWorkers', icon: 'users' },
   { key: 'navSettings', icon: 'gear' },
 ];
 

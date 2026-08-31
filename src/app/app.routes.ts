@@ -5,6 +5,7 @@ import { ChangePassword } from './auth/change-password/change-password';
 import { Dashboard } from './dashboard/dashboard';
 import { Farms } from './farms/farms';
 import { Approvals } from './approvals/approvals';
+import { Members } from './members/members';
 import { authGuard, guestGuard, permissionGuard, sessionGuard } from './core/guards/auth-guard';
 import { PERMISSION } from './core/models/permissions';
 
@@ -29,6 +30,14 @@ export const routes: Routes = [
     path: 'approvals',
     component: Approvals,
     canActivate: [permissionGuard(PERMISSION.APPROVE_USERS)],
+  },
+  // manage_users, and nothing else: every control on this screen is that one
+  // permission, so unlike Farms and Approvals there is no partial version of
+  // it to gate separately.
+  {
+    path: 'members',
+    component: Members,
+    canActivate: [permissionGuard(PERMISSION.MANAGE_USERS)],
   },
   { path: '**', redirectTo: 'login' },
 ];
