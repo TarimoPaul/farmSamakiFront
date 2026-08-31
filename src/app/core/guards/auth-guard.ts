@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
-import { map } from 'rxjs';
+import { catchError, map, of } from 'rxjs';
 import { AuthService } from '../services/auth';
 
 /**
@@ -64,14 +64,18 @@ export function permissionGuard(permission: string): CanActivateFn {
       return redirect;
     }
 
-    return authService
-      .ensurePermissions()
-      .pipe(
-        map(
-          (permissions) =>
-            permissions.includes(permission) || router.parseUrl(authService.landingUrl()),
-        ),
-      );
+    return authService.ensurePermissions().pipe(
+      map(
+        (permissions) =>
+          permissions.includes(permission) || router.parseUrl(authService.landingUrl()),
+      ),
+      // ensurePermissions throws for one reason only: /me answered FORBIDDEN,
+      // and it has already dropped the cached permission set by the time this
+      // runs. That is a DENIAL, not a broken navigation - letting the error
+      // escape would cancel the navigation outright and strand the user on the
+      // page they were leaving, with no explanation.
+      catchError(() => of(router.parseUrl(authService.landingUrl()))),
+    );
   };
 }
 

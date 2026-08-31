@@ -1,7 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, catchError, map, of, shareReplay, switchMap, tap } from 'rxjs';
+import { Observable, catchError, map, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ApiError } from '../models/api-error';
 import { ApiResponse } from '../models/api-response';
 import { ERROR_CODE } from '../models/error-codes';
 import { PERMISSION } from '../models/permissions';
@@ -129,19 +130,64 @@ export class AuthService {
    * route on a cache miss would bounce a user who is in fact allowed in.
    *
    * The call is shared, so several guards resolving in one navigation make one
-   * request. A failure resolves rather than throws: the session-level part is
-   * already handled by AuthErrorHandler, and anything else should leave the
-   * guard to decide on the permissions it has.
+   * request.
+   *
+   * TWO KINDS OF FAILURE, deliberately not treated alike:
+   *
+   *  - A TRANSIENT one - no network, a 5xx, or a session code AuthErrorHandler
+   *    is already acting on - resolves to the cached set. Denying a route on a
+   *    cache miss would bounce a user who is in fact allowed in, and the
+   *    session-level half is somebody else's job by then.
+   *
+   *  - A FORBIDDEN does NOT. That is the backend answering authoritatively
+   *    that this caller may not even ask who they are, and on a system whose
+   *    RBAC is editable at runtime it is exactly how a revoked permission
+   *    arrives. Resolving to the cache there would leave the UI granting what
+   *    the backend has just refused - the nav still offering admin screens, a
+   *    guard still opening one - until something else happened to fail. So the
+   *    cached set is dropped and the failure is re-thrown for the caller to
+   *    act on (see permissionGuard).
+   *
+   * A failure of either kind is never memoised: one flaky answer must not pin
+   * the session to a stale set until the page is reloaded.
    */
   ensurePermissions(): Observable<readonly string[]> {
     if (!this.mePermissions$) {
       this.mePermissions$ = this.loadMe().pipe(
         map((me) => me.permissions as readonly string[]),
-        catchError(() => of(this.permissions())),
+        catchError((err: unknown) => {
+          this.mePermissions$ = null;
+
+          if (err instanceof HttpErrorResponse && errorCodeOf(err) === ERROR_CODE.FORBIDDEN) {
+            this.clearPermissions();
+            // `sessionHandled: false` is true by construction here, not a
+            // guess: FORBIDDEN is not one of AuthErrorHandler's session codes,
+            // so nothing has signed the user out or navigated away.
+            return throwError(() => ApiError.fromHttp(err, false));
+          }
+
+          return of(this.permissions());
+        }),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
     }
     return this.mePermissions$;
+  }
+
+  /**
+   * Forgets what this session may do, WITHOUT ending the session.
+   *
+   * Not a log out: the token is still valid and the user stays where they are.
+   * It is the honest state after /me itself was refused - "unknown, and
+   * certainly not the set we had cached". `canSelectFarm` goes with it because
+   * it is granted by the same answer; leaving it behind would keep a farm
+   * switcher on screen for a caller the backend just refused.
+   */
+  private clearPermissions(): void {
+    localStorage.removeItem(PERMISSIONS_KEY);
+    localStorage.removeItem(CAN_SELECT_FARM_KEY);
+    this.permissions.set([]);
+    this.canSelectFarm.set(false);
   }
 
   /**

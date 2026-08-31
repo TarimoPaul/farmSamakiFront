@@ -31,7 +31,14 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       const authService = inject(AuthService);
       if (authService.canUseApp()) {
-        authService.ensurePermissions().subscribe();
+        authService.ensurePermissions().subscribe({
+          // ensurePermissions throws only when /me answered FORBIDDEN, and by
+          // the time this runs it has already cleared the cached permission
+          // set - which IS the effect that matters. Boot is not failed for it:
+          // the app opens with nothing granted, and the first guarded
+          // navigation asks again.
+          error: () => undefined,
+        });
       }
     }),
   ],

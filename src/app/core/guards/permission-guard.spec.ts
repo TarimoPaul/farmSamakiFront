@@ -106,6 +106,27 @@ describe('permissionGuard', () => {
     httpMock.verify();
   });
 
+  it('denies cleanly when /me itself answers FORBIDDEN', async () => {
+    // ensurePermissions re-throws that one, having dropped the stale set. The
+    // guard must turn it into a redirect: an error escaping a canActivate
+    // cancels the navigation outright, leaving the user on the page they were
+    // trying to leave with nothing said.
+    localStorage.setItem(TOKEN_KEY, 'a-token');
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(['manage_farms', 'view_dashboard']));
+    const { router, authService, httpMock } = setup();
+
+    const decision = run(PERMISSION.MANAGE_FARMS);
+    httpMock.expectOne(`${environment.apiUrl}/auth/me`).flush(
+      { success: false, message: 'Huna ruhusa ya kufikia rasilimali hii.', errorCode: 'FORBIDDEN' },
+      { status: 403, statusText: 'Forbidden' },
+    );
+
+    expect(await decision).toEqual(router.parseUrl('/dashboard'));
+    // And the route was refused on the FRESH answer, not the stale cache.
+    expect(authService.permissions()).toEqual([]);
+    httpMock.verify();
+  });
+
   it('shares one /me across guards resolving together', async () => {
     localStorage.setItem(TOKEN_KEY, 'a-token');
     const { httpMock } = setup();
