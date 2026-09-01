@@ -82,13 +82,15 @@ const FORBIDDEN = {
 
 /**
  * The backend's one guard rail on this screen
- * (`FarmUserService.removeMembership`), and the reason the code branches on
- * STATUS here: `handleConflict` builds its envelope with the single-argument
- * `ApiResponse.error(message)`, so there is NO errorCode field at all.
+ * (`FarmUserService.removeMembership`), exactly as it is sent: a 409 carrying
+ * its OWN code, not the generic CONFLICT - `ConflictException` is raised with
+ * `ErrorCodes.OWNER_IMMUTABLE` and `handleConflict` passes it through.
+ * `MembershipConflictRegressionTest` asserts this same shape server-side.
  */
 const OWNER_CONFLICT = {
   success: false,
   message: 'Mmiliki wa shamba hawezi kutolewa kwenye shamba lake.',
+  errorCode: 'OWNER_IMMUTABLE',
 };
 
 /** `changeRole` against somebody no longer on the farm - a stale list. */
@@ -370,7 +372,7 @@ describe('Members screen', () => {
 
   // ------------------------------------------------------------- acceptance c
   describe('(c) the backend guard rail', () => {
-    it('shows the owner-cannot-be-removed message from a 409 that carries no errorCode', async () => {
+    it('shows the owner-cannot-be-removed rule in the UI language, not the backend Swahili', async () => {
       const ctx = setup();
       TestBed.inject(LanguageService).setLang('en');
       await load(ctx);
@@ -392,18 +394,55 @@ describe('Members screen', () => {
       await ctx.fixture.whenStable();
       ctx.fixture.detectChanges();
 
-      // Recognised by STATUS - there is no code to branch on - and the
-      // backend's own sentence is what explains the refusal.
-      expect(ctx.component.actionError()).toBe(
-        'Mmiliki wa shamba hawezi kutolewa kwenye shamba lake.',
+      // Recognised by its own code, so the line comes from the shared copy:
+      // an English UI reads English. The backend's Swahili sentence is
+      // asserted ABSENT - that is the whole difference, since a status-only
+      // branch would have shown it here.
+      expect(ctx.component.actionErrorMessage()).toBe(
+        'The farm owner cannot be removed from their own farm.',
       );
       const banner = (ctx.fixture.nativeElement as HTMLElement).querySelector(
         '[data-testid="action-error"]',
       );
-      expect(banner?.textContent).toContain('Mmiliki wa shamba hawezi kutolewa kwenye shamba lake.');
+      expect(banner?.textContent).toContain(
+        'The farm owner cannot be removed from their own farm.',
+      );
+      expect(text(ctx.fixture)).not.toContain('Mmiliki wa shamba hawezi kutolewa');
       // No crash, nothing removed, the list still stands.
       expect(rows(ctx.fixture)).toHaveLength(2);
       expect(ctx.router.navigateByUrl).not.toHaveBeenCalled();
+      ctx.httpMock.verify();
+    });
+
+    it('reads the same rule in Swahili, and follows a language switch', async () => {
+      const ctx = setup();
+      const language = TestBed.inject(LanguageService);
+      language.setLang('sw');
+      await load(ctx);
+
+      rows(ctx.fixture)[0].querySelectorAll('button')[1].click();
+      ctx.fixture.detectChanges();
+      click(ctx.fixture, 'Ndiyo, mtoe');
+
+      ctx.httpMock
+        .expectOne(`${USERS_URL}/${MEMBERS_BEFORE.data[0].id}/memberships/${FARM_ID}`)
+        .flush(OWNER_CONFLICT, { status: 409, statusText: 'Conflict' });
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(ctx.component.actionErrorMessage()).toBe(
+        'Mmiliki wa shamba hawezi kutolewa kwenye shamba lake.',
+      );
+
+      // The banner is held as an ApiError, not as a rendered string, so the
+      // language toggle re-reads it - the proof that this line is ours and not
+      // the backend's prose passed through.
+      language.setLang('en');
+      ctx.fixture.detectChanges();
+
+      expect(ctx.component.actionErrorMessage()).toBe(
+        'The farm owner cannot be removed from their own farm.',
+      );
       ctx.httpMock.verify();
     });
 

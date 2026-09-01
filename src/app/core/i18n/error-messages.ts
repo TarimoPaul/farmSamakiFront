@@ -40,6 +40,14 @@ const ERROR_CODE_MESSAGES: Record<string, Record<Lang, string>> = {
     sw: 'Taarifa hizi zinagongana na zilizopo tayari.',
     en: 'This clashes with data that already exists.',
   },
+  // The Swahili line is deliberately the backend's own sentence, word for
+  // word: it is the wording the admins already know from the API, and there
+  // is nothing to improve on it. The English is the whole point of mapping
+  // this code at all - without it, an English UI showed Swahili prose.
+  [ERROR_CODE.OWNER_IMMUTABLE]: {
+    sw: 'Mmiliki wa shamba hawezi kutolewa kwenye shamba lake.',
+    en: 'The farm owner cannot be removed from their own farm.',
+  },
   [ERROR_CODE.VALIDATION_ERROR]: {
     sw: 'Taarifa ulizojaza hazikubaliki.',
     en: 'The details you entered were not accepted.',

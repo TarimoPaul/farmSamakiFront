@@ -30,23 +30,27 @@ const UNKNOWN_FAILURE = new ApiError({
 });
 
 /**
- * A REST conflict has to be recognised by STATUS, not by code.
+ * A conflict on this screen means one thing: the queue moved.
  *
- * Every other refusal from this backend carries a typed `errorCode`
- * (FORBIDDEN, VALIDATION_ERROR, NO_FARM_CONTEXT...), and branching on the code
- * rather than the message is the rule everywhere else in this app. Conflicts
- * are the one exception: `GlobalExceptionHandler.handleConflict` builds its
- * envelope with the single-argument `ApiResponse.error(message)`, which leaves
- * `errorCode` null. Verified live:
+ * Both of them say it - each is somebody else's work having landed first:
  *
  *   POST /api/users/{id}/approve      (already ACTIVE)
  *     -> 409 {"success":false,"message":"Mtumiaji huyu hayuko kwenye hali ya kusubiri idhini."}
  *   POST /api/users/{id}/memberships  (already on that farm)
  *     -> 409 {"success":false,"message":"Mtumiaji huyu tayari yupo kwenye shamba hili."}
  *
- * — no errorCode field in either. So the status is the only machine-readable
- * thing a conflict carries, and the message is still Swahili prose we refuse
- * to pattern-match on. See the report for the backend fix this wants.
+ * These used to carry NO `errorCode` at all - the one refusal from this
+ * backend that did not - which is why the branch is the status rather than a
+ * code. `ConflictException` now defaults to CONFLICT, so both carry that; on
+ * this screen it says exactly what the status already said, and the status
+ * keeps working against an older backend, so the branch stays as it is.
+ * (Where a conflict means something MORE than "409", the backend names it -
+ * see OWNER_IMMUTABLE on the Members screen.)
+ *
+ * The prose is never pattern-matched. A conflict on the approve itself is not
+ * even shown - this screen has its own bilingual line for a stale queue - but
+ * one on the assign that FOLLOWS an approve is, because there the generic
+ * "this clashes with existing data" would lose which step of the two failed.
  */
 const CONFLICT_STATUS = 409;
 
@@ -430,8 +434,9 @@ export class Approvals implements OnInit {
    *
    * `detail` is the backend's own reason, resolved through the shared
    * errorCode copy so a FORBIDDEN here reads exactly as it does anywhere else.
-   * The conflict is the exception that has to go by status, because it arrives
-   * with no code at all (see CONFLICT_STATUS).
+   * The conflict is the exception, kept on the status branch so its own
+   * sentence survives - it names which of the two steps failed, which the
+   * generic CONFLICT line would not (see CONFLICT_STATUS).
    *
    * The list is refreshed either way: the person IS approved, so they belong
    * out of the pending queue even though the second step failed.

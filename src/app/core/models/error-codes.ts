@@ -30,6 +30,17 @@ export const ERROR_CODE = {
   NO_FARM_CONTEXT: 'NO_FARM_CONTEXT',
   /** 409 - collides with existing data (a duplicate unit code, say). */
   CONFLICT: 'CONFLICT',
+  /**
+   * 409 - a farm's own owner cannot be taken off that farm
+   * (FarmUserService.removeMembership).
+   *
+   * Separate from CONFLICT because it is not a collision a different input
+   * would get past: it is a standing rule about this person on this farm, and
+   * retrying can never succeed. That is also why it is worth its own copy -
+   * the generic "this clashes with existing data" would leave the admin
+   * looking for the clash.
+   */
+  OWNER_IMMUTABLE: 'OWNER_IMMUTABLE',
   /** 400 - the submitted data was refused on business rules. A field error. */
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   /** 429 - rate limited (login: 10 per 5 min per IP; register: 5 per hour). */

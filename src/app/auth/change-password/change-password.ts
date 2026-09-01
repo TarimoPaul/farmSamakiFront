@@ -119,10 +119,13 @@ export class ChangePassword {
           // The gate is already cleared by the service. The existing token
           // stays valid, so the app is reachable immediately - no re-login.
           //
-          // /me is re-asked FIRST: while the gate was up it was refused, so
-          // the permission cache is empty, and both the landing branch below
-          // and the nav depend on it. A failed refresh still navigates - it
-          // resolves rather than throws (see ensurePermissions).
+          // /me is asked FIRST. Not because it was refused while the gate was
+          // up - it was not, /api/auth/* stays reachable - but because nothing
+          // had asked it yet: a gated session never reaches the initializer or
+          // a permission guard, so it holds no permissions at all, and both
+          // the landing branch below and the nav depend on them. A failed
+          // refresh still navigates - it resolves rather than throws (see
+          // ensurePermissions).
           this.authService
             .refreshPermissions()
             .subscribe(() => this.router.navigateByUrl(this.authService.landingUrl()));

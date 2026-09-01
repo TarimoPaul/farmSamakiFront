@@ -193,13 +193,22 @@ export class AuthService {
   /**
    * Re-asks /me and replaces the cached answer.
    *
-   * ensurePermissions() caches for the whole session, and while the
-   * forced-password-change gate is up that cached answer is EMPTY: /me itself
-   * is refused with 403 MUST_CHANGE_PASSWORD, and the failure resolves to
-   * whatever was already known - nothing, on a first login. Clearing the gate
-   * is therefore the one moment the cache MUST be thrown away, or the user
-   * enters the app with no nav entries and no landing branch until they
-   * happen to reload the page.
+   * ensurePermissions() memoises for the whole session, so this is how a
+   * caller says "what /me would answer has changed". Two of them, both real:
+   *
+   *  - CLEARING THE GATE. While the forced-password-change gate is up nothing
+   *    ever asks /me: attemptLogin returns `must-change-password` without
+   *    calling it, the start-up initializer runs only when `canUseApp()`, and
+   *    permissionGuard redirects to /change-password before it gets that far.
+   *    So a session that has only ever been gated holds NO permissions - not a
+   *    stale set, an unasked question - and without this the user enters the
+   *    app with no nav entries and no landing branch until they happen to
+   *    reload the page. (/me itself is NOT refused while gated: JwtAuthFilter
+   *    exempts everything under /api/auth/, which is what keeps the way out
+   *    reachable.)
+   *
+   *  - SWITCHING FARM. The answer depends on the X-Farm-Id the switcher now
+   *    sends, so the cached one is about a farm the session has left.
    */
   refreshPermissions(): Observable<readonly string[]> {
     this.mePermissions$ = null;

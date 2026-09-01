@@ -10,7 +10,7 @@
     <!-- A failed change or removal. It sits above the table because that is
          where the row it refers to is, and it stays until dismissed: the
          backend's guard-rail sentence is the whole explanation. -->
-    @if (actionError(); as message) {
+    @if (actionErrorMessage(); as message) {
       <div class="panel-error" role="alert" data-testid="action-error">
         <p>{{ message }}</p>
         <app-button variant="secondary" (clicked)="dismissActionError()">

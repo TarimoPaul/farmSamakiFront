@@ -29,17 +29,21 @@ const UNKNOWN_FAILURE = new ApiError({
 });
 
 /**
- * The backend's guard rails arrive as a bare 409.
+ * The fallback for a conflict this screen cannot name.
  *
- * `GlobalExceptionHandler.handleConflict` builds its envelope with the
- * single-argument `ApiResponse.error(message)`, which leaves `errorCode` null -
- * so unlike every other refusal from this backend, a conflict carries no code
- * to branch on and the STATUS is the only machine-readable thing it has. The
- * message is still Swahili prose we refuse to pattern-match on; it is simply
- * shown, because on this screen it is the one thing that explains the refusal:
+ * Conflicts used to be the ONE refusal from this backend carrying no
+ * `errorCode`, which forced every 409 onto a status branch. They now carry
+ * one - `ConflictException` defaults to CONFLICT and names OWNER_IMMUTABLE for
+ * the guard rail - and of the two endpoints this screen writes to, the ONLY
+ * 409 either produces is that guard rail, which is branched on by code below
+ * like every other refusal. (A stale list is a 400 VALIDATION_ERROR from both,
+ * not a conflict.)
  *
- *   DELETE /api/users/{id}/memberships/{farmId}   (the farm's own owner)
- *     -> 409 {"success":false,"message":"Mmiliki wa shamba hawezi kutolewa kwenye shamba lake."}
+ * So nothing reaches this branch today. It is kept because when a 409 does
+ * arrive with nothing but prose - an older backend, or a rule added to these
+ * endpoints later - showing that prose beats the generic "this clashes with
+ * existing data", which would leave the admin hunting for the clash. Shown,
+ * never pattern-matched.
  *
  * Same treatment as the Approvals screen; see CONFLICT_STATUS there.
  */
@@ -69,8 +73,10 @@ const CONFLICT_STATUS = 409;
  * NO CLIENT-SIDE RULES. The backend refuses removing a farm's owner
  * (FarmUserService.removeMembership) and nothing else; `UserSummary` carries
  * no "is owner" flag, so the UI genuinely cannot know in advance and does not
- * pretend to. The control is offered, the backend decides, and its sentence is
- * what the admin reads. Inventing a rule here would mean hiding a control for
+ * pretend to. The control is offered, the backend decides, and its refusal is
+ * what the admin reads - in their own language, because that one refusal has a
+ * code of its own (OWNER_IMMUTABLE) rather than being a bare 409 like the
+ * rest. Inventing a rule here would mean hiding a control for
  * people the backend would have allowed.
  */
 @Component({
@@ -127,8 +133,31 @@ export class Members implements OnInit {
    *
    * It holds the guard-rail conflict, which is a sentence the admin has to
    * read and act on ("the owner cannot be removed"), not a transient blip.
+   *
+   * The FAILURE is stored, not the rendered line - same as loadError above.
+   * The banner can stand for a while, and a line rendered once would still be
+   * in the old language after the toggle was used under it.
    */
-  readonly actionError = signal<string | null>(null);
+  readonly actionError = signal<ApiError | null>(null);
+
+  /**
+   * The banner's line, in the language showing now.
+   *
+   * OWNER_IMMUTABLE - the one refusal this screen really has to explain -
+   * resolves through the shared copy and therefore reads in the UI language.
+   * Any OTHER conflict keeps the backend's own sentence, which is Swahili
+   * either way but says more than the generic line could; see CONFLICT_STATUS.
+   */
+  readonly actionErrorMessage = computed(() => {
+    const error = this.actionError();
+    if (!error) {
+      return null;
+    }
+    if (error.errorCode !== ERROR_CODE.OWNER_IMMUTABLE && error.status === CONFLICT_STATUS) {
+      return error.message;
+    }
+    return this.messageFor(error);
+  });
   readonly toastMessage = signal<string | null>(null);
 
   readonly form = this.formBuilder.group({
@@ -358,21 +387,18 @@ export class Members implements OnInit {
   }
 
   /**
-   * A failed removal.
+   * A failed removal, put in the banner rather than a toast: the guard rail
+   * ("the owner cannot be removed") is a rule the admin has to read and act
+   * on, and it must not scroll past them.
    *
-   * The conflict is the interesting one and the reason this lands in a banner
-   * rather than a toast: it is the backend's guard rail
-   * ("Mmiliki wa shamba hawezi kutolewa kwenye shamba lake.") and it has to
-   * stay on screen long enough to be read. It has no `errorCode` at all, so it
-   * is recognised by status - see CONFLICT_STATUS.
+   * The failure itself is what is stored - the wording is chosen on render,
+   * by actionErrorMessage.
    */
   private showRemoveError(error: ApiError): void {
     if (error.sessionHandled) {
       return;
     }
-    this.actionError.set(
-      error.status === CONFLICT_STATUS ? error.message : this.messageFor(error),
-    );
+    this.actionError.set(error);
   }
 
   dismissActionError(): void {
