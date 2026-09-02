@@ -6,6 +6,8 @@ import { Dashboard } from './dashboard/dashboard';
 import { Farms } from './farms/farms';
 import { Approvals } from './approvals/approvals';
 import { Members } from './members/members';
+import { Production } from './production/production';
+import { WaterQuality } from './water-quality/water-quality';
 import { authGuard, guestGuard, permissionGuard, sessionGuard } from './core/guards/auth-guard';
 import { PERMISSION } from './core/models/permissions';
 
@@ -39,5 +41,13 @@ export const routes: Routes = [
     component: Members,
     canActivate: [permissionGuard(PERMISSION.MANAGE_USERS)],
   },
+  // authGuard, NOT permissionGuard - unlike the three admin screens above,
+  // these two are READ screens with gated controls inside them. Reading is
+  // `view_dashboard`, which every role holds; what differs per person is
+  // whether the create/log forms are there at all, and that is decided by
+  // *appHasPermission on the controls themselves. Gating the route on a write
+  // permission would shut a VIEWER out of data they are entitled to see.
+  { path: 'production', component: Production, canActivate: [authGuard] },
+  { path: 'water-quality', component: WaterQuality, canActivate: [authGuard] },
   { path: '**', redirectTo: 'login' },
 ];

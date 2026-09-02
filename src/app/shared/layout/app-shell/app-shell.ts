@@ -42,10 +42,17 @@ const NAV_ITEMS: readonly ShellNavItem[] = [
     permission: PERMISSION.APPROVE_USERS,
   },
   { key: 'navMembers', icon: 'users', route: '/members', permission: PERMISSION.MANAGE_USERS },
-  { key: 'navUnits', icon: 'box' },
-  { key: 'navCycles', icon: 'cycle' },
+  // No permission on these two: they are read screens, and reading is
+  // `view_dashboard` - which every role holds, so a gate here would only ever
+  // hide them from nobody. The write controls inside them are gated
+  // individually (see Production and WaterQuality).
+  //
+  // Units and cycles share ONE entry because they are one screen: a cycle is
+  // started in a unit, and splitting them would mean two routes showing each
+  // other's data. The old route-less `navCycles` placeholder is gone with it.
+  { key: 'navProduction', icon: 'box', route: '/production' },
   { key: 'navFeeding', icon: 'feed' },
-  { key: 'navWater', icon: 'drop' },
+  { key: 'navWater', icon: 'drop', route: '/water-quality' },
   { key: 'navSettings', icon: 'gear' },
 ];
 

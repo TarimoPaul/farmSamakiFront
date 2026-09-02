@@ -11,11 +11,27 @@
  * learn them - the login response carries the role NAME only.
  */
 export const PERMISSION = {
+  /**
+   * The read permission for the whole farm side of the API: production units,
+   * cycles, species, feed, water-quality readings. Every GraphQL query is
+   * gated on this one code, so a screen that only reads needs nothing else.
+   */
   VIEW_DASHBOARD: 'view_dashboard',
+  /** Start a cycle in a unit. Gates the "new cycle" control on Production. */
   EDIT_CYCLE: 'edit_cycle',
+  /** Create a tank/pond. Gates the "new unit" control on Production. */
   MANAGE_UNITS: 'manage_units',
   MARK_TASK_DONE: 'mark_task_done',
   VIEW_FINANCE: 'view_finance',
+  /**
+   * Record a water-quality reading. Gates the log form on the Water Quality
+   * screen - VIEWER holds `view_dashboard` and reads the readings, but has no
+   * form at all.
+   *
+   * Seeded by the backend's V10 migration and granted to OWNER, FARM_MANAGER
+   * and WORKER: measuring the water is field work, like feeding.
+   */
+  LOG_WATER_QUALITY: 'log_water_quality',
   /** Create/assign/disable/delete people. Gates the members panel. */
   MANAGE_USERS: 'manage_users',
   /** List and create farms. Gates the Farms screen and its nav entry. */

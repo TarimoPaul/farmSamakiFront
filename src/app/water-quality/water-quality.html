@@ -1,0 +1,140 @@
+<app-shell>
+  <section class="water">
+    <header class="water__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+    </header>
+
+    @if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+      </div>
+    } @else if (!cycle()) {
+      <!-- Not a failure: nothing has gone wrong, there is simply no cycle to
+           record against. It gets a card and a way out, not a red panel. -->
+      <section class="card" data-panel="no-cycle">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().noCycleTitle }}</h2>
+        </header>
+        <p class="no-cycle__body">{{ t().noCycleMessage }}</p>
+        <div class="no-cycle__actions">
+          <app-button (clicked)="goToProduction()">{{ t().goToProduction }}</app-button>
+        </div>
+      </section>
+    } @else {
+      <section class="card" data-panel="context">
+        <p class="context__line">
+          {{ t().contextLabel }}:
+          <strong>{{ cycle()!.speciesName }}</strong>
+          &middot; {{ t().contextUnit }} <strong>{{ cycle()!.unit.code }}</strong>
+          &middot; {{ cycle()!.stockingDate }}
+        </p>
+      </section>
+
+      <!-- The form is the WRITE permission, and it is simply absent without
+           it: a VIEWER reads the table below and is offered nothing. -->
+      <section class="card" data-panel="log-form" *appHasPermission="PERMISSION.LOG_WATER_QUALITY">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().formTitle }}</h2>
+          <p class="card__hint">{{ t().formHint }}</p>
+        </header>
+
+        <form class="reading-form" [formGroup]="form" (ngSubmit)="submit()">
+          <div class="reading-form__grid">
+            <app-form-field [label]="t().fieldPh" for="wq-ph">
+              <input
+                id="wq-ph"
+                class="text-input"
+                type="number"
+                step="0.1"
+                formControlName="ph"
+                [placeholder]="t().optional"
+              />
+            </app-form-field>
+
+            <app-form-field [label]="t().fieldTemperature" for="wq-temperature">
+              <input
+                id="wq-temperature"
+                class="text-input"
+                type="number"
+                step="0.1"
+                formControlName="temperature"
+                [placeholder]="t().optional"
+              />
+            </app-form-field>
+
+            <app-form-field [label]="t().fieldOxygen" for="wq-oxygen">
+              <input
+                id="wq-oxygen"
+                class="text-input"
+                type="number"
+                step="0.1"
+                formControlName="oxygen"
+                [placeholder]="t().optional"
+              />
+            </app-form-field>
+
+            <app-form-field [label]="t().fieldAmmonia" for="wq-ammonia">
+              <input
+                id="wq-ammonia"
+                class="text-input"
+                type="number"
+                step="0.01"
+                formControlName="ammonia"
+                [placeholder]="t().optional"
+              />
+            </app-form-field>
+          </div>
+
+          <app-form-field [label]="t().fieldNotes" for="wq-notes">
+            <input
+              id="wq-notes"
+              class="text-input"
+              type="text"
+              formControlName="notes"
+              [placeholder]="t().optional"
+              autocomplete="off"
+            />
+          </app-form-field>
+
+          @if (formError(); as message) {
+            <p class="form-error" role="alert">{{ message }}</p>
+          }
+
+          <!-- type="submit" and NO (clicked) handler on purpose: the button
+               is inside the form, so a click goes through ngSubmit exactly as
+               pressing Enter does. Wiring both would call submit() twice. -->
+          <div class="reading-form__actions">
+            <app-button type="submit" [loading]="saving()">{{ t().submit }}</app-button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card" data-panel="readings">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().listTitle }}</h2>
+        </header>
+
+        <app-data-table [columns]="columns()" [rows]="readings()" [rowKey]="readingKey">
+          <app-empty-state
+            slot="empty"
+            [title]="t().listEmptyTitle"
+            [message]="t().listEmptyMessage"
+          />
+        </app-data-table>
+      </section>
+    }
+  </section>
+
+  <app-toast
+    [open]="!!toastMessage()"
+    variant="success"
+    [message]="toastMessage() ?? ''"
+    (closed)="dismissToast()"
+  />
+</app-shell>
