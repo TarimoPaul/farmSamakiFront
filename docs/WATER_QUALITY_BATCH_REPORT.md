@@ -214,13 +214,14 @@ Every error message and code in the test fixtures is now the backend's verbatim 
 
 ## 6. Commits
 
-Branch `feat/water-quality-screen`, off `main` (`74b1a1f`).
+Branch `feat/water-quality-screen`, off `main` (`74b1a1f`), pushed to
+`origin/feat/water-quality-screen`. Not merged — `main` is untouched.
 
 | Hash | Subject |
 |---|---|
-| _(see git log; recorded at push time)_ | feat(production): pick the cycle every log screen needs |
-| | feat(water-quality): record the reading that explains a sudden kill |
-| | test(water-quality): pin the gate, the unit it writes to, and the killing reading |
+| `7d8c53a` | feat(production): pick the cycle every log screen needs |
+| `c946fff` | feat(water-quality): record the reading that explains a sudden kill |
+| `62c6e2f` | test(water-quality): pin the gate, the unit it writes to, and the killing reading |
 
 ---
 
