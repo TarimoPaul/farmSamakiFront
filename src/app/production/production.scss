@@ -1,0 +1,69 @@
+@use '../shared/styles/screen' as *;
+
+.production {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.production__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.production__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* A hint under a card title - the cycles table needs to say what selecting a
+   row is FOR, since the consequence shows up on a different screen. */
+.card__hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.25rem;
+}
+
+.selection__line {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--on-surface);
+}
+
+.selection__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Not an error: nothing has gone wrong, the user simply has not chosen yet. */
+.selection__hint {
+  margin: 0;
+  padding: 0.25rem;
+  max-width: 60ch;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.stack-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 0.25rem;
+}

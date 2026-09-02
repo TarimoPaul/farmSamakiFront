@@ -6,6 +6,7 @@ import { ApiError } from '../models/api-error';
 import { ApiResponse } from '../models/api-response';
 import { ERROR_CODE } from '../models/error-codes';
 import { PERMISSION } from '../models/permissions';
+import { CycleSelectionService } from './cycle-selection';
 import { FarmSelectionService } from './farm-selection';
 import {
   ChangePasswordOutcome,
@@ -41,6 +42,7 @@ function messageOf(err: HttpErrorResponse, fallback: string): string {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly farmSelection = inject(FarmSelectionService);
+  private readonly cycleSelection = inject(CycleSelectionService);
   private readonly baseUrl = `${environment.apiUrl}/auth`;
 
   readonly currentUser = signal<UserSummary | null>(this.readStoredUser());
@@ -367,6 +369,10 @@ export class AuthService {
     // A chosen farm belongs to one session. Left behind, the next person to
     // sign in on this browser would send someone else's choice in a header.
     this.farmSelection.clear();
+    // And a cycle belongs to a farm, so it cannot outlive the session either
+    // - otherwise the next user opens a log screen already pointed at a cycle
+    // they have never seen.
+    this.cycleSelection.clear();
     // Drop the cached /me: the next session must ask again rather than
     // inherit the previous user's answer.
     this.mePermissions$ = null;
@@ -400,6 +406,7 @@ export class AuthService {
     this.currentUser.set(res.data.user);
     // Same reason as logout: whoever just signed in has chosen nothing yet.
     this.farmSelection.clear();
+    this.cycleSelection.clear();
 
     if (res.data.mustChangePassword) {
       this.raiseGate();

@@ -1,0 +1,242 @@
+<app-shell>
+  <section class="production">
+    <header class="production__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+
+      <div class="production__actions">
+        <!-- manage_units and edit_cycle are DIFFERENT capabilities: a worker
+             who may start a cycle need not be the person who builds tanks. -->
+        <app-button variant="secondary" *appHasPermission="PERMISSION.MANAGE_UNITS" (clicked)="openUnitForm()">
+          {{ t().newUnit }}
+        </app-button>
+        <app-button *appHasPermission="PERMISSION.EDIT_CYCLE" (clicked)="openCycleForm()">
+          {{ t().newCycle }}
+        </app-button>
+      </div>
+    </header>
+
+    @if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+      </div>
+    } @else {
+      <!-- The selected cycle, stated plainly. It is the one thing on this
+           screen the logging screens actually consume. -->
+      <section class="card" data-panel="selection">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().selectedTitle }}</h2>
+        </header>
+
+        @if (selectedCycle(); as cycle) {
+          <div class="selection">
+            <p class="selection__line">
+              <strong>{{ cycle.unit.code }}</strong>
+              &middot; {{ cycle.speciesName }}
+              &middot; {{ t().colCycleStocked }}: {{ cycle.stockingDate }}
+              &middot; {{ cycle.status }}
+            </p>
+            <div class="selection__actions">
+              <app-button (clicked)="goToWaterQuality()">{{ t().goToWater }}</app-button>
+              <app-button variant="ghost" (clicked)="clearSelection()">
+                {{ t().clearSelection }}
+              </app-button>
+            </div>
+          </div>
+        } @else {
+          <p class="selection__hint">{{ t().selectedNone }}</p>
+        }
+      </section>
+
+      <section class="card" data-panel="cycles">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().cyclesTitle }}</h2>
+          <p class="card__hint">{{ t().cyclesHint }}</p>
+        </header>
+
+        <app-data-table
+          [columns]="cycleColumns()"
+          [rows]="cycles()"
+          [rowKey]="cycleKey"
+          [selectable]="true"
+          [selectedKey]="selectedCycle()?.cycleId ?? null"
+          (rowSelected)="selectCycle($event)"
+        >
+          <app-empty-state
+            slot="empty"
+            [title]="t().cyclesEmptyTitle"
+            [message]="t().cyclesEmptyMessage"
+          />
+        </app-data-table>
+      </section>
+
+      <section class="card" data-panel="units">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().unitsTitle }}</h2>
+        </header>
+
+        <app-data-table [columns]="unitColumns()" [rows]="units()" [rowKey]="unitKey">
+          <app-empty-state
+            slot="empty"
+            [title]="t().unitsEmptyTitle"
+            [message]="t().unitsEmptyMessage"
+          />
+        </app-data-table>
+      </section>
+    }
+  </section>
+
+  <app-modal
+    [open]="unitOpen()"
+    [title]="t().unitFormTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeUnitForm()"
+  >
+    <form class="stack-form" [formGroup]="unitForm" (ngSubmit)="submitUnit()">
+      <app-form-field
+        [label]="t().fieldUnitCode"
+        for="unit-code"
+        [required]="true"
+        [error]="unitCodeError()"
+      >
+        <input
+          id="unit-code"
+          class="text-input"
+          type="text"
+          formControlName="code"
+          [placeholder]="t().fieldUnitCodeHint"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldUnitType" for="unit-type" [required]="true">
+        <select id="unit-type" class="text-input" formControlName="type">
+          @for (type of unitTypes; track type) {
+            <option [value]="type">{{ type }}</option>
+          }
+        </select>
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldUnitSize" for="unit-size">
+        <input
+          id="unit-size"
+          class="text-input"
+          type="number"
+          step="0.01"
+          formControlName="sizeM3"
+          [placeholder]="t().optional"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldUnitSource" for="unit-source">
+        <input
+          id="unit-source"
+          class="text-input"
+          type="text"
+          formControlName="waterSource"
+          [placeholder]="t().optional"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      @if (formError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeUnitForm()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submitUnit()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-modal
+    [open]="cycleOpen()"
+    [title]="t().cycleFormTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeCycleForm()"
+  >
+    <form class="stack-form" [formGroup]="cycleForm" (ngSubmit)="submitCycle()">
+      @if (units().length === 0) {
+        <p class="form-error" role="alert">{{ t().noUnitsForCycle }}</p>
+      }
+
+      <app-form-field [label]="t().fieldCycleUnit" for="cycle-unit" [required]="true">
+        <select id="cycle-unit" class="text-input" formControlName="unitId">
+          @for (unit of units(); track unit.unitId) {
+            <option [value]="unit.unitId">{{ unit.code }} ({{ unit.type }})</option>
+          }
+        </select>
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldCycleSpecies" for="cycle-species" [required]="true">
+        <select id="cycle-species" class="text-input" formControlName="speciesId">
+          @for (item of species(); track item.speciesId) {
+            <option [value]="item.speciesId">{{ item.name }}</option>
+          }
+        </select>
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldCycleStocked" for="cycle-stocked" [required]="true">
+        <input id="cycle-stocked" class="text-input" type="date" formControlName="stockingDate" />
+      </app-form-field>
+
+      <app-form-field
+        [label]="t().fieldCycleFingerlings"
+        for="cycle-fingerlings"
+        [required]="true"
+      >
+        <input
+          id="cycle-fingerlings"
+          class="text-input"
+          type="number"
+          step="1"
+          formControlName="fingerlingsCount"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldCycleSurvival" for="cycle-survival">
+        <input
+          id="cycle-survival"
+          class="text-input"
+          type="number"
+          step="0.01"
+          formControlName="survivalRateEstimate"
+          [placeholder]="t().fieldCycleSurvivalHint"
+        />
+      </app-form-field>
+
+      @if (cycleFieldError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+      @if (formError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeCycleForm()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submitCycle()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-toast
+    [open]="!!toastMessage()"
+    variant="success"
+    [message]="toastMessage() ?? ''"
+    (closed)="dismissToast()"
+  />
+</app-shell>
