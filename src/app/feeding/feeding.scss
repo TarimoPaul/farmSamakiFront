@@ -1,0 +1,186 @@
+@use '../shared/styles/screen' as *;
+
+/* Deliberately the same skeleton as water-quality.scss - this screen is the
+   second instance of that layout, not a new one, and the shared pieces
+   (.card, .panel-error, .text-input, .form-error) all come from _screen.scss.
+   What is new below is only the stock panel, which has no equivalent there. */
+
+.feeding {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.feeding__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.card__hint {
+  margin: 0.25rem 0 0;
+  max-width: 70ch;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.no-cycle__body {
+  margin: 0.5rem 0 0;
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.no-cycle__actions {
+  margin-top: 1rem;
+  padding: 0 0.25rem 0.25rem;
+}
+
+.context__line {
+  margin: 0;
+  padding: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--on-surface);
+}
+
+.feed-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 0.25rem 0.25rem;
+}
+
+/* Feed, amount and date side by side on a desk, stacking on a phone at the
+   pond - which is where this form is actually filled in. */
+.feed-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+/* SAFE_LOWER, stated the moment the feed is picked. --notice, not --error:
+   the fish will eat it. Nothing is wrong, it is simply not the best choice. */
+.feed-form__note {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--notice);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--notice-bg);
+  color: var(--notice);
+  font-size: 0.85rem;
+}
+
+.feed-form__confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem;
+  border: 1px solid var(--notice);
+  border-radius: var(--radius);
+  background: var(--notice-bg);
+  color: var(--notice);
+  font-size: 0.88rem;
+
+  p {
+    margin: 0;
+    max-width: 52ch;
+  }
+}
+
+.feed-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The stock panel.
+   A hand-rolled two-column list rather than <app-data-table>, because a row
+   here has to go RED as a whole and carry a sentence under its name, and a
+   DataTableColumn can only return a string per cell. */
+.stock__banner {
+  margin: 0 0.25rem 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius);
+  background: var(--notice-bg);
+  color: var(--notice);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.stock__list {
+  margin: 0;
+  padding: 0 0.25rem 0.25rem;
+  list-style: none;
+}
+
+.stock__head,
+.stock__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0.6rem;
+}
+
+.stock__head {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.stock__row {
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+  color: var(--on-surface);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.stock__row--low {
+  color: var(--notice);
+}
+
+/* Overdrawn: fed from a sack nobody recorded a purchase for. Red, and never
+   clamped to zero - the negative number IS the discrepancy being reported. */
+.stock__row--negative {
+  background: var(--error-bg);
+  border-radius: var(--radius);
+  color: var(--error);
+  font-weight: 600;
+}
+
+.stock__name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* The age window the feed is made for. Muted, because it is context for the
+   name above it rather than a second fact to read. */
+.stock__window {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.stock__note {
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+.stock__value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

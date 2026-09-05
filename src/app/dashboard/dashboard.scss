@@ -2,7 +2,8 @@
   margin: 0;
   padding: 1.5rem;
   border-radius: 16px;
-  background: var(--surface-alt);
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: var(--muted);
   text-align: center;
 
@@ -21,7 +22,8 @@
   gap: 0.6rem;
   padding: 2.75rem 1.5rem;
   border-radius: 16px;
-  background: var(--surface-alt);
+  background: var(--surface);
+  border: 1px solid var(--border);
   text-align: center;
 }
 
@@ -43,7 +45,7 @@
   margin-top: 0.4rem;
   padding: 0.625rem 1rem;
   border-radius: var(--radius);
-  background: var(--brand);
+  background: var(--brand-strong);
   color: var(--brand-contrast);
   font-weight: 600;
   text-decoration: none;
@@ -53,55 +55,175 @@
   }
 }
 
-// ── Stat cards ───────────────────────────────────────────────────────────
+// ── Stat tiles ───────────────────────────────────────────────────────────
+// Ported from the reference infographic (ScreenShoot/til1.png). Every
+// proportion below is measured off that artwork, not guessed - its card is
+// 272x91px, so the ratios are stated against those numbers.
+//
+// COLOUR RULE FOR THIS BLOCK: nothing here introduces a colour. The
+// reference gives each of its four rows a different hue; we have one accent,
+// so all four tiles share the ramp already defined in src/styles.scss -
+// --brand-strong where white text sits on orange (the tab), --brand for the
+// cap (a graphic, nothing is read on it), and the slate neutrals everywhere
+// else. Adding a second hue would break the palette taken from color11.png.
 .stat-grid {
   display: grid;
+  // Column count is chosen to hold the reference tile.s 3:1 proportion, not
+  // to fill the row: on a wide screen two across stretched each tile to 7:1
+  // (measured on the running app) and the tab stretched with it into a slab.
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.85rem;
+
+  @media (max-width: 1600px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  // Row gap is the larger of the two: the tab overhangs the top of its tile
+  // by 0.85rem and must not touch the tile above it.
+  gap: 1.9rem 1.15rem;
 
   @media (max-width: 700px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 
-.stat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.tile {
+  position: relative;
+  // Top padding clears the tab (2.15rem tall, pulled 0.85rem above the tile)
+  // plus its pendant; right padding clears the cap standing on that edge.
+  padding: 2.5rem 2.4rem 1.15rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  // Measured from the artwork: the shadow sits directly UNDER the card with
+  // no sideways offset (the strip to the right of the card is untouched
+  // background), darkest at the edge and gone within ~35px. The border is
+  // ours, not the reference's - on a white canvas, and again on the dark
+  // theme's slate, a shadow alone does not hold the tile's edge.
+  box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
+    box-shadow: 0 14px 24px -14px rgba(15, 35, 60, 0.55);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 }
 
-.stat-card__icon {
-  width: 34px;
-  height: 34px;
+// The tab: straddles the top edge. It carries the LABEL now, not the number -
+// which is why it is wide again (the reference's own tab is 51% of the card
+// and holds text too). The number moved down into the body, where it has the
+// room to be the biggest thing on the tile.
+.tile__tab {
+  position: absolute;
+  top: -0.85rem;
+  left: 1.15rem;
+  z-index: 1;
+  // Wide enough for the longest label ("Mizunguko Inayoendelea" in Swahili)
+  // without wrapping, and capped so it never reaches the cap on the right.
+  width: 66%;
+  max-width: calc(100% - 3.6rem);
+  height: 2.15rem;
+  display: flex;
+  align-items: center;
+  padding: 0 0.95rem;
+  border-radius: 12px;
+  // A pale chip rather than a solid block: four saturated tabs across the top
+  // of the screen read as an alarm. Same two tokens, swapped roles -
+  // --brand-soft carries --brand-dark at 6.0:1 in light, 4.9:1 in dark.
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  // A long label is cut rather than allowed to break the tab's height.
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// The pendant hanging below the tab. In the artwork it hangs where it points
+// at the divider inside the card, so this one is placed on the divider too -
+// 4.65rem from the tile's left edge (1.25rem of padding + the 3.4rem icon
+// zone), measured back from the tab's own left edge at 1.15rem.
+.tile__tab::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 3.5rem;
+  width: 2.1rem;
+  height: 0.9rem;
+  margin-left: -1.05rem;
+  background: inherit;
+  border-radius: 0 0 1.05rem 1.05rem;
+}
+
+// The cap: a narrow slab standing on the right edge, 22/272 of the card's
+// width in the reference, overhanging it by 2px top and bottom. This one is
+// pure graphic - no text on it - so it takes the vivid --brand rather than
+// the darker --brand-strong the tab needs.
+.tile__cap {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 1.35rem;
+  height: calc(100% + 2px);
+  border-radius: 0 16px 16px 0;
+  background: var(--brand);
+}
+
+.tile__body {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+// Icon zone, closed by the hairline divider the reference draws between the
+// icon and the text. Its width sets where the pendant above points.
+.tile__icon {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: var(--brand-soft);
-  color: var(--brand-dark);
+  width: 3.4rem;
+  padding-right: 0.9rem;
+  border-right: 1px solid var(--border);
+  color: var(--brand-strong);
 
   svg {
-    width: 17px;
-    height: 17px;
+    width: 22px;
+    height: 22px;
   }
 }
 
-.stat-card__label {
-  font-size: 0.75rem;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.stat-card__value {
-  font-size: 1.4rem;
+// The number, now the biggest thing on the tile. Slate rather than orange:
+// the tile already spends its accent on the tab, the icon and the cap, and
+// the count is data, not decoration.
+.tile__value {
+  min-width: 0;
+  font-size: 1.9rem;
   font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
   color: var(--on-surface);
+  // Digits keep their column when a count ticks over.
+  font-variant-numeric: tabular-nums;
 }
 
-// ── Chart / table sections (no card chrome - whitespace does the work) ───
+// ── Chart / table sections ─────────────────────────────────────────
+// These used to be bare - whitespace did the work on a white sheet. The
+// canvas is grey now, so bare means floating on nothing: each section takes
+// the same white card as the tiles, which is also what the reference does
+// with every block it puts on its grey field.
 .chart-card,
 .table-card {
-  padding: 0;
+  padding: 1.1rem 1.25rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
 }
 
 .card-heading h2 {
@@ -143,7 +265,8 @@
 
 .bar-chart__track {
   flex: 1;
-  width: 34px;
+  // Narrowed from 34px: at full width a single bar was another orange slab.
+  width: 22px;
   display: flex;
   align-items: flex-end;
   border-radius: 8px;
@@ -237,6 +360,12 @@ td {
 }
 
 .side-card {
+  padding: 1rem 1.1rem 1.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
+
   h3 {
     margin: 0 0 0.8rem;
     font-size: 0.85rem;
@@ -321,9 +450,11 @@ td {
   padding: 0.5rem 0.2rem;
   border-radius: 10px;
 
+  // The same pale chip the tile tabs use, so the one orange square in the
+  // rail stops competing with the numbers around it.
   &--today {
-    background: var(--brand);
-    color: #fff;
+    background: var(--brand-soft);
+    color: var(--brand-dark);
   }
 }
 
@@ -364,8 +495,9 @@ td {
 }
 
 .ring__value {
-  width: 82px;
-  height: 82px;
+  // 9px of stroke instead of 13: the ring reads as a gauge, not a disc.
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   background: var(--surface);
   display: flex;

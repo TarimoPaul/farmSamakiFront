@@ -5,8 +5,6 @@
         <h1 class="page-title">{{ t().title }}</h1>
         <p class="page-subtitle">{{ t().subtitle }}</p>
       </div>
-
-      <app-button variant="secondary" (clicked)="loadPending()">{{ t().refresh }}</app-button>
     </header>
 
     <!-- Everything EXCEPT the clean success gets a banner rather than a toast:
@@ -25,7 +23,7 @@
         >
           <p class="notice__text">
             @switch (result.kind) {
-            @case ('approved-only') {
+              @case ('approved-only') {
                 <strong>{{ result.name }}</strong> — {{ t().noticeApprovedOnly }}
               }
               @case ('approved-not-assigned') {
@@ -64,8 +62,11 @@
           [columns]="columns()"
           [rows]="pending()"
           [rowKey]="userKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
           [rowActions]="actions"
-          [actionsLabel]="t().approve"
+          [actionsLabel]="t().actions"
+          [showActionsLabel]="true"
         >
           <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
         </app-data-table>
@@ -91,6 +92,13 @@
         </ng-template>
       </div>
     }
+
+    <!-- Same place as every other screen's action, for consistency. -->
+    <div class="page-actions">
+      <app-button variant="secondary" floating (clicked)="loadPending()">{{
+        t().refresh
+      }}</app-button>
+    </div>
   </section>
 
   <app-modal

@@ -15,6 +15,7 @@ export const APPROVALS_I18N = {
     retry: 'Jaribu tena',
     refresh: 'Onyesha upya',
 
+    colNumber: 'S/No',
     colPosition: 'Nafasi',
     colName: 'Jina',
     colPhone: 'Simu',
@@ -26,6 +27,9 @@ export const APPROVALS_I18N = {
     emptyTitle: 'Hakuna maombi yanayosubiri idhini.',
     emptyMessage: 'Mtu akijisajili ataonekana hapa.',
 
+    // Kichwa cha safu, si kitufe: 'Idhinisha' kinaeleza kitendo kimoja,
+    // hivyo kingesoma vibaya kama jina la safu.
+    actions: 'Vitendo',
     approve: 'Idhinisha',
     approveAndAssign: 'Idhinisha na kumpangia',
 
@@ -49,8 +53,10 @@ export const APPROVALS_I18N = {
     // Outcomes.
     noticeApprovedAssigned: 'ameidhinishwa na amepangiwa shamba.',
     noticeApprovedOnly: 'Ameidhinishwa. Apangiwe shamba na role kupitia Members.',
-    noticeApprovedNotAssigned: 'Ameidhinishwa lakini hajapangiwa shamba — kamilisha kupitia Members.',
-    noticeStale: 'hayuko tena kwenye orodha ya kusubiri — huenda msimamizi mwingine amemshughulikia. Orodha imeonyeshwa upya.',
+    noticeApprovedNotAssigned:
+      'Ameidhinishwa lakini hajapangiwa shamba — kamilisha kupitia Members.',
+    noticeStale:
+      'hayuko tena kwenye orodha ya kusubiri — huenda msimamizi mwingine amemshughulikia. Orodha imeonyeshwa upya.',
     noticeDismiss: 'Sawa',
     // Only for the approve-only caller, who cannot assign at all.
     hintApproveOnly:
@@ -63,6 +69,7 @@ export const APPROVALS_I18N = {
     retry: 'Try again',
     refresh: 'Refresh',
 
+    colNumber: 'S/No',
     colPosition: 'Position',
     colName: 'Name',
     colPhone: 'Phone',
@@ -72,6 +79,7 @@ export const APPROVALS_I18N = {
     emptyTitle: 'No approval requests are waiting.',
     emptyMessage: 'Anyone who registers will appear here.',
 
+    actions: 'Actions',
     approve: 'Approve',
     approveAndAssign: 'Approve and assign',
 

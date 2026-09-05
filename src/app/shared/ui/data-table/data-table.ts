@@ -27,6 +27,9 @@ export interface DataTableColumn<T> {
  * permission gating around it - things a `value: (row) => string` cannot
  * express. Omit it and the table renders exactly as it did before it existed
  * (no extra header, no extra cell), which is how Farms still uses it.
+ *
+ * `numbered` prepends a row-number column. Like `rowActions` it is off by
+ * default, so a screen that says nothing about it renders as it always did.
  */
 @Component({
   selector: 'app-data-table',
@@ -36,18 +39,25 @@ export interface DataTableColumn<T> {
       <table class="data-table">
         <thead>
           <tr>
+            @if (numbered()) {
+              <th scope="col" class="data-table__number-head">{{ numberLabel() }}</th>
+            }
             @for (column of columns(); track column.label) {
               <th scope="col">{{ column.label }}</th>
             }
             @if (rowActions()) {
               <th scope="col" class="data-table__actions-head">
-                <span class="visually-hidden">{{ actionsLabel() }}</span>
+                @if (showActionsLabel()) {
+                  {{ actionsLabel() }}
+                } @else {
+                  <span class="visually-hidden">{{ actionsLabel() }}</span>
+                }
               </th>
             }
           </tr>
         </thead>
         <tbody>
-          @for (row of rows(); track rowKey()(row)) {
+          @for (row of rows(); track rowKey()(row); let index = $index) {
             <tr
               [class.data-table__row--selectable]="selectable()"
               [class.data-table__row--selected]="selectable() && rowKey()(row) === selectedKey()"
@@ -57,12 +67,25 @@ export interface DataTableColumn<T> {
               (keydown.enter)="selectable() && rowSelected.emit(row)"
               (keydown.space)="selectable() && rowSelected.emit(row)"
             >
+              @if (numbered()) {
+                <td class="data-table__number">{{ index + 1 }}</td>
+              }
               @for (column of columns(); track column.label) {
-                <td [class.data-table__cell--muted]="column.muted?.(row)">{{ column.value(row) }}</td>
+                <td [class.data-table__cell--muted]="column.muted?.(row)">
+                  {{ column.value(row) }}
+                </td>
               }
               @if (rowActions(); as actions) {
-                <td class="data-table__actions">
-                  <ng-container [ngTemplateOutlet]="actions" [ngTemplateOutletContext]="{ $implicit: row }" />
+                <!-- stopPropagation, because on a SELECTABLE table the row
+                     itself is a button: without this, opening a row's menu -
+                     or picking anything in it - would also select the row,
+                     firing off whatever that loads. A control in the actions
+                     cell is never a click on the row. -->
+                <td class="data-table__actions" (click)="$event.stopPropagation()">
+                  <ng-container
+                    [ngTemplateOutlet]="actions"
+                    [ngTemplateOutletContext]="{ $implicit: row }"
+                  />
                 </td>
               }
             </tr>
@@ -82,21 +105,21 @@ export interface DataTableColumn<T> {
     .data-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: .9rem;
+      font-size: 0.9rem;
     }
     .data-table th {
-      padding: .6rem .75rem;
+      padding: 0.6rem 0.75rem;
       text-align: left;
-      font-size: .72rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      letter-spacing: .04em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--muted);
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
     .data-table td {
-      padding: .7rem .75rem;
+      padding: 0.7rem 0.75rem;
       border-bottom: 1px solid var(--border);
       color: var(--on-surface);
     }
@@ -126,11 +149,23 @@ export interface DataTableColumn<T> {
       white-space: nowrap;
       text-align: right;
     }
+    /* The row-number column: as narrow as its digits, and dimmer than the
+       data - it is a counting aid, not something anybody reads across. */
+    .data-table__number,
+    .data-table__number-head {
+      width: 1%;
+      white-space: nowrap;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .data-table__number {
+      color: var(--muted);
+    }
     .data-table__actions {
       display: table-cell;
     }
-    /* The actions header is present for column alignment but has no visible
-       label - screen readers still get one. */
+    /* Used when showActionsLabel is off: the header is there for column
+       alignment and for screen readers, but prints nothing. */
     .visually-hidden {
       position: absolute;
       width: 1px;
@@ -158,6 +193,26 @@ export class DataTable<T> {
    * absent means no extra column at all.
    */
   rowActions = input<TemplateRef<{ $implicit: T }> | null>(null);
-  /** Accessible name for the otherwise-blank actions header. */
+  /** Accessible name for the actions header - shown or not, see below. */
   actionsLabel = input('Actions');
+  /**
+   * Print `actionsLabel` in the header instead of hiding it.
+   *
+   * Off by default because not every screen's label is written as a HEADING:
+   * Approvals passes "Idhinisha", which describes its one button and would
+   * read oddly as a column title. A screen whose label is a real heading -
+   * "Vitendo" - opts in.
+   */
+  showActionsLabel = input(false);
+
+  /**
+   * Prepend a 1-based row-number column.
+   *
+   * POSITIONAL, not an identity: it counts what is on screen right now, so a
+   * row keeps its number only until the list is sorted or filtered. That is
+   * what makes it useful for "the third one down" and useless as a reference
+   * to a record - the row's own id is never this.
+   */
+  numbered = input(false);
+  numberLabel = input('#');
 }

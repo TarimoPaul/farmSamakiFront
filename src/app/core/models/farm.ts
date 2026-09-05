@@ -16,3 +16,15 @@ export interface CreateFarmRequest {
   name: string;
   location: string;
 }
+
+/**
+ * `PUT /api/farms/{farmId}` — name and location.
+ *
+ * The OWNER is deliberately absent: ownership comes from a membership
+ * (`FarmUserService`), and a second way to set it with different rules is
+ * how two versions of the same fact end up disagreeing.
+ */
+export interface UpdateFarmRequest {
+  name: string;
+  location: string;
+}

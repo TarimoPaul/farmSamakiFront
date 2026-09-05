@@ -28,11 +28,30 @@ const LIST_URL = `${USERS_URL}?farmId=${FARM_ID}`;
 const ROLES_RESPONSE = {
   success: true,
   data: [
-    { roleId: 1, name: 'OWNER', description: 'Mmiliki wa shamba', permissions: [] },
-    { roleId: 2, name: 'FARM_MANAGER', description: 'Meneja wa shamba', permissions: [] },
-    { roleId: 3, name: 'WORKER', description: 'Mfanyakazi', permissions: [] },
-    { roleId: 4, name: 'VIEWER', description: 'Mtazamaji', permissions: [] },
+    { roleId: 1, name: 'OWNER', description: 'Mmiliki wa shamba', active: true, permissions: [] },
+    {
+      roleId: 2,
+      name: 'FARM_MANAGER',
+      description: 'Meneja wa shamba',
+      active: true,
+      permissions: [],
+    },
+    { roleId: 3, name: 'WORKER', description: 'Mfanyakazi', active: true, permissions: [] },
+    { roleId: 4, name: 'VIEWER', description: 'Mtazamaji', active: true, permissions: [] },
   ],
+};
+
+/**
+ * The same call once VIEWER has been disabled on the Roles screen.
+ *
+ * The endpoint still SENDS it - the Roles screen is the only place that can
+ * switch it back on - so filtering it out is this screen's job.
+ */
+const ROLES_WITH_DISABLED_VIEWER = {
+  success: true,
+  data: ROLES_RESPONSE.data.map((role) =>
+    role.name === 'VIEWER' ? { ...role, active: false } : role,
+  ),
 };
 
 /** `GET /api/users?farmId=19` - the farm's people, before anything is changed. */
@@ -61,10 +80,7 @@ const MEMBERS_BEFORE = {
 /** The same call after the worker has been promoted - the backend's new truth. */
 const MEMBERS_AFTER = {
   success: true,
-  data: [
-    MEMBERS_BEFORE.data[0],
-    { ...MEMBERS_BEFORE.data[1], role: 'FARM_MANAGER' },
-  ],
+  data: [MEMBERS_BEFORE.data[0], { ...MEMBERS_BEFORE.data[1], role: 'FARM_MANAGER' }],
 };
 
 /** The list with the worker gone: a removed membership, the account intact. */
@@ -163,6 +179,36 @@ function rows(fixture: { nativeElement: unknown }): HTMLTableRowElement[] {
   return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr'));
 }
 
+/**
+ * A row's control, found by its label after opening that row's action menu -
+ * which is what an admin now does to reach any of them.
+ *
+ * Opened only if it is not already open, so a test can read several items
+ * without the second lookup toggling the sheet shut. Matching on the LABEL
+ * rather than an index matters now that the items are stacked and their
+ * number varies per row (your own row has no disable or delete).
+ */
+function rowMenu(
+  fixture: { nativeElement: unknown; detectChanges: () => void },
+  rowIndex: number,
+  label: string,
+): HTMLButtonElement {
+  if (!rows(fixture)[rowIndex].querySelector('.sheet')) {
+    (rows(fixture)[rowIndex].querySelector('.trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+  }
+
+  const items = Array.from(rows(fixture)[rowIndex].querySelectorAll('.sheet button'));
+  const found = items.filter((b) => (b.textContent ?? '').trim() === label);
+  if (found.length !== 1) {
+    throw new Error(
+      `expected one "${label}" in row ${rowIndex}, found ${found.length}. In the menu: ` +
+        items.map((b) => `"${(b.textContent ?? '').trim()}"`).join(', '),
+    );
+  }
+  return found[0] as HTMLButtonElement;
+}
+
 /** First paint: the roles picker and the farm's members. */
 async function load(
   ctx: ReturnType<typeof setup>,
@@ -254,7 +300,7 @@ describe('Members screen', () => {
       expect(rows(ctx.fixture)[1].textContent).toContain('WORKER');
 
       // Open the row's control, pick FARM_MANAGER, save.
-      rows(ctx.fixture)[1].querySelectorAll('button')[0].click();
+      rowMenu(ctx.fixture, 1, 'Change role').click();
       ctx.fixture.detectChanges();
       expect(text(ctx.fixture)).toContain('Change the role of F Worker');
 
@@ -291,7 +337,7 @@ describe('Members screen', () => {
       TestBed.inject(LanguageService).setLang('en');
       await load(ctx);
 
-      rows(ctx.fixture)[1].querySelectorAll('button')[0].click();
+      rowMenu(ctx.fixture, 1, 'Change role').click();
       ctx.fixture.detectChanges();
       ctx.component.form.setValue({ roleId: 3 }); // WORKER: what they already hold
       click(ctx.fixture, 'Save');
@@ -306,7 +352,7 @@ describe('Members screen', () => {
       TestBed.inject(LanguageService).setLang('en');
       await load(ctx);
 
-      rows(ctx.fixture)[1].querySelectorAll('button')[0].click();
+      rowMenu(ctx.fixture, 1, 'Change role').click();
       ctx.fixture.detectChanges();
       ctx.component.form.setValue({ roleId: 2 });
       click(ctx.fixture, 'Save');
@@ -351,7 +397,7 @@ describe('Members screen', () => {
       TestBed.inject(LanguageService).setLang('sw');
       await load(ctx);
 
-      rows(ctx.fixture)[1].querySelectorAll('button')[0].click();
+      rowMenu(ctx.fixture, 1, 'Badilisha nafasi').click();
       ctx.fixture.detectChanges();
       ctx.component.form.setValue({ roleId: 2 });
       click(ctx.fixture, 'Hifadhi');
@@ -380,7 +426,7 @@ describe('Members screen', () => {
       // The control is offered for the owner too: UserSummary carries no "is
       // owner" flag, so the UI cannot know, and inventing the rule would hide
       // a control from people the backend would have allowed.
-      rows(ctx.fixture)[0].querySelectorAll('button')[1].click();
+      rowMenu(ctx.fixture, 0, 'Remove from farm').click();
       ctx.fixture.detectChanges();
       expect(text(ctx.fixture)).toContain('Remove from this farm?');
 
@@ -420,7 +466,7 @@ describe('Members screen', () => {
       language.setLang('sw');
       await load(ctx);
 
-      rows(ctx.fixture)[0].querySelectorAll('button')[1].click();
+      rowMenu(ctx.fixture, 0, 'Mtoe kwenye shamba').click();
       ctx.fixture.detectChanges();
       click(ctx.fixture, 'Ndiyo, mtoe');
 
@@ -451,7 +497,7 @@ describe('Members screen', () => {
       TestBed.inject(LanguageService).setLang('en');
       await load(ctx);
 
-      rows(ctx.fixture)[1].querySelectorAll('button')[1].click();
+      rowMenu(ctx.fixture, 1, 'Remove from farm').click();
       ctx.fixture.detectChanges();
 
       // Nothing is sent until the question is answered.
@@ -479,7 +525,7 @@ describe('Members screen', () => {
       TestBed.inject(LanguageService).setLang('en');
       await load(ctx);
 
-      rows(ctx.fixture)[1].querySelectorAll('button')[1].click();
+      rowMenu(ctx.fixture, 1, 'Remove from farm').click();
       ctx.fixture.detectChanges();
       click(ctx.fixture, 'Cancel');
       ctx.fixture.detectChanges();
@@ -501,9 +547,16 @@ describe('Members screen', () => {
       expect(body).toContain('Jina');
       expect(body).toContain('Nafasi');
       expect(body).toContain('Hali');
-      expect(body).toContain('Badilisha nafasi');
-      expect(body).toContain('Mtoe');
       expect(body).toContain('Yupo hai');
+      expect(body).toContain('Mwanachama Mpya');
+
+      // The row's controls live behind the menu now, so they are only copy
+      // once it is open.
+      expect(rowMenu(ctx.fixture, 1, 'Hariri taarifa')).toBeTruthy();
+      expect(rowMenu(ctx.fixture, 1, 'Badilisha nafasi')).toBeTruthy();
+      expect(rowMenu(ctx.fixture, 1, 'Zima akaunti')).toBeTruthy();
+      expect(rowMenu(ctx.fixture, 1, 'Mtoe kwenye shamba')).toBeTruthy();
+      expect(rowMenu(ctx.fixture, 1, 'Futa akaunti')).toBeTruthy();
     });
 
     it('renders the same screen in English', async () => {
@@ -516,9 +569,35 @@ describe('Members screen', () => {
       expect(body).toContain('Name');
       expect(body).toContain('Role');
       expect(body).toContain('Status');
-      expect(body).toContain('Change role');
-      expect(body).toContain('Remove');
       expect(body).toContain('Active');
+      expect(body).toContain('New Member');
+
+      expect(rowMenu(ctx.fixture, 1, 'Edit details')).toBeTruthy();
+      expect(rowMenu(ctx.fixture, 1, 'Change role')).toBeTruthy();
+      expect(rowMenu(ctx.fixture, 1, 'Disable account')).toBeTruthy();
+      expect(rowMenu(ctx.fixture, 1, 'Remove from farm')).toBeTruthy();
+      expect(rowMenu(ctx.fixture, 1, 'Delete account')).toBeTruthy();
+    });
+
+    it('leaves disable and delete off the admin own row', async () => {
+      const ctx = setup();
+      TestBed.inject(LanguageService).setLang('en');
+      await load(ctx);
+
+      // Row 0 IS the signed-in admin (same id as SIGNED_IN_ADMIN). The
+      // backend refuses both on yourself with a 400, and unlike the owner
+      // rule this one is knowable here - so the entries are simply absent.
+      expect(MEMBERS_BEFORE.data[0].id).toBe(SIGNED_IN_ADMIN.id);
+
+      (rows(ctx.fixture)[0].querySelector('.trigger') as HTMLButtonElement).click();
+      ctx.fixture.detectChanges();
+
+      const items = Array.from(rows(ctx.fixture)[0].querySelectorAll('.sheet button')).map((b) =>
+        (b.textContent ?? '').trim(),
+      );
+      expect(items).toEqual(['Edit details', 'Change role', 'Remove from farm']);
+
+      ctx.httpMock.verify();
     });
 
     it('switches language without reloading, error copy included', async () => {
@@ -533,6 +612,36 @@ describe('Members screen', () => {
       ctx.fixture.detectChanges();
 
       expect(text(ctx.fixture)).toContain('You do not have permission to view this.');
+      ctx.httpMock.verify();
+    });
+  });
+
+  describe('(e) a disabled role', () => {
+    it('is not offered in the picker, though the endpoint still sends it', async () => {
+      const ctx = setup();
+      TestBed.inject(LanguageService).setLang('en');
+
+      ctx.fixture.detectChanges();
+      ctx.httpMock.expectOne(ROLES_URL).flush(ROLES_WITH_DISABLED_VIEWER);
+      ctx.httpMock.expectOne(LIST_URL).flush(MEMBERS_BEFORE);
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      rowMenu(ctx.fixture, 1, 'Change role').click();
+      ctx.fixture.detectChanges();
+
+      const options = Array.from(
+        (ctx.fixture.nativeElement as HTMLElement).querySelectorAll('#member-role option'),
+      ).map((o) => (o.textContent ?? '').trim());
+
+      // The three live roles plus the placeholder - VIEWER is gone. Picking it
+      // could only ever have ended in a 400: the backend refuses to attach a
+      // disabled role to a membership.
+      expect(options).toContain('OWNER');
+      expect(options).toContain('FARM_MANAGER');
+      expect(options).toContain('WORKER');
+      expect(options).not.toContain('VIEWER');
+
       ctx.httpMock.verify();
     });
   });

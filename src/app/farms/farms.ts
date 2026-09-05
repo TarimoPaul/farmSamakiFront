@@ -13,7 +13,9 @@ import { PERMISSION } from '../core/models/permissions';
 import { apiErrorMessage } from '../core/i18n/error-messages';
 import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { HasPermission } from '../shared/directives/has-permission';
+import { ActionMenu } from '../shared/ui/action-menu/action-menu';
 import { Button } from '../shared/ui/button/button';
+import { ConfirmDialog } from '../shared/ui/confirm-dialog/confirm-dialog';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
 import { FormField } from '../shared/ui/form-field/form-field';
@@ -53,7 +55,9 @@ const UNKNOWN_FAILURE = new ApiError({
     ReactiveFormsModule,
     AppShell,
     HasPermission,
+    ActionMenu,
     Button,
+    ConfirmDialog,
     DataTable,
     EmptyState,
     FormField,
@@ -91,6 +95,36 @@ export class Farms implements OnInit {
   readonly createError = signal<string | null>(null);
   readonly nameError = signal<string | null>(null);
   readonly toastMessage = signal<string | null>(null);
+
+  /** Set while a farm is being renamed; the create modal is closed then. */
+  readonly editTarget = signal<Farm | null>(null);
+
+  readonly deleteTarget = signal<Farm | null>(null);
+  readonly deleting = signal(false);
+
+  /**
+   * A refused action - in practice the delete refusal, which names how many
+   * members are still on the farm. Kept until dismissed: it is an
+   * instruction, not a notification, and the FAILURE is stored rather than
+   * the rendered line so the banner follows the language toggle.
+   */
+  readonly actionError = signal<ApiError | null>(null);
+
+  /**
+   * FARM_IN_USE keeps the backend's own sentence, because it NAMES the
+   * number of members in the way - the one figure that says how much work
+   * clearing it is, and nothing generic could carry it.
+   */
+  readonly actionErrorMessage = computed(() => {
+    const error = this.actionError();
+    if (!error) {
+      return null;
+    }
+    if (error.errorCode === ERROR_CODE.FARM_IN_USE) {
+      return error.message;
+    }
+    return this.messageFor(error);
+  });
 
   readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required]],
@@ -193,7 +227,111 @@ export class Farms implements OnInit {
     this.form.reset({ name: '', location: '' });
     this.createError.set(null);
     this.nameError.set(null);
+    this.actionError.set(null);
     this.createOpen.set(true);
+  }
+
+  // ---------------------------------------------------------------- rename
+
+  /**
+   * Opens the SAME form on an existing farm. Create and rename ask for the
+   * same two things, so they share the controls and the error signals - only
+   * one of the two modals can be open, and `editTarget` is what tells submit
+   * which it was.
+   */
+  openEdit(farm: Farm): void {
+    this.form.reset({ name: farm.name, location: farm.location ?? '' });
+    this.createError.set(null);
+    this.nameError.set(null);
+    this.actionError.set(null);
+    this.editTarget.set(farm);
+  }
+
+  closeEdit(): void {
+    if (!this.saving()) {
+      this.editTarget.set(null);
+    }
+  }
+
+  submitEdit(): void {
+    const farm = this.editTarget();
+    if (!farm || this.saving()) {
+      return;
+    }
+
+    this.createError.set(null);
+    this.nameError.set(null);
+
+    const { name, location } = this.form.getRawValue();
+    if (!name.trim()) {
+      this.nameError.set(this.t().errorNameRequired);
+      return;
+    }
+
+    this.saving.set(true);
+    this.farmsService
+      .update(farm.farmId, { name: name.trim(), location: location.trim() })
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.editTarget.set(null);
+          this.toastMessage.set(this.t().savedToast);
+          this.loadFarms();
+        },
+        error: (err: unknown) => {
+          this.saving.set(false);
+          this.showCreateError(asApiError(err));
+        },
+      });
+  }
+
+  // ---------------------------------------------------------------- delete
+
+  askDelete(farm: Farm): void {
+    this.actionError.set(null);
+    this.deleteTarget.set(farm);
+  }
+
+  cancelDelete(): void {
+    if (!this.deleting()) {
+      this.deleteTarget.set(null);
+    }
+  }
+
+  confirmDelete(): void {
+    const farm = this.deleteTarget();
+    if (!farm || this.deleting()) {
+      return;
+    }
+
+    this.deleting.set(true);
+    this.farmsService.remove(farm.farmId).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.deleteTarget.set(null);
+        this.toastMessage.set(this.t().deletedToast);
+        // The members panel was showing a farm that no longer exists.
+        if (this.selectedFarm()?.farmId === farm.farmId) {
+          this.selectedFarm.set(null);
+          this.members.set([]);
+        }
+        this.loadFarms();
+      },
+      error: (err: unknown) => {
+        this.deleting.set(false);
+        // Closed on failure: "it still has 4 members" is a different
+        // statement from the question that was asked, and it belongs in the
+        // banner where it can be read without a dialog over it.
+        this.deleteTarget.set(null);
+        if (!isApiError(err) || !err.sessionHandled) {
+          this.actionError.set(asApiError(err));
+        }
+      },
+    });
+  }
+
+  dismissActionError(): void {
+    this.actionError.set(null);
   }
 
   closeCreate(): void {

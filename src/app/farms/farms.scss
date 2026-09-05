@@ -22,3 +22,12 @@
   gap: 1rem;
   padding-bottom: 0.25rem;
 }
+
+/* The line above the fields in the edit modal, saying what this form does
+   NOT touch - the owner and the members, which come from elsewhere. */
+.farm-form__intro {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}

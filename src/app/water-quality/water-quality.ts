@@ -280,9 +280,7 @@ export class WaterQuality {
   }
 
   private messageFor(error: ApiError | null, preferBackendMessage = false): string | null {
-    return error
-      ? apiErrorMessage(error, this.languageService.lang(), preferBackendMessage)
-      : null;
+    return error ? apiErrorMessage(error, this.languageService.lang(), preferBackendMessage) : null;
   }
 }
 
@@ -290,9 +288,18 @@ function asApiError(err: unknown): ApiError {
   return isApiError(err) ? err : UNKNOWN_FAILURE;
 }
 
-/** "" -> null, so an untouched field is omitted rather than recorded as 0. */
-function optionalNumber(raw: string): number | null {
-  const trimmed = raw.trim();
+/**
+ * "" -> null, so an untouched field is omitted rather than recorded as 0.
+ *
+ * The value arrives as a NUMBER, not the string the form's type claims:
+ * `input[type=number]` binds through Angular's NumberValueAccessor, which
+ * writes a number - or null when the box is empty.
+ */
+function optionalNumber(raw: string | number | null): number | null {
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? raw : null;
+  }
+  const trimmed = (raw ?? '').trim();
   if (!trimmed) {
     return null;
   }

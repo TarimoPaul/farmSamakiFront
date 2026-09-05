@@ -31,8 +31,8 @@
         <p class="context__line">
           {{ t().contextLabel }}:
           <strong>{{ cycle()!.speciesName }}</strong>
-          &middot; {{ t().contextUnit }} <strong>{{ cycle()!.unit.code }}</strong>
-          &middot; {{ cycle()!.stockingDate }}
+          &middot; {{ t().contextUnit }} <strong>{{ cycle()!.unit.code }}</strong> &middot;
+          {{ cycle()!.stockingDate }}
         </p>
       </section>
 
@@ -120,7 +120,13 @@
           <h2 class="card__title">{{ t().listTitle }}</h2>
         </header>
 
-        <app-data-table [columns]="columns()" [rows]="readings()" [rowKey]="readingKey">
+        <app-data-table
+          [columns]="columns()"
+          [rows]="readings()"
+          [rowKey]="readingKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
+        >
           <app-empty-state
             slot="empty"
             [title]="t().listEmptyTitle"

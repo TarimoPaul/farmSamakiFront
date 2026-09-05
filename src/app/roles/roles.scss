@@ -1,0 +1,126 @@
+@use '../shared/styles/screen' as *;
+
+.roles {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.roles__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.role-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 0.25rem;
+}
+
+/* The "roles are global" line. A notice, not an error: nothing has gone
+   wrong, the admin simply needs to know how far this edit reaches. */
+.role-notice {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius);
+  border-left: 4px solid var(--notice);
+  background: var(--notice-bg);
+  color: var(--on-surface);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* The second notice in the edit modal: "this role is disabled". Quieter than
+   the global-reach warning above it - it is a statement of where things
+   stand, not a caution about what this edit will do. */
+.role-notice--muted {
+  border-left-color: var(--border);
+  background: var(--surface-alt);
+  color: var(--muted);
+}
+
+/* Both modals hold a checkbox grid, which the shared 440px dialog cannot show
+   two columns of. Scoped to this screen rather than widened in Modal itself:
+   every other dialog in the app is a short form and should stay narrow. */
+:host ::ng-deep .modal {
+  max-width: 620px;
+}
+
+.perms {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  /* The catalogue grows with every feature, so this list is not assumed to
+     fit: it scrolls inside the dialog and leaves the actions reachable. */
+  max-height: 45vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.perm-group {
+  margin: 0;
+  padding: 0.6rem 0.75rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.perm-group__legend {
+  padding: 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.perm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.35rem 0.25rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--brand) 7%, transparent);
+  }
+
+  input {
+    margin-top: 0.15rem;
+    accent-color: var(--brand);
+    cursor: pointer;
+  }
+}
+
+.perm__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.perm__name {
+  font-size: 0.88rem;
+  color: var(--on-surface);
+}
+
+/* The permission CODE - the label that reads the same in either language, and
+   the one the API and the app's own gating actually use. */
+.perm__code {
+  font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.perms__count {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}

@@ -6,6 +6,7 @@ export const FARMS_I18N = {
     loading: 'Inapakia...',
     retry: 'Jaribu tena',
 
+    colNumber: 'S/No',
     colName: 'Jina la shamba',
     colLocation: 'Eneo',
     colOwner: 'Mmiliki',
@@ -14,6 +15,20 @@ export const FARMS_I18N = {
 
     emptyTitle: 'Hakuna shamba bado',
     emptyMessage: 'Bonyeza "Ongeza shamba" kuanza.',
+
+    actions: 'Vitendo',
+    edit: 'Hariri',
+    editTitle: 'Hariri shamba',
+    editIntro:
+      'Jina na eneo pekee. Mmiliki na wanachama havibadiliki hapa - umiliki unatokana na uanachama.',
+    savedToast: 'Shamba limehifadhiwa.',
+
+    delete: 'Futa',
+    deleteTitle: 'Futa shamba?',
+    deleteMessage:
+      'litatoweka pamoja na kila kitu kilichomo - vitengo, mizunguko, ulishaji na vipimo vya maji. Huwezi kulifuta likiwa bado lina wanachama.',
+    deleteConfirm: 'Ndiyo, lifute',
+    deletedToast: 'Shamba limefutwa.',
 
     membersTitle: 'Wanachama',
     membersOf: 'Wanachama wa',
@@ -43,11 +58,26 @@ export const FARMS_I18N = {
     loading: 'Loading...',
     retry: 'Try again',
 
+    colNumber: 'S/No',
     colName: 'Farm name',
     colLocation: 'Location',
     colOwner: 'Owner',
     noOwner: 'No owner yet',
     noLocation: 'Not set',
+
+    actions: 'Actions',
+    edit: 'Edit',
+    editTitle: 'Edit farm',
+    editIntro:
+      'Name and location only. The owner and the members are not changed here - ownership comes from a membership.',
+    savedToast: 'Farm saved.',
+
+    delete: 'Delete',
+    deleteTitle: 'Delete this farm?',
+    deleteMessage:
+      'will be gone along with everything in it - units, cycles, feeding and water readings. It cannot be deleted while it still has members.',
+    deleteConfirm: 'Yes, delete it',
+    deletedToast: 'Farm deleted.',
 
     emptyTitle: 'No farms yet',
     emptyMessage: 'Use "Add farm" to create the first one.',

@@ -42,25 +42,239 @@
           [columns]="columns()"
           [rows]="members()"
           [rowKey]="memberKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
           [rowActions]="rowActions"
           [actionsLabel]="t().actions"
+          [showActionsLabel]="true"
         >
           <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
         </app-data-table>
       </div>
 
-      <!-- Both controls are offered to everyone who can reach this screen:
-           it is all one permission, and the only guard rail the backend has
-           (an owner cannot leave their own farm) is not knowable from a
-           UserSummary. The backend decides; its answer is shown above. -->
+      <!-- Everything a member can have done to them, behind one trigger.
+           They are all one permission, and the guard rails the backend keeps
+           (an owner cannot leave their farm, an owner cannot be deleted) are
+           NOT knowable from a UserSummary - so the controls are offered, the
+           backend decides, and its answer lands in the banner above.
+
+           The exception is your OWN row: "is this me" is knowable here, and
+           the backend refuses both anyway, so those two entries are simply
+           not there. -->
       <ng-template #rowActions let-member>
-        <app-button variant="secondary" (clicked)="openRoleChange(member)">
-          {{ t().changeRole }}
-        </app-button>
-        <app-button variant="danger" (clicked)="askRemove(member)">{{ t().remove }}</app-button>
+        <app-action-menu [label]="t().actions">
+          <button type="button" role="menuitem" (click)="openEdit(member)">{{ t().edit }}</button>
+
+          <button type="button" role="menuitem" (click)="openRoleChange(member)">
+            {{ t().changeRole }}
+          </button>
+
+          @if (!isSelf(member)) {
+            <button
+              type="button"
+              role="menuitem"
+              [disabled]="isToggling(member)"
+              (click)="toggleEnabled(member)"
+            >
+              {{ member.status === 'DISABLED' ? t().enableAccount : t().disableAccount }}
+            </button>
+          }
+
+          <hr />
+
+          <button type="button" role="menuitem" class="is-danger" (click)="askRemove(member)">
+            {{ t().remove }}
+          </button>
+
+          @if (!isSelf(member)) {
+            <button type="button" role="menuitem" class="is-danger" (click)="askDelete(member)">
+              {{ t().deleteAccount }}
+            </button>
+          }
+        </app-action-menu>
       </ng-template>
     }
+
+    <!-- Adding someone needs a farm to add them TO, so it is inside the
+         branch that has one. -->
+    @if (activeFarmId() !== null) {
+      <div class="page-actions">
+        <app-button floating (clicked)="openAdd()">{{ t().addMember }}</app-button>
+      </div>
+    }
   </section>
+
+  <app-modal
+    [open]="!!editTarget()"
+    [title]="t().editTitle + ' ' + (editTarget()?.name ?? '')"
+    [closeLabel]="t().close"
+    (dismissed)="closeEdit()"
+  >
+    <form class="member-form" [formGroup]="editForm" (ngSubmit)="submitEdit()">
+      <p class="member-form__intro">{{ t().editIntro }}</p>
+
+      <app-form-field
+        [label]="t().fieldNewName"
+        for="edit-name"
+        [required]="true"
+        [error]="editNameError()"
+      >
+        <input
+          id="edit-name"
+          class="text-input"
+          type="text"
+          formControlName="name"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field
+        [label]="t().fieldNewPhone"
+        for="edit-phone"
+        [required]="true"
+        [error]="editPhoneError()"
+      >
+        <input
+          id="edit-phone"
+          class="text-input"
+          type="tel"
+          formControlName="phone"
+          [placeholder]="t().fieldNewPhoneHint"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldNewEmail" for="edit-email">
+        <input
+          id="edit-email"
+          class="text-input"
+          type="email"
+          formControlName="email"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      @if (editError(); as message) {
+        <p class="form-error" role="alert" data-testid="edit-error">{{ message }}</p>
+      }
+
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="savingEdit()" (clicked)="closeEdit()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="savingEdit()" (clicked)="submitEdit()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-modal
+    [open]="addOpen()"
+    [title]="t().addTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeAdd()"
+  >
+    <form class="member-form" [formGroup]="addForm" (ngSubmit)="submitAdd()">
+      <p class="member-form__intro">{{ t().addIntro }}</p>
+
+      <!-- Half-finished: the account exists, the membership does not. The
+           identity fields are locked because re-sending them would only be
+           refused as a duplicate of the account we just made. -->
+      @if (createdUserId()) {
+        <p class="member-form__notice" role="status" data-testid="partial-warning">
+          {{ t().partialWarning }}
+        </p>
+      }
+
+      <app-form-field
+        [label]="t().fieldNewName"
+        for="new-name"
+        [required]="true"
+        [error]="addNameError()"
+      >
+        <input
+          id="new-name"
+          class="text-input"
+          type="text"
+          formControlName="name"
+          [attr.disabled]="createdUserId() ? '' : null"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field
+        [label]="t().fieldNewPhone"
+        for="new-phone"
+        [required]="true"
+        [error]="addPhoneError()"
+      >
+        <input
+          id="new-phone"
+          class="text-input"
+          type="tel"
+          formControlName="phone"
+          [placeholder]="t().fieldNewPhoneHint"
+          [attr.disabled]="createdUserId() ? '' : null"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldNewEmail" for="new-email">
+        <input
+          id="new-email"
+          class="text-input"
+          type="email"
+          formControlName="email"
+          [attr.disabled]="createdUserId() ? '' : null"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field
+        [label]="t().fieldNewPassword"
+        for="new-password"
+        [required]="true"
+        [error]="addPasswordError()"
+      >
+        <input
+          id="new-password"
+          class="text-input"
+          type="text"
+          formControlName="password"
+          [placeholder]="t().fieldNewPasswordHint"
+          [attr.disabled]="createdUserId() ? '' : null"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldRole" for="new-role" [required]="true">
+        <select id="new-role" class="text-input" formControlName="roleId">
+          <option [ngValue]="null">{{ t().rolePlaceholder }}</option>
+          @for (role of roles(); track role.roleId) {
+            <option [ngValue]="role.roleId">{{ role.name }}</option>
+          }
+        </select>
+      </app-form-field>
+
+      @if (rolesFailed()) {
+        <p class="form-error" role="alert">{{ t().rolesUnavailable }}</p>
+      }
+
+      @if (addError(); as message) {
+        <p class="form-error" role="alert" data-testid="add-error">{{ message }}</p>
+      }
+
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeAdd()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submitAdd()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
 
   <app-modal
     [open]="!!roleTarget()"
@@ -95,7 +309,9 @@
       <app-button variant="ghost" [disabled]="savingRole()" (clicked)="closeRoleChange()">
         {{ t().cancel }}
       </app-button>
-      <app-button [loading]="savingRole()" (clicked)="submitRoleChange()">{{ t().save }}</app-button>
+      <app-button [loading]="savingRole()" (clicked)="submitRoleChange()">{{
+        t().save
+      }}</app-button>
     </div>
   </app-modal>
 
@@ -108,6 +324,20 @@
     [loading]="removing()"
     (confirmed)="confirmRemove()"
     (cancelled)="cancelRemove()"
+  />
+
+  <!-- A SECOND dialog, not a shared one with a swapped message: deleting the
+       account and taking someone off a farm are different acts, and the
+       wording has to make that unmistakable. Only one is ever open. -->
+  <app-confirm-dialog
+    [open]="!!deleteTarget()"
+    [title]="t().deleteTitle"
+    [message]="(deleteTarget()?.name ?? '') + ' ' + t().deleteMessage"
+    [confirmLabel]="t().deleteConfirm"
+    [cancelLabel]="t().cancel"
+    [loading]="deleting()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
   />
 
   <app-toast

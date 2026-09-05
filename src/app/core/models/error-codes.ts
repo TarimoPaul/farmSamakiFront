@@ -41,6 +41,27 @@ export const ERROR_CODE = {
    * looking for the clash.
    */
   OWNER_IMMUTABLE: 'OWNER_IMMUTABLE',
+  /**
+   * 409 - a role cannot be deleted while people still hold it
+   * (RoleService.deleteRole).
+   *
+   * Its own code rather than a bare CONFLICT because, unlike
+   * OWNER_IMMUTABLE, this one CAN be cleared: move those people to another
+   * role and the same request succeeds. The Roles screen uses that to offer
+   * the way out (deactivate instead), which the generic conflict copy could
+   * not carry. The backend's own sentence names how many people are in the
+   * way, so the screen shows that rather than a line of its own.
+   */
+  ROLE_IN_USE: 'ROLE_IN_USE',
+  /**
+   * 409 - a farm cannot be deleted while people are still members of it
+   * (FarmService.delete).
+   *
+   * The same shape as ROLE_IN_USE and clearable the same way: take the
+   * members off and the identical request succeeds. The backend's sentence
+   * names how many, which is the number that says how much work that is.
+   */
+  FARM_IN_USE: 'FARM_IN_USE',
   /** 400 - the submitted data was refused on business rules. A field error. */
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   /** 429 - rate limited (login: 10 per 5 min per IP; register: 5 per hour). */

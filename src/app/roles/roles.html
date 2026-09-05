@@ -1,0 +1,315 @@
+<app-shell>
+  <section class="roles">
+    <header class="roles__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+    </header>
+
+    <!-- A refused action - in practice the delete refusal, which names how
+         many people still hold the role. It stays until dismissed: it is an
+         instruction, not a notification. -->
+    @if (actionErrorMessage(); as message) {
+      <div class="panel-error" role="alert" data-testid="action-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="dismissActionError()">
+          {{ t().close }}
+        </app-button>
+      </div>
+    }
+
+    <!-- The catalogue failed but the roles may not have. It is a notice above
+         the table rather than the screen's error, because everything except
+         permission editing still works. -->
+    @if (permissionsFailed()) {
+      <div class="panel-error panel-error--inline" role="alert" data-testid="permissions-error">
+        {{ t().permissionsUnavailable }}
+      </div>
+    }
+
+    @if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert" data-testid="load-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="reload()">{{ t().retry }}</app-button>
+      </div>
+    } @else {
+      <div class="card">
+        <app-data-table
+          [columns]="columns()"
+          [rows]="roles()"
+          [rowKey]="roleKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
+          [rowActions]="rowActions"
+          [actionsLabel]="t().actions"
+          [showActionsLabel]="true"
+        >
+          <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
+        </app-data-table>
+      </div>
+
+      <!-- Four actions behind one trigger. Side by side they were wider than
+           the data itself - the actions column is sized to its content, so
+           every button took its width off the name and description columns. -->
+      <ng-template #rowActions let-role>
+        <app-action-menu [label]="t().actions">
+          <button type="button" role="menuitem" (click)="openDetails(role)">{{ t().edit }}</button>
+
+          <!-- DISABLED rather than hidden when the catalogue is missing: this
+               is not a permission the admin lacks - it is a request that
+               failed, and the notice above says so. Opening the editor without
+               the catalogue would show every box unticked and then strip the
+               role on save; see the note on Roles. -->
+          <button
+            type="button"
+            role="menuitem"
+            [disabled]="permissionsFailed()"
+            (click)="openPermissions(role)"
+          >
+            {{ t().editPermissions }}
+          </button>
+
+          <!-- One item, both directions: the state it produces is the state
+               the row already shows, so a separate "enable" entry would only
+               ever be the same switch written twice. -->
+          <button
+            type="button"
+            role="menuitem"
+            [disabled]="isToggling(role)"
+            (click)="toggleActive(role)"
+          >
+            {{ role.active ? t().deactivate : t().activate }}
+          </button>
+
+          <hr />
+
+          <button type="button" role="menuitem" class="is-danger" (click)="askDelete(role)">
+            {{ t().delete }}
+          </button>
+        </app-action-menu>
+      </ng-template>
+    }
+
+    <!-- The screen's one create action, pinned to the page's bottom-right. -->
+    <div class="page-actions">
+      <app-button floating (clicked)="openCreate()">{{ t().newRole }}</app-button>
+    </div>
+  </section>
+
+  <!-- The checkbox grid, written once and used by both modals that show it:
+       creating a role and editing one are the same choice, made about a
+       different starting point. Only one modal is ever open, so both read the
+       same `selected` set. -->
+  <ng-template #permissionPicker>
+    @if (permissionsFailed()) {
+      <p class="form-error" role="alert">{{ t().permissionsUnavailable }}</p>
+    } @else {
+      <div class="perms">
+        @for (group of groups(); track group.key) {
+          <fieldset class="perm-group">
+            <legend class="perm-group__legend">
+              {{ moduleLabel(group.module) }} &middot; {{ groupLabel(group.groupName) }}
+            </legend>
+
+            @for (permission of group.permissions; track permission.permissionId) {
+              <label class="perm">
+                <input
+                  type="checkbox"
+                  [checked]="isSelected(permission.permissionId)"
+                  (change)="toggle(permission.permissionId)"
+                />
+                <span class="perm__text">
+                  <!-- The description is the backend's, and it is Swahili
+                       whatever the UI language is - so the CODE is shown
+                       alongside it rather than instead of it: it is the one
+                       label that reads the same in both, and it is what the
+                       API, the guards and this app's own gating all use. -->
+                  <span class="perm__name">{{ permission.description || permission.code }}</span>
+                  <span class="perm__code">{{ permission.code }}</span>
+                </span>
+              </label>
+            }
+          </fieldset>
+        }
+      </div>
+
+      <p class="perms__count">{{ selectedCount() }} {{ t().selectedCount }}</p>
+    }
+  </ng-template>
+
+  <app-modal
+    [open]="createOpen()"
+    [title]="t().formTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeCreate()"
+  >
+    <!-- These two fields are repeated in the edit modal below rather than
+         shared through an <ng-template>. They carry formControlName, and a
+         template rendered by ngTemplateOutlet resolves its directives against
+         where it was DECLARED, not where it is inserted - so a shared copy
+         would look for a formGroup that is not there. The permission grid
+         below has no form directives, which is why it can be shared. -->
+    <form class="role-form" [formGroup]="form" (ngSubmit)="submitCreate()">
+      <app-form-field
+        [label]="t().fieldName"
+        for="role-name"
+        [required]="true"
+        [error]="nameError()"
+      >
+        <input
+          id="role-name"
+          class="text-input"
+          type="text"
+          formControlName="name"
+          [placeholder]="t().fieldNameHint"
+          [attr.maxlength]="nameMaxLength"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldDescription" for="role-description">
+        <input
+          id="role-description"
+          class="text-input"
+          type="text"
+          formControlName="description"
+          [placeholder]="t().fieldDescriptionHint"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <ng-container [ngTemplateOutlet]="permissionPicker" />
+
+      @if (formError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+
+      <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeCreate()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submitCreate()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-modal
+    [open]="!!detailsTarget()"
+    [title]="t().editRoleTitle + ' ' + (detailsTarget()?.name ?? '')"
+    [closeLabel]="t().close"
+    (dismissed)="closeDetails()"
+  >
+    <form class="role-form" [formGroup]="form" (ngSubmit)="submitDetails()">
+      <!-- Renaming reaches every farm too, though it takes nobody's access
+           away - a membership points at the id, never at the name. -->
+      <p class="role-notice">{{ t().globalWarning }}</p>
+
+      @if (detailsTarget(); as role) {
+        @if (!role.active) {
+          <p class="role-notice role-notice--muted" data-testid="inactive-notice">
+            {{ t().inactiveNotice }}
+          </p>
+        }
+      }
+
+      <app-form-field
+        [label]="t().fieldName"
+        for="edit-role-name"
+        [required]="true"
+        [error]="nameError()"
+      >
+        <input
+          id="edit-role-name"
+          class="text-input"
+          type="text"
+          formControlName="name"
+          [placeholder]="t().fieldNameHint"
+          [attr.maxlength]="nameMaxLength"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldDescription" for="edit-role-description">
+        <input
+          id="edit-role-description"
+          class="text-input"
+          type="text"
+          formControlName="description"
+          [placeholder]="t().fieldDescriptionHint"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      @if (formError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeDetails()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submitDetails()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-modal
+    [open]="!!permissionsTarget()"
+    [title]="t().editTitle + ' ' + (permissionsTarget()?.name ?? '')"
+    [closeLabel]="t().close"
+    (dismissed)="closePermissions()"
+  >
+    <div class="role-form">
+      <!-- The one fact the controls themselves cannot show: roles are global,
+           so this edit reaches every farm and can reach the person making it. -->
+      <p class="role-notice" data-testid="global-warning">{{ t().globalWarning }}</p>
+
+      @if (unknownCodes().length > 0) {
+        <p class="form-error" role="alert" data-testid="unknown-codes">
+          {{ t().unknownCodes }} {{ unknownCodes().join(', ') }}
+        </p>
+      }
+
+      <ng-container [ngTemplateOutlet]="permissionPicker" />
+
+      @if (permissionsError(); as message) {
+        <p class="form-error" role="alert" data-testid="permissions-write-error">{{ message }}</p>
+      }
+    </div>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="savingPermissions()" (clicked)="closePermissions()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="savingPermissions()" (clicked)="submitPermissions()">
+        {{ t().save }}
+      </app-button>
+    </div>
+  </app-modal>
+
+  <app-confirm-dialog
+    [open]="!!deleteTarget()"
+    [title]="t().deleteTitle"
+    [message]="(deleteTarget()?.name ?? '') + ' ' + t().deleteMessage"
+    [confirmLabel]="t().deleteConfirm"
+    [cancelLabel]="t().cancel"
+    [loading]="deleting()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  />
+
+  <app-toast
+    [open]="!!toastMessage()"
+    variant="success"
+    [message]="toastMessage() ?? ''"
+    (closed)="dismissToast()"
+  />
+</app-shell>

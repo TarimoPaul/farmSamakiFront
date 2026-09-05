@@ -9,6 +9,7 @@ export const PRODUCTION_I18N = {
     newCycle: 'Anzisha mzunguko',
 
     unitsTitle: 'Vitengo vya uzalishaji',
+    colNumber: 'S/No',
     colUnitCode: 'Msimbo',
     colUnitType: 'Aina',
     colUnitSize: 'Ukubwa (m³)',
@@ -75,6 +76,7 @@ export const PRODUCTION_I18N = {
     newCycle: 'Start cycle',
 
     unitsTitle: 'Production units',
+    colNumber: 'S/No',
     colUnitCode: 'Code',
     colUnitType: 'Type',
     colUnitSize: 'Size (m³)',

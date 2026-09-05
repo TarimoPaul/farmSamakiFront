@@ -14,7 +14,8 @@ import { ThemeToggle } from '../../ui/theme-toggle/theme-toggle';
 import { LanguageToggle } from '../../ui/language-toggle/language-toggle';
 import { SHELL_I18N } from './app-shell.i18n';
 
-type IconKey = 'grid' | 'farm' | 'box' | 'cycle' | 'feed' | 'drop' | 'users' | 'check' | 'gear';
+type IconKey =
+  'grid' | 'farm' | 'box' | 'cycle' | 'feed' | 'drop' | 'users' | 'check' | 'shield' | 'gear';
 
 interface ShellNavItem {
   key: keyof (typeof SHELL_I18N)['sw'];
@@ -42,16 +43,19 @@ const NAV_ITEMS: readonly ShellNavItem[] = [
     permission: PERMISSION.APPROVE_USERS,
   },
   { key: 'navMembers', icon: 'users', route: '/members', permission: PERMISSION.MANAGE_USERS },
-  // No permission on these two: they are read screens, and reading is
+  // Next to Members, and on the same permission, because they are two halves
+  // of one job: Members hands out roles, this is where the roles come from.
+  { key: 'navRoles', icon: 'shield', route: '/roles', permission: PERMISSION.MANAGE_USERS },
+  // No permission on these three: they are read screens, and reading is
   // `view_dashboard` - which every role holds, so a gate here would only ever
   // hide them from nobody. The write controls inside them are gated
-  // individually (see Production and WaterQuality).
+  // individually (see Production, Feeding and WaterQuality).
   //
   // Units and cycles share ONE entry because they are one screen: a cycle is
   // started in a unit, and splitting them would mean two routes showing each
   // other's data. The old route-less `navCycles` placeholder is gone with it.
   { key: 'navProduction', icon: 'box', route: '/production' },
-  { key: 'navFeeding', icon: 'feed' },
+  { key: 'navFeeding', icon: 'feed', route: '/feeding' },
   { key: 'navWater', icon: 'drop', route: '/water-quality' },
   { key: 'navSettings', icon: 'gear' },
 ];

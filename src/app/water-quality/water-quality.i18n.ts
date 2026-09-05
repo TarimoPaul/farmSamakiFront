@@ -27,6 +27,7 @@ export const WATER_QUALITY_I18N = {
     savedToast: 'Kipimo kimehifadhiwa.',
 
     listTitle: 'Vipimo vya karibuni',
+    colNumber: 'S/No',
     colDate: 'Tarehe',
     colUnit: 'Kitengo',
     colPh: 'pH',
@@ -67,6 +68,7 @@ export const WATER_QUALITY_I18N = {
     savedToast: 'Reading saved.',
 
     listTitle: 'Recent readings',
+    colNumber: 'S/No',
     colDate: 'Date',
     colUnit: 'Unit',
     colPh: 'pH',

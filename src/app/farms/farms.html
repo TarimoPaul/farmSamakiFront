@@ -5,9 +5,18 @@
         <h1 class="page-title">{{ t().title }}</h1>
         <p class="page-subtitle">{{ t().subtitle }}</p>
       </div>
-
-      <app-button (clicked)="openCreate()">{{ t().newFarm }}</app-button>
     </header>
+
+    <!-- A refused action - in practice the delete refusal, which names how
+         many members are still on the farm. It stays until dismissed. -->
+    @if (actionErrorMessage(); as message) {
+      <div class="panel-error" role="alert" data-testid="action-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="dismissActionError()">
+          {{ t().close }}
+        </app-button>
+      </div>
+    }
 
     @if (loading()) {
       <p class="panel-status">{{ t().loading }}</p>
@@ -22,13 +31,36 @@
           [columns]="farmColumns()"
           [rows]="farms()"
           [rowKey]="farmKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
           [selectable]="true"
           [selectedKey]="selectedFarm()?.farmId ?? null"
           (rowSelected)="selectFarm($event)"
+          [rowActions]="rowActions"
+          [actionsLabel]="t().actions"
+          [showActionsLabel]="true"
         >
           <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
         </app-data-table>
       </div>
+
+      <!-- Renaming is `manage_farms`, the same code that opens this screen,
+           so it is always here. DELETING is `delete_farm` - a code of its
+           own, because it removes the context every unit, cycle and reading
+           hangs from. An admin who organises farms without holding it simply
+           has no delete entry. -->
+      <ng-template #rowActions let-farm>
+        <app-action-menu [label]="t().actions">
+          <button type="button" role="menuitem" (click)="openEdit(farm)">{{ t().edit }}</button>
+
+          <ng-container *appHasPermission="PERMISSION.DELETE_FARM">
+            <hr />
+            <button type="button" role="menuitem" class="is-danger" (click)="askDelete(farm)">
+              {{ t().delete }}
+            </button>
+          </ng-container>
+        </app-action-menu>
+      </ng-template>
 
       <!-- Members: a DIFFERENT permission from the one that opens this screen,
            so it is gated separately and simply is not here without it. -->
@@ -54,6 +86,8 @@
             [columns]="memberColumns()"
             [rows]="members()"
             [rowKey]="memberKey"
+            [numbered]="true"
+            [numberLabel]="t().colNumber"
           >
             <app-empty-state
               slot="empty"
@@ -64,6 +98,12 @@
         }
       </section>
     }
+
+    <!-- The screen's one action, pinned to the page's bottom-right corner
+         rather than sitting in the header. -->
+    <div class="page-actions">
+      <app-button floating (clicked)="openCreate()">{{ t().newFarm }}</app-button>
+    </div>
   </section>
 
   <app-modal
@@ -73,8 +113,19 @@
     (dismissed)="closeCreate()"
   >
     <form class="farm-form" [formGroup]="form" (ngSubmit)="submitCreate()">
-      <app-form-field [label]="t().fieldName" for="farm-name" [required]="true" [error]="nameError()">
-        <input id="farm-name" class="text-input" type="text" formControlName="name" autocomplete="off" />
+      <app-form-field
+        [label]="t().fieldName"
+        for="farm-name"
+        [required]="true"
+        [error]="nameError()"
+      >
+        <input
+          id="farm-name"
+          class="text-input"
+          type="text"
+          formControlName="name"
+          autocomplete="off"
+        />
       </app-form-field>
 
       <app-form-field [label]="t().fieldLocation" for="farm-location">
@@ -103,6 +154,67 @@
       <app-button [loading]="saving()" (clicked)="submitCreate()">{{ t().save }}</app-button>
     </div>
   </app-modal>
+
+  <app-modal
+    [open]="!!editTarget()"
+    [title]="t().editTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeEdit()"
+  >
+    <form class="farm-form" [formGroup]="form" (ngSubmit)="submitEdit()">
+      <p class="farm-form__intro">{{ t().editIntro }}</p>
+
+      <app-form-field
+        [label]="t().fieldName"
+        for="edit-farm-name"
+        [required]="true"
+        [error]="nameError()"
+      >
+        <input
+          id="edit-farm-name"
+          class="text-input"
+          type="text"
+          formControlName="name"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldLocation" for="edit-farm-location">
+        <input
+          id="edit-farm-location"
+          class="text-input"
+          type="text"
+          formControlName="location"
+          [placeholder]="t().fieldLocationHint"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      @if (createError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeEdit()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submitEdit()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-confirm-dialog
+    [open]="!!deleteTarget()"
+    [title]="t().deleteTitle"
+    [message]="(deleteTarget()?.name ?? '') + ' ' + t().deleteMessage"
+    [confirmLabel]="t().deleteConfirm"
+    [cancelLabel]="t().cancel"
+    [loading]="deleting()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  />
 
   <app-toast
     [open]="!!toastMessage()"

@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response';
-import { UserSummary } from '../models/auth';
+import { CreateUserRequest, UpdateUserRequest, UserSummary } from '../models/auth';
 import { AssignMembershipRequest } from '../models/membership';
 import { restError } from '../http/rest-error';
 import { AuthErrorHandler } from './auth-error-handler';
@@ -15,17 +15,106 @@ import { AuthErrorHandler } from './auth-error-handler';
  * Approvals screen splits its controls the way it does:
  *
  *  - `approve_users` — read the pending queue, and approve.
- *  - `manage_users`  — everything that changes what a person can DO:
- *                      listing a farm's members, assigning a membership.
+ *  - `manage_users`  — everything else: listing a farm's members, creating a
+ *                      person, assigning or changing a membership, blocking
+ *                      an account, and deleting one.
  *
- * Disabling, enabling and deleting a person outright are also `manage_users`
- * and are not built yet.
+ * The one thing NOT here is setting somebody else's password. A person
+ * changes their own through `/api/auth/change-password`; an admin can set
+ * only the FIRST one, when the account is created. There is no reset.
  */
 @Injectable({ providedIn: 'root' })
 export class UsersService {
   private readonly http = inject(HttpClient);
   private readonly authErrorHandler = inject(AuthErrorHandler);
   private readonly baseUrl = `${environment.apiUrl}/users`;
+
+  /**
+   * Creates a person outright. Needs `manage_users`.
+   *
+   * They come back ACTIVE and with NO farm (`farmId: null, role: null`), so a
+   * screen that wants them on a farm must follow this with
+   * `assignMembership` - the same two steps the Approvals screen makes, minus
+   * the waiting.
+   *
+   * 409 for a phone or email already registered, and the backend's sentence
+   * names which one; there is no code to branch on, so that sentence is worth
+   * showing as it comes.
+   */
+  create(req: CreateUserRequest): Observable<UserSummary> {
+    return this.http.post<ApiResponse<UserSummary>>(this.baseUrl, req).pipe(
+      map((res) => res.data!),
+      restError(this.authErrorHandler),
+    );
+  }
+
+  /**
+   * Corrects who somebody IS: name, phone, email. Needs `manage_users`.
+   *
+   * Nothing else moves. Their role, their farm, whether the account is
+   * blocked - all untouched, each with its own call. Before this endpoint
+   * existed a mistyped phone number could only be fixed by deleting the
+   * person and creating them again, which threw away their membership and
+   * their history with it.
+   *
+   * Works on YOURSELF too, unlike blocking and deleting: changing your own
+   * name or number does not lock you out of anything.
+   *
+   * 409 for a phone or email already in use - including one belonging to a
+   * deleted account, since the column is unique across the whole table - and
+   * the sentence names which of the two.
+   */
+  update(userId: string, req: UpdateUserRequest): Observable<UserSummary> {
+    return this.http.put<ApiResponse<UserSummary>>(`${this.baseUrl}/${userId}`, req).pipe(
+      map((res) => res.data!),
+      restError(this.authErrorHandler),
+    );
+  }
+
+  /**
+   * Blocks or restores an ACCOUNT. Needs `manage_users`.
+   *
+   * Account-wide, NOT farm-wide: a disabled person cannot sign in at all, on
+   * any farm they belong to. That is a bigger act than removing them from one
+   * farm, and the screen says so rather than letting the two read alike.
+   *
+   * Disabling YOURSELF is refused - 400 VALIDATION_ERROR, "Huwezi kujizuia
+   * mwenyewe." The screen does not offer it, because unlike the owner rule
+   * this one is knowable here: the signed-in user's id is on hand.
+   *
+   * The backend clears the person's cached authorities, so a disabled user's
+   * token stops working immediately rather than at the next cache expiry.
+   */
+  setEnabled(userId: string, enabled: boolean): Observable<UserSummary> {
+    const action = enabled ? 'enable' : 'disable';
+    return this.http
+      .post<ApiResponse<UserSummary>>(`${this.baseUrl}/${userId}/${action}`, null)
+      .pipe(
+        map((res) => res.data!),
+        restError(this.authErrorHandler),
+      );
+  }
+
+  /**
+   * Deletes the PERSON, not a membership. Needs `manage_users`.
+   *
+   * Soft on the backend - feeding logs and task completions still point at
+   * them, so the row stays for history - but they are gone from every list
+   * and can never sign in again. This is the one irreversible control on the
+   * Members screen.
+   *
+   * Two refusals, both 409 with the generic CONFLICT code and a sentence that
+   * says which: a farm's owner cannot be deleted ("Mmiliki wa shamba hawezi
+   * kufutwa."), and deleting yourself is refused as 400 VALIDATION_ERROR
+   * ("Huwezi kujifuta mwenyewe.") - the latter never reaches the API, because
+   * the screen does not offer the control on your own row.
+   */
+  remove(userId: string): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.baseUrl}/${userId}`).pipe(
+      map(() => undefined),
+      restError(this.authErrorHandler),
+    );
+  }
 
   /**
    * A farm's members. Needs `manage_users` - a DIFFERENT permission from the
@@ -81,12 +170,10 @@ export class UsersService {
    * see CONFLICT_STATUS in approvals.ts.
    */
   approve(userId: string): Observable<UserSummary> {
-    return this.http
-      .post<ApiResponse<UserSummary>>(`${this.baseUrl}/${userId}/approve`, null)
-      .pipe(
-        map((res) => res.data!),
-        restError(this.authErrorHandler),
-      );
+    return this.http.post<ApiResponse<UserSummary>>(`${this.baseUrl}/${userId}/approve`, null).pipe(
+      map((res) => res.data!),
+      restError(this.authErrorHandler),
+    );
   }
 
   /**
@@ -105,12 +192,10 @@ export class UsersService {
    * that carries nothing.
    */
   assignMembership(userId: string, req: AssignMembershipRequest): Observable<void> {
-    return this.http
-      .post<ApiResponse<void>>(`${this.baseUrl}/${userId}/memberships`, req)
-      .pipe(
-        map(() => undefined),
-        restError(this.authErrorHandler),
-      );
+    return this.http.post<ApiResponse<void>>(`${this.baseUrl}/${userId}/memberships`, req).pipe(
+      map(() => undefined),
+      restError(this.authErrorHandler),
+    );
   }
 
   /**

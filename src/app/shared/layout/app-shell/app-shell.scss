@@ -10,7 +10,11 @@
 
   height: 100dvh;
   display: flex;
-  background: var(--surface-alt);
+  // The page BEHIND everything - behind the sidebar and behind the canvas -
+  // is plain white. The grey belongs to the canvas alone (see .dash-shell):
+  // it used to be a white sheet floating on grey, it is now a grey working
+  // surface floating on white.
+  background: var(--surface);
   padding: 0 0 0 var(--sidebar-overhang);
   overflow: hidden;
 
@@ -31,8 +35,15 @@
   height: 100%;
   min-width: 0;
   padding: 1.5rem 1.5rem 1.5rem calc(1.5rem + var(--sidebar-overhang));
-  background: var(--surface);
+  // The canvas is the GREY field now, not a white sheet: every block on it
+  // (stat tiles, chart, table, the summary rail) is its own white card, the
+  // way the reference artwork floats its cards on grey. In dark mode the
+  // same rule holds - --surface-alt is the darker of the two, so cards stay
+  // the lighter surface in both themes.
+  background: var(--surface-alt);
   border-radius: 24px;
+  // The shadow is back: the canvas and the page behind it are different
+  // colours again, so it has a real edge to lift.
   box-shadow: 0 30px 60px -30px rgba(15, 35, 60, 0.25);
 
   // The aside itself is hidden at this width by the screen that owns it -
@@ -72,7 +83,7 @@
   border-radius: 22px;
   overflow-y: auto;
   color: #fff;
-  background: linear-gradient(165deg, var(--brand) 0%, var(--brand-dark) 100%);
+  background: linear-gradient(165deg, var(--sidebar-from) 0%, var(--sidebar-to) 100%);
   box-shadow: 0 24px 48px -16px rgba(15, 35, 60, 0.4);
 }
 
@@ -143,7 +154,7 @@
 
   &--active {
     background: rgba(255, 255, 255, 0.95);
-    color: var(--brand-dark);
+    color: var(--brand-strong);
   }
 
   &--disabled {
@@ -263,7 +274,8 @@ a.nav-item {
   gap: 0.5rem;
   padding: 0.6rem 0.9rem;
   border-radius: 12px;
-  background: var(--surface-alt);
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: var(--muted);
 
   svg {

@@ -3,45 +3,77 @@
 :root {
   // Light theme (default). Re-skin the whole app by editing these tokens
   // only - every shared-ui component and page (login, signup, dashboard)
-  // consumes them, nothing is hardcoded. Palette: bright sky-blue (primary),
-  // light gray (neutral/secondary), dark charcoal (text/ink) - matching the
-  // reference "Minimal GUI" palette. Dark-mode overrides live in the
-  // [data-theme='dark'] block below and mirror the same token names.
-  --brand: #2e9fe0;
-  --brand-dark: #1d7db8;
-  --brand-soft: #e3f3fc;
+  // consumes them, nothing is hardcoded.
+  //
+  // Palette lifted from the reference infographic (ScreenShoot/color11.png)
+  // and sampled from its pixels, not eyeballed: a hot orange accent, a deep
+  // slate ink, and a blue-grey neutral field. The reference spends only
+  // about a third of its surface on orange - it marks the thing you should
+  // look at, it is not the background - so orange lives on accents here and
+  // the slate carries the weight (sidebar, text).
+  //
+  // The orange ramp is the same one the artwork uses on a folded ribbon:
+  //   --brand         #F05010  the lit face  - graphics, fills, focus rings
+  //   --brand-strong  #C84008  the mid face  - ANY orange under white text
+  //   --brand-dark    #A03008  the shadow    - hover, gradient ends, chip text
+  //
+  // --brand and white text is only 3.58:1, which fails WCAG AA for the
+  // small bold labels our buttons use, so text-bearing orange takes
+  // --brand-strong (5.0:1). Use --brand where nothing has to be READ on it.
+  --brand: #f05010;
+  --brand-strong: #c84008;
+  --brand-dark: #a03008;
+  --brand-soft: #fce7dc;
   --brand-contrast: #ffffff;
   --surface: #ffffff;
-  --surface-alt: #f1f1f1;
-  --on-surface: #4a4a4a;
-  --muted: #8a8a8a;
-  --border: #e3e3e3;
+  --surface-alt: #edf1f3;
+  --on-surface: #28373e;
+  --muted: #6a7883;
+  --border: #d5dde1;
   --error: #d32f2f;
   --error-bg: rgba(211, 47, 47, 0.08);
   --notice: #b45309;
   --notice-bg: rgba(180, 83, 9, 0.1);
+  // The sidebar is the largest single block of colour in the app. It takes
+  // the reference's dark slate rather than the accent, for the same reason
+  // the artwork does: a full-height orange slab would shout over every
+  // screen, and white nav labels on it would sit at 3.58:1. On slate they
+  // are 12.3:1. The active entry is the orange one - exactly how the
+  // infographic marks its current segment.
+  --sidebar-from: #2e3f48;
+  --sidebar-to: #1a242b;
   --radius: 12px;
   --font-sans:
     -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 :root[data-theme='dark'] {
-  // Cool-toned slate charcoal (not flat gray-black) - the kind of dark
-  // palette used by Linear/GitHub/Vercel, chosen to read as solid and
-  // deliberate rather than a muddy near-black.
-  --brand: #4fc1e9;
-  --brand-dark: #2e9fe0;
-  --brand-soft: rgba(79, 193, 233, 0.14);
-  --brand-contrast: #071824;
-  --surface: #161a20;
-  --surface-alt: #0d1015;
-  --on-surface: #e8eaed;
-  --muted: #8b929b;
-  --border: #262b33;
+  // The same three colours, re-balanced for a dark ground. Two things flip:
+  //
+  // 1. The neutrals become the reference's OWN dark slate (its ribbon is
+  //    #28373E) instead of a generic near-black, so dark mode is the same
+  //    palette seen at night rather than a different design.
+  // 2. The orange ramp inverts. On a dark surface the readable end of a
+  //    ramp is the LIGHT end, so --brand-dark is lighter than --brand here -
+  //    it is still "the value you put text in", which is what every rule
+  //    consuming it expects. --brand-strong does not move: it exists to
+  //    hold white text, and it already does that in both themes.
+  --brand: #ff6a33;
+  --brand-strong: #c84008;
+  --brand-dark: #ff8a5c;
+  --brand-soft: rgba(240, 80, 16, 0.18);
+  --brand-contrast: #ffffff;
+  --surface: #1e2a33;
+  --surface-alt: #162027;
+  --on-surface: #e7ecef;
+  --muted: #93a1aa;
+  --border: #2f3d47;
   --error: #f87171;
   --error-bg: rgba(248, 113, 113, 0.12);
   --notice: #fbbf24;
   --notice-bg: rgba(251, 191, 36, 0.12);
+  --sidebar-from: #1e2a33;
+  --sidebar-to: #10181e;
 }
 
 // The login/signup pages' soft brand-tinted background wash (see

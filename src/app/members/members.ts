@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../core/services/auth';
 import { FarmSelectionService } from '../core/services/farm-selection';
 import { RolesService } from '../core/services/roles';
@@ -12,6 +12,7 @@ import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
 import { AppShell } from '../shared/layout/app-shell/app-shell';
+import { ActionMenu } from '../shared/ui/action-menu/action-menu';
 import { Button } from '../shared/ui/button/button';
 import { ConfirmDialog } from '../shared/ui/confirm-dialog/confirm-dialog';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
@@ -48,6 +49,9 @@ const UNKNOWN_FAILURE = new ApiError({
  * Same treatment as the Approvals screen; see CONFLICT_STATUS there.
  */
 const CONFLICT_STATUS = 409;
+
+/** `CreateUserRequest.password` is `@Size(min = 6)` on the backend. */
+const PASSWORD_MIN_LENGTH = 6;
 
 /**
  * Members - who is on this farm, and what they may do here.
@@ -86,6 +90,7 @@ const CONFLICT_STATUS = 409;
     CommonModule,
     ReactiveFormsModule,
     AppShell,
+    ActionMenu,
     Button,
     ConfirmDialog,
     DataTable,
@@ -112,8 +117,23 @@ export class Members implements OnInit {
   readonly loadError = signal<ApiError | null>(null);
   readonly loadErrorMessage = computed(() => this.messageFor(this.loadError()));
 
-  readonly roles = signal<readonly Role[]>([]);
+  private readonly allRoles = signal<readonly Role[]>([]);
   readonly rolesFailed = signal(false);
+
+  /**
+   * The roles this screen may hand out - the ACTIVE ones, and only those.
+   *
+   * `GET /api/roles` deliberately returns disabled roles too, because the
+   * Roles screen is the only place that can switch one back on. Here they
+   * would be a trap: the backend refuses to attach a disabled role to a
+   * membership (`FarmUserService.resolveRole`), so offering one in the picker
+   * would be offering a choice that can only end in a 400.
+   *
+   * A member currently HOLDING a disabled role keeps it - nothing here takes
+   * it away. It simply cannot be re-picked, which is exactly what disabling
+   * the role was for.
+   */
+  readonly roles = computed(() => this.allRoles().filter((role) => role.active));
 
   /** The farm the backend is applying - see the class note. */
   readonly activeFarmId = computed(() => this.authService.currentUser()?.farmId ?? null);
@@ -127,6 +147,62 @@ export class Members implements OnInit {
 
   readonly removeTarget = signal<UserSummary | null>(null);
   readonly removing = signal(false);
+
+  /** Deleting the PERSON, not the membership - a separate question. */
+  readonly deleteTarget = signal<UserSummary | null>(null);
+  readonly deleting = signal(false);
+
+  /** The member whose account switch is mid-flight, so only their row waits. */
+  readonly togglingId = signal<string | null>(null);
+
+  // ------------------------------------------------------------ adding a person
+
+  readonly addOpen = signal(false);
+  readonly saving = signal(false);
+  readonly addError = signal<string | null>(null);
+  readonly addNameError = signal<string | null>(null);
+  readonly addPhoneError = signal<string | null>(null);
+  readonly addPasswordError = signal<string | null>(null);
+
+  /**
+   * Set once the ACCOUNT exists but the membership call has not succeeded.
+   *
+   * Adding somebody is two writes - `POST /api/users` then
+   * `POST /{id}/memberships` - and the second can fail on its own. Without
+   * this, pressing Save again would create a SECOND account for the same
+   * person (the first attempt would then be refused as a duplicate phone,
+   * which reads as though nothing had worked at all). Holding the id turns
+   * the retry into "finish what is left".
+   */
+  readonly createdUserId = signal<string | null>(null);
+
+  readonly addForm = this.formBuilder.nonNullable.group({
+    name: ['', Validators.required],
+    phone: ['', Validators.required],
+    email: [''],
+    password: ['', [Validators.required, Validators.minLength(PASSWORD_MIN_LENGTH)]],
+    roleId: this.formBuilder.control<number | null>(null),
+  });
+
+  /**
+   * The signed-in user's own id.
+   *
+   * Used to keep "disable" and "delete" off their own row. Unlike the owner
+   * rule - which this screen deliberately leaves to the backend because a
+   * `UserSummary` carries no owner flag - this one IS knowable here, and the
+   * backend refuses it anyway (400, "Huwezi kujizuia mwenyewe"). Offering a
+   * control whose only possible outcome is a refusal is worse than not
+   * offering it.
+   */
+  private readonly signedInUserId = computed(() => this.authService.currentUser()?.id ?? null);
+
+  isSelf(member: UserSummary): boolean {
+    return member.id === this.signedInUserId();
+  }
+
+  isToggling(member: UserSummary): boolean {
+    return this.togglingId() === member.id;
+  }
 
   /**
    * A failed change/remove, kept on screen rather than flashed.
@@ -154,6 +230,14 @@ export class Members implements OnInit {
       return null;
     }
     if (error.errorCode !== ERROR_CODE.OWNER_IMMUTABLE && error.status === CONFLICT_STATUS) {
+      return error.message;
+    }
+    // Deleting brings a second family of refusals with it, and they say
+    // exactly what is wrong - "Mmiliki wa shamba hawezi kufutwa.", "Huwezi
+    // kujifuta mwenyewe." The shared VALIDATION_ERROR copy ("the details you
+    // entered were not accepted") would be actively misleading for either:
+    // nothing was entered, and nothing about the request was malformed.
+    if (error.errorCode === ERROR_CODE.VALIDATION_ERROR) {
       return error.message;
     }
     return this.messageFor(error);
@@ -243,7 +327,7 @@ export class Members implements OnInit {
   private loadRoles(): void {
     this.rolesService.list().subscribe({
       next: (roles) => {
-        this.roles.set(roles);
+        this.allRoles.set(roles);
         this.rolesFailed.set(false);
       },
       error: () => this.rolesFailed.set(true),
@@ -350,6 +434,327 @@ export class Members implements OnInit {
     this.roleError.set(this.messageFor(error));
   }
 
+  // ------------------------------------------------ edit somebody's details
+
+  /** The member whose name/phone/email is being corrected. */
+  readonly editTarget = signal<UserSummary | null>(null);
+  readonly savingEdit = signal(false);
+  readonly editError = signal<string | null>(null);
+  readonly editNameError = signal<string | null>(null);
+  readonly editPhoneError = signal<string | null>(null);
+
+  readonly editForm = this.formBuilder.nonNullable.group({
+    name: ['', Validators.required],
+    phone: ['', Validators.required],
+    email: [''],
+  });
+
+  /**
+   * Opens on the member's CURRENT details.
+   *
+   * `UserSummary` carries no email - the list endpoint does not send one - so
+   * the field starts empty and saving an empty box clears whatever address
+   * was on file. That is a real edge, and the form says so rather than
+   * pretending to show what it cannot see.
+   */
+  openEdit(member: UserSummary): void {
+    this.editError.set(null);
+    this.editNameError.set(null);
+    this.editPhoneError.set(null);
+    this.actionError.set(null);
+    this.editForm.reset({ name: member.name, phone: member.phone, email: '' });
+    this.editTarget.set(member);
+  }
+
+  closeEdit(): void {
+    if (!this.savingEdit()) {
+      this.editTarget.set(null);
+    }
+  }
+
+  submitEdit(): void {
+    const member = this.editTarget();
+    if (!member || this.savingEdit()) {
+      return;
+    }
+
+    this.editError.set(null);
+    this.editNameError.set(null);
+    this.editPhoneError.set(null);
+
+    const { name, phone, email } = this.editForm.getRawValue();
+    const t = this.t();
+
+    if (!name.trim()) {
+      this.editNameError.set(t.errorNameRequired);
+      return;
+    }
+    if (!phone.trim()) {
+      this.editPhoneError.set(t.errorPhoneRequired);
+      return;
+    }
+
+    this.savingEdit.set(true);
+    this.usersService
+      .update(member.id, {
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim() || undefined,
+      })
+      .subscribe({
+        next: () => {
+          this.savingEdit.set(false);
+          this.editTarget.set(null);
+          this.toastMessage.set(this.t().savedToast);
+          this.fetch();
+        },
+        error: (err: unknown) => {
+          this.savingEdit.set(false);
+          this.showEditError(asApiError(err));
+        },
+      });
+  }
+
+  /**
+   * A failed edit.
+   *
+   * CONFLICT is a phone or email already taken, and the backend's sentence
+   * names which - so it goes on the phone field, where the more likely of the
+   * two is fixed.
+   */
+  private showEditError(error: ApiError): void {
+    if (error.sessionHandled) {
+      return;
+    }
+    if (error.status === CONFLICT_STATUS) {
+      this.editPhoneError.set(error.message);
+      return;
+    }
+    if (error.errorCode === ERROR_CODE.VALIDATION_ERROR) {
+      this.editError.set(error.message);
+      return;
+    }
+    this.editError.set(this.messageFor(error));
+  }
+
+  // ---------------------------------------------------------- add a member
+
+  openAdd(): void {
+    this.addForm.reset({ name: '', phone: '', email: '', password: '', roleId: null });
+    this.addError.set(null);
+    this.addNameError.set(null);
+    this.addPhoneError.set(null);
+    this.addPasswordError.set(null);
+    this.createdUserId.set(null);
+    this.actionError.set(null);
+    this.addOpen.set(true);
+  }
+
+  closeAdd(): void {
+    if (!this.saving()) {
+      this.addOpen.set(false);
+    }
+  }
+
+  /**
+   * Creates the person, then puts them on this farm.
+   *
+   * The role is REQUIRED here even though the backend would accept a
+   * membership without one: somebody added to a farm with no role can sign in
+   * and see nothing, which is not a state an admin means to create on this
+   * screen - Approvals is where "approved but not yet placed" belongs.
+   *
+   * On a retry after a half-finished attempt, step one is skipped; see
+   * createdUserId.
+   */
+  submitAdd(): void {
+    const farmId = this.activeFarmId();
+    if (farmId === null || this.saving()) {
+      return;
+    }
+
+    this.addError.set(null);
+    this.addNameError.set(null);
+    this.addPhoneError.set(null);
+    this.addPasswordError.set(null);
+
+    const { name, phone, email, password, roleId } = this.addForm.getRawValue();
+    const t = this.t();
+
+    if (roleId === null) {
+      this.addError.set(t.errorRoleRequired);
+      return;
+    }
+
+    const existing = this.createdUserId();
+    if (existing) {
+      // The account is already there; only the membership is outstanding.
+      this.saving.set(true);
+      this.attachMembership(existing, farmId, roleId);
+      return;
+    }
+
+    if (!name.trim()) {
+      this.addNameError.set(t.errorNameRequired);
+      return;
+    }
+    if (!phone.trim()) {
+      this.addPhoneError.set(t.errorPhoneRequired);
+      return;
+    }
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      this.addPasswordError.set(t.errorPasswordShort);
+      return;
+    }
+
+    this.saving.set(true);
+    this.usersService
+      .create({
+        name: name.trim(),
+        phone: phone.trim(),
+        // Absent rather than empty: the field is optional on the backend and
+        // an empty string would be validated as a malformed address.
+        email: email.trim() || undefined,
+        password,
+      })
+      .subscribe({
+        next: (user) => {
+          this.createdUserId.set(user.id);
+          this.attachMembership(user.id, farmId, roleId);
+        },
+        error: (err: unknown) => {
+          this.saving.set(false);
+          this.showAddError(asApiError(err));
+        },
+      });
+  }
+
+  private attachMembership(userId: string, farmId: number, roleId: number): void {
+    this.usersService.assignMembership(userId, { farmId, roleId }).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.addOpen.set(false);
+        this.createdUserId.set(null);
+        this.toastMessage.set(this.t().createdToast);
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.saving.set(false);
+        // The account survives this failure, so the modal stays open and says
+        // what is left to do rather than reporting a clean failure.
+        this.showAddError(asApiError(err));
+      },
+    });
+  }
+
+  /**
+   * A failed add.
+   *
+   * CONFLICT is always a duplicate phone or email, and the backend's sentence
+   * NAMES which of the two - more than any generic line could - so it is put
+   * on the phone field where the fix is.
+   */
+  private showAddError(error: ApiError): void {
+    if (error.sessionHandled) {
+      return;
+    }
+    if (error.status === CONFLICT_STATUS) {
+      this.addPhoneError.set(error.message);
+      return;
+    }
+    if (error.errorCode === ERROR_CODE.VALIDATION_ERROR) {
+      this.addError.set(error.message);
+      return;
+    }
+    this.addError.set(this.messageFor(error));
+  }
+
+  // -------------------------------------------------- disable / enable account
+
+  /**
+   * Blocks or restores the ACCOUNT - across every farm, not just this one.
+   *
+   * No confirmation: it is reversible from the same menu entry, and nothing
+   * is lost. Deleting, which is not reversible, asks.
+   */
+  toggleEnabled(member: UserSummary): void {
+    if (this.togglingId() !== null) {
+      return;
+    }
+    this.actionError.set(null);
+    this.togglingId.set(member.id);
+
+    const enable = member.status === 'DISABLED';
+    this.usersService.setEnabled(member.id, enable).subscribe({
+      next: () => {
+        this.togglingId.set(null);
+        this.toastMessage.set(enable ? this.t().enabledToast : this.t().disabledToast);
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.togglingId.set(null);
+        this.showActionError(asApiError(err));
+      },
+    });
+  }
+
+  // ----------------------------------------------------------- delete account
+
+  askDelete(member: UserSummary): void {
+    this.actionError.set(null);
+    this.deleteTarget.set(member);
+  }
+
+  cancelDelete(): void {
+    if (!this.deleting()) {
+      this.deleteTarget.set(null);
+    }
+  }
+
+  confirmDelete(): void {
+    const member = this.deleteTarget();
+    if (!member || this.deleting()) {
+      return;
+    }
+
+    this.deleting.set(true);
+    this.usersService.remove(member.id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.deleteTarget.set(null);
+        this.toastMessage.set(this.t().deletedToast);
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.deleting.set(false);
+        // Closed on failure: the refusal ("a farm's owner cannot be deleted")
+        // is a different statement from the question that was asked, and it
+        // belongs in the banner where it can be read without a dialog over it.
+        this.deleteTarget.set(null);
+        this.showActionError(asApiError(err));
+      },
+    });
+  }
+
+  /**
+   * A failed row action, put in the banner rather than a toast.
+   *
+   * Every refusal that reaches here is a RULE the admin has to read and act
+   * on - the owner cannot be removed, the owner cannot be deleted - not a
+   * blip to be flashed and forgotten. One helper for removing, deleting and
+   * switching an account, because the banner treats them alike.
+   *
+   * The failure itself is stored, not the rendered line: the wording is
+   * chosen on render by actionErrorMessage, so a banner that stands for a
+   * while follows the language toggle.
+   */
+  private showActionError(error: ApiError): void {
+    if (error.sessionHandled) {
+      return;
+    }
+    this.actionError.set(error);
+  }
+
   // ------------------------------------------------------------------- remove
 
   askRemove(member: UserSummary): void {
@@ -381,24 +786,9 @@ export class Members implements OnInit {
       error: (err: unknown) => {
         this.removing.set(false);
         this.removeTarget.set(null);
-        this.showRemoveError(asApiError(err));
+        this.showActionError(asApiError(err));
       },
     });
-  }
-
-  /**
-   * A failed removal, put in the banner rather than a toast: the guard rail
-   * ("the owner cannot be removed") is a rule the admin has to read and act
-   * on, and it must not scroll past them.
-   *
-   * The failure itself is what is stored - the wording is chosen on render,
-   * by actionErrorMessage.
-   */
-  private showRemoveError(error: ApiError): void {
-    if (error.sessionHandled) {
-      return;
-    }
-    this.actionError.set(error);
   }
 
   dismissActionError(): void {

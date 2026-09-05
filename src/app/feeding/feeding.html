@@ -1,0 +1,204 @@
+<app-shell>
+  <section class="feeding">
+    <header class="feeding__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+    </header>
+
+    @if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+      </div>
+    } @else if (!cycle()) {
+      <!-- Not a failure: nothing has gone wrong, there is simply no cycle to
+           feed. It gets a card and a way out, not a red panel. -->
+      <section class="card" data-panel="no-cycle">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().noCycleTitle }}</h2>
+        </header>
+        <p class="no-cycle__body">{{ t().noCycleMessage }}</p>
+        <div class="no-cycle__actions">
+          <app-button (clicked)="goToProduction()">{{ t().goToProduction }}</app-button>
+        </div>
+      </section>
+    } @else {
+      <section class="card" data-panel="context">
+        <p class="context__line">
+          {{ t().contextLabel }}:
+          <strong>{{ cycle()!.speciesName }}</strong>
+          &middot; {{ t().contextUnit }} <strong>{{ cycle()!.unit.code }}</strong> &middot;
+          {{ cycle()!.stockingDate }}
+          @if (cycleAgeMonths(); as age) {
+            &middot; {{ t().contextAge }} <strong>{{ age }} {{ t().ageMonths }}</strong>
+          }
+        </p>
+      </section>
+
+      <!-- The server's "nothing in the store fits fish this age". A hard
+           banner, above the form, because the answer is not on this screen:
+           somebody has to register a feed before anyone can feed anything. -->
+      @if (noSuitableFeed()) {
+        <div class="panel-error panel-error--inline" role="alert" data-panel="no-suitable-feed">
+          <strong>{{ t().noSuitableFeedTitle }}</strong>
+          <p>{{ t().noSuitableFeedMessage }}</p>
+        </div>
+      }
+
+      <!-- The form is the WRITE permission, and it is simply absent without
+           it: a VIEWER reads the history below and is offered nothing. -->
+      <section class="card" data-panel="log-form" *appHasPermission="PERMISSION.LOG_FEEDING">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().formTitle }}</h2>
+          <p class="card__hint">{{ t().formHint }}</p>
+        </header>
+
+        <form class="feed-form" [formGroup]="form" (ngSubmit)="submit()">
+          <div class="feed-form__grid">
+            <app-form-field [label]="t().fieldFeedType" for="feed-type">
+              <!-- Populated from feedTypesForCycle, NEVER from the stock
+                   balance: the balance lists every feed the farm has moved,
+                   including pellets too big for the fish in this cycle. -->
+              <select
+                id="feed-type"
+                class="text-input"
+                formControlName="feedTypeId"
+                (change)="onFeedTypeChange($event)"
+              >
+                <option value="">{{ t().fieldFeedTypePlaceholder }}</option>
+                @for (entry of feedTypes(); track entry.feedType.feedTypeId) {
+                  <option
+                    [value]="entry.feedType.feedTypeId"
+                    [attr.data-suitability]="entry.suitability"
+                  >
+                    {{ feedLabel(entry) }}
+                  </option>
+                }
+              </select>
+            </app-form-field>
+
+            <app-form-field [label]="t().fieldQuantity" for="feed-quantity">
+              <input
+                id="feed-quantity"
+                class="text-input"
+                type="number"
+                step="0.1"
+                min="0"
+                formControlName="quantityKg"
+              />
+            </app-form-field>
+
+            <app-form-field [label]="t().fieldDate" for="feed-date">
+              <input id="feed-date" class="text-input" type="date" formControlName="logDate" />
+            </app-form-field>
+          </div>
+
+          <!-- Shown the moment a SAFE_LOWER feed is picked, not only on the
+               press: the person should know what they chose while they are
+               still typing the amount. -->
+          @if (selectedIsSafeLower()) {
+            <p class="feed-form__note" data-note="safe-lower">
+              {{ t().suitabilitySafeLowerNote }}
+            </p>
+          }
+
+          @if (awaitingConfirm()) {
+            <div class="feed-form__confirm" role="alert" data-panel="safe-lower-confirm">
+              <p>{{ t().safeLowerConfirm }}</p>
+              <app-button variant="ghost" type="button" (clicked)="cancelConfirm()">
+                {{ t().cancelConfirm }}
+              </app-button>
+            </div>
+          }
+
+          @if (formError(); as message) {
+            <p class="form-error" role="alert">{{ message }}</p>
+          }
+
+          <!-- type="submit" and NO (clicked) handler on purpose: the button is
+               inside the form, so a click goes through ngSubmit exactly as
+               pressing Enter does. Wiring both would call submit() twice. -->
+          <div class="feed-form__actions">
+            <app-button type="submit" [loading]="saving()" [disabled]="formDisabled()">
+              {{ awaitingConfirm() ? t().submitConfirm : t().submit }}
+            </app-button>
+          </div>
+        </form>
+      </section>
+
+      <!-- The whole panel is view_feed_stock. A feeder without it gets the
+           form above and the history below, and no numbers at all - that is
+           the ordinary shape of this screen, not a degraded one. -->
+      <section class="card" data-panel="stock" *appHasPermission="PERMISSION.VIEW_FEED_STOCK">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().stockTitle }}</h2>
+        </header>
+
+        @if (lowStock().length > 0) {
+          <p class="stock__banner" role="status" data-banner="low-stock">
+            {{ t().stockLowBanner }} {{ lowStockNames() }}
+          </p>
+        }
+
+        @if (balances().length === 0) {
+          <app-empty-state [title]="t().stockEmptyTitle" [message]="t().stockEmptyMessage" />
+        } @else {
+          <ul class="stock__list">
+            <li class="stock__head" aria-hidden="true">
+              <span>{{ t().stockColFeedType }}</span>
+              <span>{{ t().stockColRemaining }}</span>
+            </li>
+            @for (row of balances(); track balanceKey(row)) {
+              <li
+                class="stock__row"
+                [class.stock__row--negative]="isNegative(row)"
+                [class.stock__row--low]="isLow(row) && !isNegative(row)"
+                [attr.data-stock-row]="balanceKey(row)"
+              >
+                <span class="stock__name">
+                  {{ row.feedType.name }}
+                  <small class="stock__window">{{ ageWindow(row.feedType) }}</small>
+                  @if (isNegative(row)) {
+                    <small class="stock__note">{{ t().stockNegativeNote }}</small>
+                  }
+                </span>
+                <span class="stock__value">{{ row.quantityKg }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="card" data-panel="logs">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().listTitle }}</h2>
+        </header>
+
+        <app-data-table
+          [columns]="columns()"
+          [rows]="logs()"
+          [rowKey]="logKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
+        >
+          <app-empty-state
+            slot="empty"
+            [title]="t().listEmptyTitle"
+            [message]="t().listEmptyMessage"
+          />
+        </app-data-table>
+      </section>
+    }
+  </section>
+
+  <app-toast
+    [open]="!!toastMessage()"
+    variant="success"
+    [message]="toastMessage() ?? ''"
+    (closed)="dismissToast()"
+  />
+</app-shell>

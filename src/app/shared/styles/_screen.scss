@@ -43,7 +43,10 @@
   margin: 0;
   padding: 1.5rem;
   border-radius: 16px;
-  background: var(--surface-alt);
+  // White, not a tint: every signed-in screen now sits on a grey canvas, so
+  // a --surface-alt panel would vanish into it.
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: var(--muted);
   text-align: center;
 }
@@ -97,4 +100,33 @@
   margin: 0;
   color: #c0392b;
   font-size: 0.85rem;
+}
+
+// The screen's action row, pinned to the BOTTOM-RIGHT CORNER of the page.
+// It used to live in the page header, top right.
+//
+// Fixed to the viewport, not to the screen's own section: those sections
+// scroll inside AppShell, so an absolutely-positioned row would scroll away
+// with them. The inset clears the canvas's own 1.5rem padding. Nothing in
+// the ancestor chain sets transform/filter/perspective, which would quietly
+// turn this into a scrolling element instead of a pinned one.
+//
+// The markup for it stays at the END of each template on purpose: if this
+// rule ever fails to reach a screen, the row falls back to the bottom of the
+// content rather than jumping to the top of the page.
+.page-actions {
+  position: fixed;
+  right: 2.25rem;
+  bottom: 2rem;
+  // Under every overlay: confirm-dialog is 100, modal 120, toast 200.
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+
+  @media (max-width: 860px) {
+    right: 1.25rem;
+    bottom: 1.25rem;
+  }
 }

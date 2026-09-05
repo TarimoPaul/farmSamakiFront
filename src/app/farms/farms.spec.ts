@@ -110,7 +110,11 @@ describe('Farms', () => {
       httpMock
         .expectOne(FARMS_URL)
         .flush(
-          { success: false, message: 'Huna ruhusa ya kufikia rasilimali hii.', errorCode: 'FORBIDDEN' },
+          {
+            success: false,
+            message: 'Huna ruhusa ya kufikia rasilimali hii.',
+            errorCode: 'FORBIDDEN',
+          },
           { status: 403, statusText: 'Forbidden' },
         );
       await fixture.whenStable();
@@ -227,10 +231,15 @@ describe('Farms', () => {
 
       // The list is re-read rather than patched locally, so the screen shows
       // what the backend actually holds.
-      httpMock.expectOne((r) => r.url === FARMS_URL && r.method === 'GET').flush({
-        success: true,
-        data: [...FARMS_RESPONSE.data, { farmId: 21, name: 'Shamba Jipya', location: 'Tanga', ownerName: null }],
-      });
+      httpMock
+        .expectOne((r) => r.url === FARMS_URL && r.method === 'GET')
+        .flush({
+          success: true,
+          data: [
+            ...FARMS_RESPONSE.data,
+            { farmId: 21, name: 'Shamba Jipya', location: 'Tanga', ownerName: null },
+          ],
+        });
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -276,14 +285,16 @@ describe('Farms', () => {
       component.form.setValue({ name: 'Test Farm E2E', location: '' });
       component.submitCreate();
 
-      httpMock.expectOne((r) => r.method === 'POST').flush(
-        {
-          success: false,
-          message: 'Operesheni imekiuka vikwazo vya database.',
-          errorCode: 'CONFLICT',
-        },
-        { status: 409, statusText: 'Conflict' },
-      );
+      httpMock
+        .expectOne((r) => r.method === 'POST')
+        .flush(
+          {
+            success: false,
+            message: 'Operesheni imekiuka vikwazo vya database.',
+            errorCode: 'CONFLICT',
+          },
+          { status: 409, statusText: 'Conflict' },
+        );
       await fixture.whenStable();
 
       expect(component.createError()).toBe('Shamba lenye jina hili tayari lipo.');

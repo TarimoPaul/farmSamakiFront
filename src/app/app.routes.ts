@@ -6,7 +6,9 @@ import { Dashboard } from './dashboard/dashboard';
 import { Farms } from './farms/farms';
 import { Approvals } from './approvals/approvals';
 import { Members } from './members/members';
+import { Roles } from './roles/roles';
 import { Production } from './production/production';
+import { Feeding } from './feeding/feeding';
 import { WaterQuality } from './water-quality/water-quality';
 import { authGuard, guestGuard, permissionGuard, sessionGuard } from './core/guards/auth-guard';
 import { PERMISSION } from './core/models/permissions';
@@ -41,6 +43,17 @@ export const routes: Routes = [
     component: Members,
     canActivate: [permissionGuard(PERMISSION.MANAGE_USERS)],
   },
+  // The same manage_users as Members, because the backend draws no line
+  // between the two: `GET/POST /api/roles` and `PUT /api/roles/{id}/permissions`
+  // are all `hasAuthority('manage_users')`, exactly like the membership
+  // endpoints. Gating this route on anything narrower would hide a screen from
+  // people the API would serve; gating it on anything wider would offer one
+  // the API refuses.
+  {
+    path: 'roles',
+    component: Roles,
+    canActivate: [permissionGuard(PERMISSION.MANAGE_USERS)],
+  },
   // authGuard, NOT permissionGuard - unlike the three admin screens above,
   // these two are READ screens with gated controls inside them. Reading is
   // `view_dashboard`, which every role holds; what differs per person is
@@ -48,6 +61,13 @@ export const routes: Routes = [
   // *appHasPermission on the controls themselves. Gating the route on a write
   // permission would shut a VIEWER out of data they are entitled to see.
   { path: 'production', component: Production, canActivate: [authGuard] },
+  // Feeding joins them, and for the same reason: `view_dashboard` reads the
+  // history, `log_feeding` puts the form on the page, and `view_feed_stock`
+  // decides whether the remaining-stock panel is there at all. Three
+  // permissions on one screen, none of which belongs on the route - gating
+  // here on `log_feeding` would shut a VIEWER out of a history they may read,
+  // and would hide the screen from someone who only holds `view_feed_stock`.
+  { path: 'feeding', component: Feeding, canActivate: [authGuard] },
   { path: 'water-quality', component: WaterQuality, canActivate: [authGuard] },
   { path: '**', redirectTo: 'login' },
 ];

@@ -78,6 +78,50 @@ export type LoginOutcome =
   | { kind: 'too-many-requests' }
   | { kind: 'network-error' };
 
+/**
+ * `POST /api/users` — an ADMIN creating somebody, which is a different act
+ * from that person registering themselves.
+ *
+ * Two differences from RegisterRequest below, both the backend's:
+ *
+ *  - the account starts ACTIVE, not PENDING_APPROVAL. The admin doing this
+ *    IS the approval, so there is nothing left for anyone to approve.
+ *  - it still grants NO membership. Farm and role are a second call
+ *    (`POST /api/users/{id}/memberships`), because permission to exist and
+ *    permission to do something are two decisions.
+ *
+ * The admin sets the first password and has to pass it on - there is no
+ * invite flow. `email` is optional; a phone or email already on file is
+ * refused with 409 and a sentence naming which of the two.
+ */
+export interface CreateUserRequest {
+  name: string;
+  phone: string;
+  email?: string;
+  password: string;
+}
+
+/**
+ * `PUT /api/users/{userId}` — a person's IDENTITY: name, phone, email.
+ *
+ * Nothing else. Password, account status and membership each have their own
+ * endpoint, for the same reason UpdateRoleRequest carries no permissions: a
+ * request to fix a typo in a name must not be able to change what somebody
+ * may do, or lock them out.
+ *
+ * Allowed on YOURSELF, unlike disable and delete — renaming yourself does not
+ * lock you out, it just changes the number you sign in with.
+ *
+ * `phone` is unique; taking one that is in use (including a deleted person's)
+ * is 409 with "Namba ya simu hii tayari imesajiliwa." An empty `email` is
+ * stored as null, so any number of people can have none.
+ */
+export interface UpdateUserRequest {
+  name: string;
+  phone: string;
+  email?: string;
+}
+
 /** POST /api/auth/register - no farm, no membership, no token. */
 export interface RegisterRequest {
   name: string;

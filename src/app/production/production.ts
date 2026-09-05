@@ -254,26 +254,31 @@ export class Production {
       return;
     }
 
+    // Built BEFORE the flag goes up, deliberately. Anything that throws while
+    // reading the form must not leave `saving` stuck true: the button would
+    // spin for ever and closeUnitForm refuses to close while it is set, so
+    // the modal becomes a trap with no way out but a page reload. Whatever
+    // this line can throw, it throws with the form still closable.
+    const input = {
+      code: code.trim(),
+      type,
+      sizeM3: optionalNumber(sizeM3),
+      waterSource: waterSource.trim() || null,
+    };
+
     this.saving.set(true);
-    this.productionService
-      .createUnit({
-        code: code.trim(),
-        type,
-        sizeM3: optionalNumber(sizeM3),
-        waterSource: waterSource.trim() || null,
-      })
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.unitOpen.set(false);
-          this.toastMessage.set(this.t().unitCreatedToast);
-          this.fetch();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.showUnitError(asApiError(err));
-        },
-      });
+    this.productionService.createUnit(input).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.unitOpen.set(false);
+        this.toastMessage.set(this.t().unitCreatedToast);
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.saving.set(false);
+        this.showUnitError(asApiError(err));
+      },
+    });
   }
 
   openCycleForm(): void {
@@ -322,30 +327,32 @@ export class Production {
       return;
     }
 
+    // Same rule as submitUnit: read the form fully before raising the flag,
+    // so nothing here can wedge the modal shut.
+    const input = {
+      unitId: raw.unitId,
+      speciesId: raw.speciesId,
+      stockingDate: raw.stockingDate,
+      fingerlingsCount: fingerlings,
+      survivalRateEstimate: optionalNumber(raw.survivalRateEstimate),
+    };
+
     this.saving.set(true);
-    this.productionService
-      .createCycle({
-        unitId: raw.unitId,
-        speciesId: raw.speciesId,
-        stockingDate: raw.stockingDate,
-        fingerlingsCount: fingerlings,
-        survivalRateEstimate: optionalNumber(raw.survivalRateEstimate),
-      })
-      .subscribe({
-        next: (cycle) => {
-          this.saving.set(false);
-          this.cycleOpen.set(false);
-          this.toastMessage.set(this.t().cycleCreatedToast);
-          // Selecting it immediately is the point of creating one: the next
-          // thing anybody does is record against it.
-          this.cycleSelection.select(Number(cycle.cycleId));
-          this.fetch();
-        },
-        error: (err: unknown) => {
-          this.saving.set(false);
-          this.formError.set(this.messageFor(asApiError(err), true));
-        },
-      });
+    this.productionService.createCycle(input).subscribe({
+      next: (cycle) => {
+        this.saving.set(false);
+        this.cycleOpen.set(false);
+        this.toastMessage.set(this.t().cycleCreatedToast);
+        // Selecting it immediately is the point of creating one: the next
+        // thing anybody does is record against it.
+        this.cycleSelection.select(Number(cycle.cycleId));
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.saving.set(false);
+        this.formError.set(this.messageFor(asApiError(err), true));
+      },
+    });
   }
 
   dismissToast(): void {
@@ -367,9 +374,7 @@ export class Production {
   }
 
   private messageFor(error: ApiError | null, preferBackendMessage = false): string | null {
-    return error
-      ? apiErrorMessage(error, this.languageService.lang(), preferBackendMessage)
-      : null;
+    return error ? apiErrorMessage(error, this.languageService.lang(), preferBackendMessage) : null;
   }
 }
 
@@ -378,7 +383,35 @@ function asApiError(err: unknown): ApiError {
 }
 
 /** "" -> null, so an untouched optional field is omitted rather than sent as 0. */
-function optionalNumber(raw: string): number | null {
+/**
+ * A numeric form field's value, whatever shape Angular handed us.
+ *
+ * IT IS NOT ALWAYS A STRING, and assuming it was is what broke the unit form.
+ * These controls are declared with a `''` default, so the reactive form types
+ * them as `string` - but every one of them is bound to an
+ * `<input type="number">`, and that makes Angular use NumberValueAccessor,
+ * which writes:
+ *
+ *   ''      before the field is ever touched (the reset value, untouched)
+ *   12.5    a NUMBER once something is typed
+ *   null    once a typed value is cleared again
+ *
+ * So `raw.trim()` threw `TypeError: raw.trim is not a function` the moment
+ * anybody actually filled in a size - and because the throw happened after
+ * `saving.set(true)`, the Save button span forever AND the modal refused to
+ * close (closeUnitForm only closes when it is not saving). Nothing reached
+ * the backend; there was no request to see fail.
+ *
+ * Accepting all three shapes here fixes the size, the fingerling count and
+ * the survival rate at once, since all three are number inputs.
+ */
+function optionalNumber(raw: string | number | null | undefined): number | null {
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? raw : null;
+  }
   const trimmed = raw.trim();
   if (!trimmed) {
     return null;

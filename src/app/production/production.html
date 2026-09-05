@@ -5,17 +5,6 @@
         <h1 class="page-title">{{ t().title }}</h1>
         <p class="page-subtitle">{{ t().subtitle }}</p>
       </div>
-
-      <div class="production__actions">
-        <!-- manage_units and edit_cycle are DIFFERENT capabilities: a worker
-             who may start a cycle need not be the person who builds tanks. -->
-        <app-button variant="secondary" *appHasPermission="PERMISSION.MANAGE_UNITS" (clicked)="openUnitForm()">
-          {{ t().newUnit }}
-        </app-button>
-        <app-button *appHasPermission="PERMISSION.EDIT_CYCLE" (clicked)="openCycleForm()">
-          {{ t().newCycle }}
-        </app-button>
-      </div>
     </header>
 
     @if (loading()) {
@@ -37,9 +26,8 @@
           <div class="selection">
             <p class="selection__line">
               <strong>{{ cycle.unit.code }}</strong>
-              &middot; {{ cycle.speciesName }}
-              &middot; {{ t().colCycleStocked }}: {{ cycle.stockingDate }}
-              &middot; {{ cycle.status }}
+              &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
+              {{ cycle.stockingDate }} &middot; {{ cycle.status }}
             </p>
             <div class="selection__actions">
               <app-button (clicked)="goToWaterQuality()">{{ t().goToWater }}</app-button>
@@ -63,6 +51,8 @@
           [columns]="cycleColumns()"
           [rows]="cycles()"
           [rowKey]="cycleKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
           [selectable]="true"
           [selectedKey]="selectedCycle()?.cycleId ?? null"
           (rowSelected)="selectCycle($event)"
@@ -80,7 +70,13 @@
           <h2 class="card__title">{{ t().unitsTitle }}</h2>
         </header>
 
-        <app-data-table [columns]="unitColumns()" [rows]="units()" [rowKey]="unitKey">
+        <app-data-table
+          [columns]="unitColumns()"
+          [rows]="units()"
+          [rowKey]="unitKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
+        >
           <app-empty-state
             slot="empty"
             [title]="t().unitsEmptyTitle"
@@ -89,6 +85,24 @@
         </app-data-table>
       </section>
     }
+
+    <!-- Both actions in the corner. The cycle is written second so it lands
+         nearest the right edge - it is the screen's main job. -->
+    <div class="page-actions">
+      <!-- manage_units and edit_cycle are DIFFERENT capabilities: a worker
+           who may start a cycle need not be the person who builds tanks. -->
+      <app-button
+        variant="secondary"
+        floating
+        *appHasPermission="PERMISSION.MANAGE_UNITS"
+        (clicked)="openUnitForm()"
+      >
+        {{ t().newUnit }}
+      </app-button>
+      <app-button floating *appHasPermission="PERMISSION.EDIT_CYCLE" (clicked)="openCycleForm()">
+        {{ t().newCycle }}
+      </app-button>
+    </div>
   </section>
 
   <app-modal
@@ -190,11 +204,7 @@
         <input id="cycle-stocked" class="text-input" type="date" formControlName="stockingDate" />
       </app-form-field>
 
-      <app-form-field
-        [label]="t().fieldCycleFingerlings"
-        for="cycle-fingerlings"
-        [required]="true"
-      >
+      <app-form-field [label]="t().fieldCycleFingerlings" for="cycle-fingerlings" [required]="true">
         <input
           id="cycle-fingerlings"
           class="text-input"

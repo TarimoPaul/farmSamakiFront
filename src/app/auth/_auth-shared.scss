@@ -269,7 +269,7 @@ form {
   padding: 0;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-strong);
   cursor: pointer;
 
   &:hover {
@@ -292,8 +292,12 @@ form {
   padding: 0.85rem 1rem;
   border: none;
   border-radius: var(--radius);
-  background: var(--brand);
-  color: var(--brand-contrast);
+  // Smooth, like every other primary action in the app: a pale tint of the
+  // accent carrying the accent itself, 6.0:1 in light and 4.9:1 in dark. It
+  // is quieter than the solid block it replaces - if the sign-in CTA ends up
+  // reading too softly, this rule is the one to put back.
+  background: var(--brand-soft);
+  color: var(--brand-dark);
   font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -337,7 +341,7 @@ form {
   color: var(--muted);
 
   a {
-    color: var(--brand);
+    color: var(--brand-strong);
     font-weight: 700;
     text-decoration: none;
 
@@ -365,7 +369,7 @@ form {
   overflow: hidden;
   padding: 3rem 2.75rem;
   border-radius: 22px;
-  background: linear-gradient(160deg, var(--brand) 0%, var(--brand-dark) 100%);
+  background: linear-gradient(160deg, var(--brand-strong) 0%, color-mix(in srgb, var(--brand-strong) 62%, #000) 100%);
   color: var(--brand-contrast);
 
   @media (max-width: 1023px) {

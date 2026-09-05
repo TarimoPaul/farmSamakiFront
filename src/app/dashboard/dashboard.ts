@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { GraphqlService } from '../core/services/graphql';
 import { AuthService } from '../core/services/auth';
 import { FarmSelectionService } from '../core/services/farm-selection';
+import { FarmsService } from '../core/services/farms';
+import { UsersService } from '../core/services/users';
 import { PERMISSION } from '../core/models/permissions';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { ProductionUnit } from '../core/models/production-unit';
@@ -72,6 +74,8 @@ export class Dashboard {
   readonly languageService = inject(LanguageService);
   private readonly authService = inject(AuthService);
   private readonly farmSelection = inject(FarmSelectionService);
+  private readonly farmsService = inject(FarmsService);
+  private readonly usersService = inject(UsersService);
   readonly t = computed(() => DASHBOARD_I18N[this.languageService.lang()]);
 
   readonly units = signal<ProductionUnit[]>([]);
@@ -117,6 +121,36 @@ export class Dashboard {
    * only thing that can actually put them on a farm.
    */
   readonly canManageFarms = computed(() => this.authService.hasPermission(PERMISSION.MANAGE_FARMS));
+
+  /**
+   * The organisation counts in the rail's last card: how many farms exist,
+   * and how many people are on the farm being looked at.
+   *
+   * Both are REST calls, not part of DASHBOARD_QUERY, and they are kept out
+   * of it deliberately: they answer different permissions. Folding
+   * `manage_farms` data into the GraphQL query would make the WHOLE query
+   * fail for a farm hand who is only allowed the units and cycles - the
+   * dashboard would go blank because of a panel they were never meant to
+   * see. Null means "not fetched, or the call failed"; the row shows a dash
+   * and nothing else on the screen notices.
+   */
+  readonly totalFarms = signal<number | null>(null);
+  readonly totalMembers = signal<number | null>(null);
+
+  /** `manage_users` is a DIFFERENT permission from manage_farms - see UsersService. */
+  readonly canManageUsers = computed(() => this.authService.hasPermission(PERMISSION.MANAGE_USERS));
+
+  /**
+   * The farm the BACKEND applied, not the one that was requested: it comes
+   * from /api/auth/me via currentUser, so a selection the backend refused
+   * cannot make this count somebody else's members.
+   */
+  readonly activeFarmId = computed(() => this.authService.currentUser()?.farmId ?? null);
+
+  /** The card is not rendered at all unless one of its two rows can be filled. */
+  readonly showOrgCard = computed(
+    () => this.canManageFarms() || (this.canManageUsers() && this.activeFarmId() !== null),
+  );
 
   readonly today = new Date();
   readonly weekDates = this.buildWeekDates(this.today);
@@ -170,6 +204,36 @@ export class Dashboard {
     this.fetch();
   });
 
+  /**
+   * The rail's organisation counts, reloaded when the applied farm changes -
+   * a different farm has different members.
+   *
+   * Every failure here is swallowed on purpose. These two calls are a side
+   * panel; the dashboard proper has already loaded (or failed) on its own
+   * query, and a 403 on /api/farms must not turn a working screen into an
+   * error page. A failed row simply has no number.
+   */
+  private readonly loadOrgCounts = effect(() => {
+    const farmId = this.activeFarmId();
+
+    if (this.canManageFarms()) {
+      this.farmsService.list().subscribe({
+        next: (farms) => this.totalFarms.set(farms.length),
+        error: () => this.totalFarms.set(null),
+      });
+    } else {
+      this.totalFarms.set(null);
+    }
+
+    if (this.canManageUsers() && farmId !== null) {
+      this.usersService.listByFarm(farmId).subscribe({
+        next: (members) => this.totalMembers.set(members.length),
+        error: () => this.totalMembers.set(null),
+      });
+    } else {
+      this.totalMembers.set(null);
+    }
+  });
   private fetch(): void {
     this.loading.set(true);
     this.error.set(null);

@@ -16,12 +16,6 @@
   flex-wrap: wrap;
 }
 
-.production__actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 /* A hint under a card title - the cycles table needs to say what selecting a
    row is FOR, since the consequence shows up on a different screen. */
 .card__hint {
