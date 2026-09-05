@@ -184,3 +184,17 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* The "no suitable feed" banner's way out. Which of the two appears is a
+   permission question - see canManageFeedCatalog - so both are spaced the
+   same, and the banner reads identically either way. */
+.no-suitable-feed__actions {
+  margin-top: 0.75rem;
+}
+
+.no-suitable-feed__hint {
+  margin: 0.5rem 0 0;
+  max-width: 60ch;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}

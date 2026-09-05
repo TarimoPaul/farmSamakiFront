@@ -160,3 +160,47 @@ describe('AppShell farm switcher', () => {
     httpMock.verify();
   });
 });
+
+/**
+ * The Feed Catalogue entry, which is the first feed-related nav item to carry
+ * a permission at all.
+ *
+ * It matters because the two feed screens sit next to each other and are gated
+ * differently: Feeding is a read screen every role reaches, while both
+ * catalogue endpoints are `manage_feed_stock` on the backend. An entry offered
+ * to a feeder would land them on a guard, so the nav must not offer it.
+ */
+describe('AppShell nav gating', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  function navLabels(permissions: string[]): string[] {
+    localStorage.setItem(TOKEN_KEY, 'a-token');
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
+    localStorage.setItem(CAN_SELECT_FARM_KEY, 'false');
+
+    const { fixture, element } = setup();
+    fixture.detectChanges();
+
+    return [...element.querySelectorAll('.sidebar__nav .nav-item')].map((el) =>
+      (el.textContent ?? '').trim(),
+    );
+  }
+
+  it('offers the Feed Catalogue to a manage_feed_stock holder', () => {
+    const labels = navLabels(['view_dashboard', 'log_feeding', 'manage_feed_stock']);
+
+    expect(labels).toContain('Katalogi ya Chakula');
+    expect(labels).toContain('Malisho');
+  });
+
+  it('hides it from a feeder, who still gets Feeding', () => {
+    // `view_feed_stock` SEES the stock panel; it does not write the catalogue.
+    const labels = navLabels(['view_dashboard', 'log_feeding', 'view_feed_stock']);
+
+    expect(labels).not.toContain('Katalogi ya Chakula');
+    expect(labels).toContain('Malisho');
+  });
+});

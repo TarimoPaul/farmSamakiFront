@@ -331,8 +331,32 @@ export class Feeding {
     return this.authService.hasPermission(PERMISSION.VIEW_FEED_STOCK);
   }
 
+  /**
+   * Whether the "no suitable feed" banner offers a WAY OUT or only an
+   * explanation.
+   *
+   * The dead end is the same for everybody - no feed in the catalogue fits
+   * these fish - but who can clear it is not. `manage_feed_stock` is the code
+   * the catalogue's route guard and its backend both read, so branching on it
+   * here means the button appears exactly when pressing it would work.
+   *
+   * A feeder gets a sentence naming who to ask instead. Offering them the
+   * button would be this screen sending somebody to a route the guard turns
+   * back, which is a worse answer than the honest one.
+   *
+   * The CODE, never a role name: roles are edited at runtime, so "if WORKER"
+   * would be wrong the first time somebody grants a feeder the catalogue.
+   */
+  readonly canManageFeedCatalog = computed(() =>
+    this.authService.hasPermission(PERMISSION.MANAGE_FEED_STOCK),
+  );
+
   goToProduction(): void {
     void this.router.navigateByUrl('/production');
+  }
+
+  goToFeedCatalog(): void {
+    void this.router.navigateByUrl('/feed-catalog');
   }
 
   /**

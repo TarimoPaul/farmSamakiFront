@@ -46,6 +46,23 @@
         <div class="panel-error panel-error--inline" role="alert" data-panel="no-suitable-feed">
           <strong>{{ t().noSuitableFeedTitle }}</strong>
           <p>{{ t().noSuitableFeedMessage }}</p>
+
+          <!-- The way out is a different thing for different people, so it is
+               branched rather than shown to everybody and disabled. Somebody
+               holding `manage_feed_stock` can go and register the feed; a
+               feeder cannot, and a button that lands them on a guard is worse
+               than being told plainly who to ask. -->
+          @if (canManageFeedCatalog()) {
+            <div class="no-suitable-feed__actions" data-testid="catalog-cta">
+              <app-button variant="secondary" (clicked)="goToFeedCatalog()">
+                {{ t().goToFeedCatalog }}
+              </app-button>
+            </div>
+          } @else {
+            <p class="no-suitable-feed__hint" data-testid="ask-manager">
+              {{ t().noSuitableFeedAskManager }}
+            </p>
+          }
         </div>
       }
 

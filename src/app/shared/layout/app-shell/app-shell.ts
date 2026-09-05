@@ -15,7 +15,17 @@ import { LanguageToggle } from '../../ui/language-toggle/language-toggle';
 import { SHELL_I18N } from './app-shell.i18n';
 
 type IconKey =
-  'grid' | 'farm' | 'box' | 'cycle' | 'feed' | 'drop' | 'users' | 'check' | 'shield' | 'gear';
+  | 'grid'
+  | 'farm'
+  | 'box'
+  | 'cycle'
+  | 'feed'
+  | 'drop'
+  | 'users'
+  | 'check'
+  | 'shield'
+  | 'list'
+  | 'gear';
 
 interface ShellNavItem {
   key: keyof (typeof SHELL_I18N)['sw'];
@@ -56,6 +66,17 @@ const NAV_ITEMS: readonly ShellNavItem[] = [
   // other's data. The old route-less `navCycles` placeholder is gone with it.
   { key: 'navProduction', icon: 'box', route: '/production' },
   { key: 'navFeeding', icon: 'feed', route: '/feeding' },
+  // Under Feeding, and unlike it, GATED - because the backend gates it. Both
+  // catalogue endpoints are `manage_feed_stock`, so a feeder who sees Feeding
+  // must not be offered this: the screen would load into a FORBIDDEN. Its own
+  // icon rather than the feed sack, so the two feed entries are told apart at
+  // a glance.
+  {
+    key: 'navFeedCatalog',
+    icon: 'list',
+    route: '/feed-catalog',
+    permission: PERMISSION.MANAGE_FEED_STOCK,
+  },
   { key: 'navWater', icon: 'drop', route: '/water-quality' },
   { key: 'navSettings', icon: 'gear' },
 ];

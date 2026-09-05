@@ -1,0 +1,71 @@
+@use '../shared/styles/screen' as *;
+
+.catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.catalog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.card__hint {
+  margin: 0.25rem 0 0;
+  max-width: 70ch;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.type-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 0.25rem 0.25rem;
+}
+
+/* The two ages side by side, because they are read as one range - stacking
+   on a phone, where they cannot be. */
+.type-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+/* The "both ends included, fry feed is 0 to 0" line. It sits under the pair
+   rather than in either field's hint, because it is about the range. */
+.type-form__hint {
+  margin: -0.25rem 0 0;
+  max-width: 60ch;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.type-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The edit modal's standing notices: the system-wide warning, and the
+   "this one is disabled" line. Same treatment as the Roles modal. */
+.type-form__notice {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--notice-bg, var(--surface-2, transparent));
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--on-surface);
+}
+
+.type-form__notice--muted {
+  color: var(--muted);
+}

@@ -384,6 +384,47 @@ describe('Feeding', () => {
       expect(select.disabled).toBe(true);
     });
 
+    /**
+     * The banner's way out is PERMISSION-AWARE, and that is the whole point of
+     * the pair below: the dead end is identical for both people, but only one
+     * of them can clear it. `manage_feed_stock` is the code the catalogue's
+     * route guard reads, so the button appears exactly when pressing it would
+     * work - and the other person is told who to ask instead of being sent to
+     * a screen that would turn them back.
+     */
+    it('offers the catalogue to somebody who may write it', async () => {
+      const { fixture, component, httpMock } = setup([...FEEDER, 'manage_feed_stock'], {
+        cycleId: '9',
+      });
+
+      await load(fixture, httpMock, { feedTypes: NO_SUITABLE_FEED, balance: null });
+
+      expect(component.canManageFeedCatalog()).toBe(true);
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="catalog-cta"]'),
+      ).toBeTruthy();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="ask-manager"]'),
+      ).toBeNull();
+      expect(text(fixture)).toContain('Sajili aina ya chakula');
+    });
+
+    it('tells a feeder who to ask, and offers no link at all', async () => {
+      const { fixture, component, httpMock } = setup(FEEDER_WITH_STOCK, { cycleId: '9' });
+
+      await load(fixture, httpMock, { feedTypes: NO_SUITABLE_FEED });
+
+      expect(component.canManageFeedCatalog()).toBe(false);
+      // Not a disabled button, not a link the guard would refuse - no control.
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="catalog-cta"]'),
+      ).toBeNull();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="ask-manager"]'),
+      ).toBeTruthy();
+      expect(text(fixture)).toContain('Mwambie msimamizi wa shamba');
+    });
+
     it('sends nothing even if submit is reached anyway', async () => {
       const { fixture, component, httpMock } = setup(FEEDER, { cycleId: '9' });
       await load(fixture, httpMock, { feedTypes: NO_SUITABLE_FEED, balance: null });

@@ -117,6 +117,45 @@ export interface FeedingLog {
 }
 
 /**
+ * What `createFeedType` is called with.
+ *
+ * NOT an `Input` type, and the name says so on purpose: the schema declares
+ * three named arguments - `createFeedType(name: String!, minAgeMonths: Int!,
+ * maxAgeMonths: Int!)` - rather than the input object every other mutation in
+ * this app takes. The backend's own note gives the reason: the catalogue has
+ * exactly three writable columns, and `active` is not chosen at creation. So
+ * this interface is the CLIENT'S grouping of three variables, and the service
+ * spreads it back out into three GraphQL variables.
+ *
+ * Both ages are whole months and both are INCLUSIVE ends of the window, the
+ * same convention `FeedType` is read back with. `maxAgeMonths` below
+ * `minAgeMonths` is refused by the backend with VALIDATION_ERROR, in a
+ * sentence that names both numbers.
+ */
+export interface CreateFeedTypeArgs {
+  name: string;
+  minAgeMonths: number;
+  maxAgeMonths: number;
+}
+
+/**
+ * What `updateFeedType` is called with.
+ *
+ * The same three writable columns as CreateFeedTypeArgs plus the id, and
+ * flat arguments for the same reason - the backend deliberately kept the two
+ * mutations the same shape, so that two operations writing the same thing do
+ * not look different for no reason.
+ *
+ * IT DOES NOT CARRY `active`. Enabling and disabling is `setFeedTypeActive`,
+ * a separate mutation, so that somebody fixing a typo in a name is never one
+ * misplaced field away from retiring a feed - the same split the Roles screen
+ * makes between renaming and editing permissions.
+ */
+export interface UpdateFeedTypeArgs extends CreateFeedTypeArgs {
+  feedTypeId: number;
+}
+
+/**
  * `logFeeding` input.
  *
  * BOTH IDS ARE `Int!` HERE. That is worth stating because it contradicts the

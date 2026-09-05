@@ -1,0 +1,249 @@
+<app-shell>
+  <section class="catalog">
+    <header class="catalog__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+    </header>
+
+    <!-- A refused action - in practice the delete refusal, which names how
+         many records still point at the type. It stays until dismissed: it is
+         an instruction ("disable it instead"), not a notification. -->
+    @if (actionErrorMessage(); as message) {
+      <div class="panel-error" role="alert" data-testid="action-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="dismissActionError()">
+          {{ t().close }}
+        </app-button>
+      </div>
+    }
+
+    @if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert" data-testid="load-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+      </div>
+    } @else {
+      <section class="card" data-panel="catalog-list">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().listTitle }}</h2>
+        </header>
+
+        <app-data-table
+          [columns]="columns()"
+          [rows]="feedTypes()"
+          [rowKey]="feedTypeKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
+          [rowActions]="rowActions"
+          [actionsLabel]="t().actions"
+          [showActionsLabel]="true"
+        >
+          <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
+        </app-data-table>
+
+        <!-- Three actions behind one trigger, as on Roles: side by side they
+             would be wider than the data, and the actions column is sized to
+             its content. -->
+        <ng-template #rowActions let-type>
+          <app-action-menu [label]="t().actions">
+            <button type="button" role="menuitem" (click)="openEdit(type)">{{ t().edit }}</button>
+
+            <!-- One item, both directions: the state it produces is the state
+                 the row already shows, so a separate "enable" entry would be
+                 the same switch written twice. -->
+            <button
+              type="button"
+              role="menuitem"
+              [disabled]="isToggling(type)"
+              (click)="toggleActive(type)"
+            >
+              {{ type.active ? t().deactivate : t().activate }}
+            </button>
+
+            <hr />
+
+            <button type="button" role="menuitem" class="is-danger" (click)="askDelete(type)">
+              {{ t().delete }}
+            </button>
+          </app-action-menu>
+        </ng-template>
+      </section>
+
+      <!-- No *appHasPermission on the form: every endpoint this screen touches
+           is `manage_feed_stock`, including the list above, so the route guard
+           has already answered this question. Gating the form again would only
+           be able to hide it from people who cannot be here at all. -->
+      <section class="card" data-panel="create-form">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().formTitle }}</h2>
+          <p class="card__hint">{{ t().formHint }}</p>
+        </header>
+
+        <form class="type-form" [formGroup]="form" (ngSubmit)="submit()">
+          <app-form-field
+            [label]="t().fieldName"
+            for="feed-type-name"
+            [error]="nameError()"
+            [required]="true"
+          >
+            <input
+              id="feed-type-name"
+              class="text-input"
+              type="text"
+              formControlName="name"
+              [maxlength]="nameMaxLength"
+              [placeholder]="t().fieldNameHint"
+              autocomplete="off"
+            />
+          </app-form-field>
+
+          <!-- The two ages share ONE error line. They are not two independent
+               fields with two independent rules: the rule that matters is
+               about the pair ("the top cannot be below the bottom"), and it
+               belongs to neither box on its own. -->
+          <div class="type-form__grid">
+            <app-form-field [label]="t().fieldMinAge" for="feed-type-min-age" [required]="true">
+              <input
+                id="feed-type-min-age"
+                class="text-input"
+                type="number"
+                step="1"
+                min="0"
+                formControlName="minAgeMonths"
+              />
+            </app-form-field>
+
+            <app-form-field [label]="t().fieldMaxAge" for="feed-type-max-age" [required]="true">
+              <input
+                id="feed-type-max-age"
+                class="text-input"
+                type="number"
+                step="1"
+                min="0"
+                formControlName="maxAgeMonths"
+              />
+            </app-form-field>
+          </div>
+
+          <p class="type-form__hint">{{ t().ageHint }}</p>
+
+          @if (ageError(); as message) {
+            <p class="form-error" role="alert" data-testid="age-error">{{ message }}</p>
+          }
+
+          @if (formError(); as message) {
+            <p class="form-error" role="alert" data-testid="form-error">{{ message }}</p>
+          }
+
+          <!-- type="submit" and NO (clicked) handler: the button is inside the
+               form, so a click goes through ngSubmit exactly as Enter does.
+               Wiring both would call submit() twice. -->
+          <div class="type-form__actions">
+            <app-button type="submit" [loading]="saving()">{{ t().submit }}</app-button>
+          </div>
+        </form>
+      </section>
+    }
+  </section>
+
+  <!-- Editing reuses the register form's controls - see editTarget. Only one
+       of the two is ever open, so one set of rules serves both. -->
+  <app-modal
+    [open]="!!editTarget()"
+    [title]="t().editTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeEdit()"
+  >
+    <form class="type-form" [formGroup]="form" (ngSubmit)="submit()">
+      <p class="type-form__notice">{{ t().editWarning }}</p>
+
+      @if (editTarget(); as type) {
+        @if (!type.active) {
+          <p class="type-form__notice type-form__notice--muted" data-testid="inactive-notice">
+            {{ t().inactiveNotice }}
+          </p>
+        }
+      }
+
+      <app-form-field
+        [label]="t().fieldName"
+        for="edit-feed-type-name"
+        [error]="nameError()"
+        [required]="true"
+      >
+        <input
+          id="edit-feed-type-name"
+          class="text-input"
+          type="text"
+          formControlName="name"
+          [attr.maxlength]="nameMaxLength"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      <div class="type-form__grid">
+        <app-form-field [label]="t().fieldMinAge" for="edit-feed-type-min-age" [required]="true">
+          <input
+            id="edit-feed-type-min-age"
+            class="text-input"
+            type="number"
+            step="1"
+            min="0"
+            formControlName="minAgeMonths"
+          />
+        </app-form-field>
+
+        <app-form-field [label]="t().fieldMaxAge" for="edit-feed-type-max-age" [required]="true">
+          <input
+            id="edit-feed-type-max-age"
+            class="text-input"
+            type="number"
+            step="1"
+            min="0"
+            formControlName="maxAgeMonths"
+          />
+        </app-form-field>
+      </div>
+
+      @if (ageError(); as message) {
+        <p class="form-error" role="alert" data-testid="edit-age-error">{{ message }}</p>
+      }
+
+      @if (formError(); as message) {
+        <p class="form-error" role="alert" data-testid="edit-form-error">{{ message }}</p>
+      }
+
+      <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeEdit()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submit()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-confirm-dialog
+    [open]="!!deleteTarget()"
+    [title]="t().deleteTitle"
+    [message]="(deleteTarget()?.name ?? '') + ' ' + t().deleteMessage"
+    [confirmLabel]="t().deleteConfirm"
+    [cancelLabel]="t().cancel"
+    [loading]="deleting()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  />
+
+  <app-toast
+    [open]="!!toastMessage()"
+    variant="success"
+    [message]="toastMessage() ?? ''"
+    (closed)="dismissToast()"
+  />
+</app-shell>

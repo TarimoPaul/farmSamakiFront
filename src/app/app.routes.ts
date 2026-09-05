@@ -9,6 +9,7 @@ import { Members } from './members/members';
 import { Roles } from './roles/roles';
 import { Production } from './production/production';
 import { Feeding } from './feeding/feeding';
+import { FeedCatalog } from './feed-catalog/feed-catalog';
 import { WaterQuality } from './water-quality/water-quality';
 import { authGuard, guestGuard, permissionGuard, sessionGuard } from './core/guards/auth-guard';
 import { PERMISSION } from './core/models/permissions';
@@ -68,6 +69,21 @@ export const routes: Routes = [
   // here on `log_feeding` would shut a VIEWER out of a history they may read,
   // and would hide the screen from someone who only holds `view_feed_stock`.
   { path: 'feeding', component: Feeding, canActivate: [authGuard] },
+  // The one feed screen that IS a permissionGuard, and the contrast with the
+  // line above is the reason to keep both: Feeding is a read screen with gated
+  // controls inside it, while every endpoint behind the catalogue - the list
+  // as well as the create - is `manage_feed_stock` on the backend
+  // (FeedService.listFeedTypes requires it too). There is no version of this
+  // screen for somebody without that code: the guard is the whole gate, which
+  // is why nothing inside it is gated again.
+  //
+  // NOT farm-scoped. `feed_types` has no farm column, so this route means the
+  // same thing whichever farm is selected.
+  {
+    path: 'feed-catalog',
+    component: FeedCatalog,
+    canActivate: [permissionGuard(PERMISSION.MANAGE_FEED_STOCK)],
+  },
   { path: 'water-quality', component: WaterQuality, canActivate: [authGuard] },
   { path: '**', redirectTo: 'login' },
 ];

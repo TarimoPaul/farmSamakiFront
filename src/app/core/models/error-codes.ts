@@ -62,6 +62,23 @@ export const ERROR_CODE = {
    * names how many, which is the number that says how much work that is.
    */
   FARM_IN_USE: 'FARM_IN_USE',
+  /**
+   * 409 - a feed type cannot be deleted while anything still points at it
+   * (FeedService.deleteFeedType).
+   *
+   * The same shape as ROLE_IN_USE and FARM_IN_USE, and clearable the same
+   * way in principle - though in practice a type with feedings against it
+   * should be DISABLED rather than emptied, which is what the backend's
+   * message says. The reason it is refused at all is worth knowing: the
+   * delete is soft, `FeedType` carries `@SQLRestriction("is_deleted =
+   * false")`, and `FeedingLog.feedType` is `FeedType!` - so hiding a type
+   * that is still referenced does not hide one row, it makes the whole
+   * feeding history fail to read.
+   *
+   * The backend's sentence names how many records are in the way, broken
+   * down by kind, so the screen shows that rather than a line of its own.
+   */
+  FEED_TYPE_IN_USE: 'FEED_TYPE_IN_USE',
   /** 400 - the submitted data was refused on business rules. A field error. */
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   /** 429 - rate limited (login: 10 per 5 min per IP; register: 5 per hour). */

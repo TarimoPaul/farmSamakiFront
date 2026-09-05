@@ -41,7 +41,13 @@ export const FEEDING_I18N = {
     safeLowerConfirm:
       'Umechagua chakula cha samaki wadogo. Watakula, lakini si bora kwa umri wao. Bonyeza tena kuhifadhi.',
     noSuitableFeedTitle: 'Hakuna chakula sahihi',
-    noSuitableFeedMessage: 'hakuna chakula sahihi kwa umri wa cycle hii — sajili kipya',
+    // Sentensi hii HAIMWAMBII msomaji afanye kitu chochote: nani anaweza
+    // kukifanya inategemea ruhusa yake, na hilo linasemwa na kitufe au na
+    // `noSuitableFeedAskManager` hapa chini, si na ujumbe wenyewe.
+    noSuitableFeedMessage: 'hakuna chakula sahihi kwa umri wa cycle hii',
+    goToFeedCatalog: 'Sajili aina ya chakula',
+    noSuitableFeedAskManager:
+      'Mwambie msimamizi wa shamba asajili aina inayofaa umri huu kwenye katalogi ya chakula.',
 
     errorFeedTypeRequired: 'Chagua aina ya chakula.',
     errorQuantityRequired: 'Andika kiasi cha chakula.',
@@ -102,7 +108,10 @@ export const FEEDING_I18N = {
     safeLowerConfirm:
       'This is feed for younger fish. They will eat it, but it is not ideal for their age. Press again to save.',
     noSuitableFeedTitle: 'No suitable feed',
-    noSuitableFeedMessage: 'no feed in the store suits the age of this cycle — register a new one',
+    noSuitableFeedMessage: 'no feed in the store suits the age of this cycle',
+    goToFeedCatalog: 'Register a feed type',
+    noSuitableFeedAskManager:
+      'Ask your farm manager to register a feed type for this age in the feed catalogue.',
 
     errorFeedTypeRequired: 'Choose a feed type.',
     errorQuantityRequired: 'Enter the amount of feed.',
