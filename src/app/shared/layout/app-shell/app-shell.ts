@@ -25,6 +25,7 @@ type IconKey =
   | 'check'
   | 'shield'
   | 'list'
+  | 'cart'
   | 'gear';
 
 interface ShellNavItem {
@@ -75,6 +76,15 @@ const NAV_ITEMS: readonly ShellNavItem[] = [
     key: 'navFeedCatalog',
     icon: 'list',
     route: '/feed-catalog',
+    permission: PERMISSION.MANAGE_FEED_STOCK,
+  },
+  // Third of the feed group, on the same code as the catalogue: buying feed
+  // and managing the catalogue are the one permission, and the purchase form
+  // needs the catalogue read anyway.
+  {
+    key: 'navFeedPurchases',
+    icon: 'cart',
+    route: '/feed-purchases',
     permission: PERMISSION.MANAGE_FEED_STOCK,
   },
   { key: 'navWater', icon: 'drop', route: '/water-quality' },

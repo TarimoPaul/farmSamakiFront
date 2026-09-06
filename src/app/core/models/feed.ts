@@ -117,6 +117,85 @@ export interface FeedingLog {
 }
 
 /**
+ * One purchase line, as returned to THIS caller.
+ *
+ * THE TWO COST FIELDS ARE NULLABLE, and that is the whole point of this
+ * type. `unitCost` and `totalCost` are `Float` (not `Float!`) in the schema
+ * because the BACKEND MASKS THEM: a caller without `view_feed_cost` gets
+ * every operational field - date, feed type, quantity, supplier - and null
+ * for both prices. The schema's own note explains why the fields had to be
+ * loosened rather than the rows dropped: a non-null field returning null
+ * would collapse the WHOLE LIST, since graphql-java propagates the null up
+ * to the nearest nullable parent.
+ *
+ * SO THE UI MUST NOT RE-DERIVE THIS FROM A PERMISSION. The masking happened
+ * on the server, before the number left it, and that is deliberate - a
+ * column hidden by the client still shipped the price inside the JSON, where
+ * DevTools or a direct /graphql call would find it. The screen's only job is
+ * to render null honestly (an em-dash), never as 0, "null" or NaN.
+ *
+ * `totalCost` is DB-generated (`GENERATED ALWAYS AS quantity_kg * unit_cost
+ * STORED`, V1), so it is never an input and never computed here.
+ *
+ * `supplier` is genuinely optional data - null means nobody recorded who
+ * sold it, which is different from a price being withheld.
+ */
+export interface FeedPurchase {
+  purchaseId: string;
+  /** ISO date, yyyy-MM-dd. */
+  purchaseDate: string;
+  feedType: FeedType;
+  quantityKg: number;
+  /** null = masked for this caller, NOT "no price was entered". */
+  unitCost: number | null;
+  /** null = masked. Otherwise quantityKg * unitCost, computed by the database. */
+  totalCost: number | null;
+  supplier: string | null;
+  /**
+   * Cancelled by a correcting entry, rather than deleted.
+   *
+   * A purchase is never removed: it wrote kilos into the stock ledger, and
+   * the ledger is append-only. Undoing one writes an OUT movement for the
+   * same kilos, so the balance returns to where it was while the history
+   * still says both things happened. The row therefore stays in this list,
+   * flagged.
+   *
+   * READ FROM THE LEDGER, not from a column on the purchase - there is no
+   * `reversed_at`, deliberately, because it would be a copy of a fact the
+   * ledger already holds and copies drift.
+   *
+   * NOT MASKED by `view_feed_cost`: being reversed is not a price. Somebody
+   * planning a feeding needs to know these sacks are not in the store, even
+   * if they may not know what they cost.
+   */
+  reversed: boolean;
+}
+
+/**
+ * `recordFeedPurchase` input.
+ *
+ * `feedTypeId` IS `Int!`, not `ID!` - the same split `LogFeedingInput` has,
+ * and the same trap: `FeedType.feedTypeId` is read back as `ID!`, so it
+ * arrives as a string and must be converted on the way into this input.
+ *
+ * `unitCost` is `Float!` here even though it is nullable on the way out.
+ * There is no contradiction: the person buying is the one who types the
+ * price, so it is always known at write time. What is optional is another
+ * person's permission to READ it later.
+ *
+ * There is no `totalCost` field, and there cannot be - the database computes
+ * it.
+ */
+export interface RecordFeedPurchaseInput {
+  /** ISO date, yyyy-MM-dd. */
+  purchaseDate: string;
+  feedTypeId: number;
+  quantityKg: number;
+  unitCost: number;
+  supplier: string | null;
+}
+
+/**
  * What `createFeedType` is called with.
  *
  * NOT an `Input` type, and the name says so on purpose: the schema declares
@@ -183,4 +262,46 @@ export interface LogFeedingInput {
   quantityKg: number;
   /** ISO date, yyyy-MM-dd. */
   logDate: string;
+}
+
+/**
+ * What a farm loses if one feed type is switched off - `feedTypeDeactivationImpact`.
+ *
+ * A WARNING, NEVER A BLOCK, and the schema states that outright:
+ * `setFeedTypeActive` disables without consulting these numbers at all.
+ * Leftover kilos are the usual REASON for retiring a feed, not a reason to
+ * refuse; and the switch is reversible by the same mutation. So this query is
+ * read BEFORE the confirmation, so the person deciding has the numbers in
+ * front of them - and the decision stays theirs.
+ *
+ * FARM-SCOPED, unlike the catalogue itself. `feed_types` has no farm column,
+ * but stock and cycles do, so these two numbers answer for the caller's farm
+ * (the X-Farm-Id header) while the type being switched off is system-wide.
+ *
+ * WRITES NOTHING. It is `manage_feed_stock` - the same code as the action it
+ * precedes - so a caller who may see this answer is a caller who could act on
+ * it anyway.
+ */
+export interface FeedTypeDeactivationImpact {
+  /**
+   * This type's remaining stock in the caller's store, in kg - the SAME total
+   * `feedStockBalance` shows on its line for the type.
+   *
+   * CAN BE NEGATIVE (the ledger reports, it does not judge) and is ZERO, not
+   * null, for a type this farm has never moved. So the warning is gated on
+   * `> 0`: a negative balance is a discrepancy for another screen to explain,
+   * not kilos that would be stranded by disabling.
+   */
+  remainingKg: number;
+
+  /**
+   * ACTIVE cycles for which this type is, at today's age, their ONLY exact
+   * feed - disable it and they are left with nothing made for their age.
+   *
+   * A cycle with any other option - another EXACT, or a SAFE_LOWER their fish
+   * will still eat - IS NOT COUNTED. The schema is explicit about why: a
+   * warning that fires for a cycle that still has something to eat is a
+   * warning people learn to click past.
+   */
+  dependentActiveCycleCount: number;
 }

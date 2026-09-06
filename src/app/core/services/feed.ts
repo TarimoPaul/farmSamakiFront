@@ -3,11 +3,14 @@ import { Observable, map } from 'rxjs';
 import { GraphqlService } from './graphql';
 import {
   CreateFeedTypeArgs,
+  FeedPurchase,
   FeedStockBalance,
   FeedType,
+  FeedTypeDeactivationImpact,
   FeedTypesForCycle,
   FeedingLog,
   LogFeedingInput,
+  RecordFeedPurchaseInput,
   UpdateFeedTypeArgs,
 } from '../models/feed';
 
@@ -131,6 +134,32 @@ export class FeedService {
   }
 
   /**
+   * What this farm loses if the type is switched off. READ ONLY, and read
+   * BEFORE `setFeedTypeActive(id, false)` - never instead of it.
+   *
+   * IT CANNOT REFUSE THE ACTION and is not asked to: the schema says
+   * `setFeedTypeActive` disables without consulting these numbers, because
+   * leftover stock is the usual reason to retire a feed rather than a reason
+   * to keep it, and the switch goes back the same way it came. This exists so
+   * the person clicking has the two numbers before they click, which is why
+   * the caller runs it on the way INTO the confirmation and not around the
+   * mutation.
+   *
+   * NOT CALLED WHEN ENABLING. Bringing a type back takes nothing away, so
+   * there is nothing to warn about and no request to spend.
+   *
+   * `manage_feed_stock`, the same code as the action it precedes.
+   */
+  feedTypeDeactivationImpact(feedTypeId: number): Observable<FeedTypeDeactivationImpact> {
+    return this.graphql
+      .query<{ feedTypeDeactivationImpact: FeedTypeDeactivationImpact }>(
+        FEED_TYPE_DEACTIVATION_IMPACT,
+        { feedTypeId },
+      )
+      .pipe(map((data) => data.feedTypeDeactivationImpact));
+  }
+
+  /**
    * Removes a type from the catalogue - and is REFUSED while anything points
    * at it, with FEED_TYPE_IN_USE.
    *
@@ -148,6 +177,87 @@ export class FeedService {
     return this.graphql
       .query<{ deleteFeedType: boolean }>(DELETE_FEED_TYPE, { feedTypeId })
       .pipe(map((data) => data.deleteFeedType));
+  }
+
+  /**
+   * The farm's purchases, newest first.
+   *
+   * NO ARGUMENTS, and the farm is not one of them: `feedPurchases` is scoped
+   * to the CALLER'S farm on the server, from the X-Farm-Id header the
+   * interceptor adds, exactly as `feedStockBalance` is. There is no way to
+   * ask for another farm's purchases, which is why the scoping cannot be
+   * forgotten at a call site.
+   *
+   * COSTS MAY COME BACK NULL, per row-set rather than per row: the backend
+   * checks `view_feed_cost` once per request and masks `unitCost` and
+   * `totalCost` for a caller without it. That is not this service's business
+   * to detect or undo - it passes the answer through, and the screen renders
+   * a missing price as missing.
+   */
+  feedPurchases(): Observable<FeedPurchase[]> {
+    return this.graphql
+      .query<{ feedPurchases: FeedPurchase[] }>(FEED_PURCHASES)
+      .pipe(map((data) => data.feedPurchases));
+  }
+
+  /**
+   * Records a purchase, which also writes the stock ledger.
+   *
+   * ONE CALL, TWO EFFECTS: the backend writes the purchase and an IN movement
+   * in the same transaction, so the per-type balance the Feeding screen reads
+   * moves as a result of this. Nothing here has to ask for that separately.
+   *
+   * THE ANSWER IS NOT MASKED, and the backend says why in as many words:
+   * `recordFeedPurchase` is `manage_feed_stock`, `view_feed_cost` does not
+   * enter into it, and the buyer is the person who just typed `unitCost` -
+   * so the response carries no number they did not already have. That is
+   * what lets the screen confirm the total back to them.
+   */
+  recordFeedPurchase(input: RecordFeedPurchaseInput): Observable<FeedPurchase> {
+    return this.graphql
+      .query<{ recordFeedPurchase: FeedPurchase }>(RECORD_FEED_PURCHASE, { input })
+      .pipe(map((data) => data.recordFeedPurchase));
+  }
+
+  /**
+   * Cancels a purchase with a CORRECTING ENTRY - it is not a delete.
+   *
+   * The purchase wrote kilos into the stock ledger, and that ledger is what
+   * `feedStockBalance` sums - the number the Feeding screen's stock panel and
+   * its low-stock warning show. Removing the row would either leave the
+   * balance claiming kilos nobody bought, or move it with no record of why.
+   * So the backend writes an OUT movement for the same kilos instead: the
+   * balance returns, and the history says both things happened.
+   *
+   * The row stays in the list with `reversed: true`. Doing this twice is
+   * refused with PURCHASE_ALREADY_REVERSED, because a second OUT would take
+   * the kilos out again.
+   */
+  reverseFeedPurchase(purchaseId: number): Observable<FeedPurchase> {
+    return this.graphql
+      .query<{ reverseFeedPurchase: FeedPurchase }>(REVERSE_FEED_PURCHASE, { purchaseId })
+      .pipe(map((data) => data.reverseFeedPurchase));
+  }
+
+  /**
+   * Corrects a purchase: cancels the old one and records a new one, in ONE
+   * backend transaction.
+   *
+   * ONE CALL, NOT TWO, and that is the whole reason this method exists rather
+   * than the screen calling reverse-then-record. If the second request failed
+   * - a dropped connection, an expired session - the farm would be left
+   * having lost the kilos with no purchase to put them back, and no screen
+   * could explain it. Inside one transaction that state cannot occur.
+   *
+   * Returns the NEW purchase. The old one stays in the list, reversed.
+   */
+  correctFeedPurchase(
+    purchaseId: number,
+    input: RecordFeedPurchaseInput,
+  ): Observable<FeedPurchase> {
+    return this.graphql
+      .query<{ correctFeedPurchase: FeedPurchase }>(CORRECT_FEED_PURCHASE, { purchaseId, input })
+      .pipe(map((data) => data.correctFeedPurchase));
   }
 
   /** Remaining kg per feed type, farm-wide. May be empty; entries may be negative. */
@@ -253,12 +363,65 @@ const SET_FEED_TYPE_ACTIVE = `
   }
 `;
 
+// `feedTypeId` is `Int!` here, as it is on every feed mutation - and as it is
+// NOT on the way out, where `FeedType.feedTypeId` is `ID!` and arrives a
+// string. The caller converts.
+const FEED_TYPE_DEACTIVATION_IMPACT = `
+  query FeedTypeDeactivationImpact($feedTypeId: Int!) {
+    feedTypeDeactivationImpact(feedTypeId: $feedTypeId) {
+      remainingKg
+      dependentActiveCycleCount
+    }
+  }
+`;
+
 // Returns Boolean, not a FeedType: after the delete there is no type to hand
 // back - every query hides it - so `true` is the whole of the answer. A
 // failure arrives as an error, never as `false`.
 const DELETE_FEED_TYPE = `
   mutation DeleteFeedType($feedTypeId: Int!) {
     deleteFeedType(feedTypeId: $feedTypeId)
+  }
+`;
+
+/**
+ * The purchase row. `unitCost` and `totalCost` are asked for unconditionally
+ * - the server decides whether they come back with a value, and asking for
+ * them only when the client thinks it is allowed would put the gate back in
+ * the UI, which is exactly what the backend moved away from.
+ */
+const FEED_PURCHASE_FIELDS = `
+  purchaseId
+  purchaseDate
+  quantityKg
+  unitCost
+  totalCost
+  supplier
+  reversed
+  feedType { ${FEED_TYPE_FIELDS} }
+`;
+
+const FEED_PURCHASES = `
+  query FeedPurchases {
+    feedPurchases { ${FEED_PURCHASE_FIELDS} }
+  }
+`;
+
+const RECORD_FEED_PURCHASE = `
+  mutation RecordFeedPurchase($input: RecordFeedPurchaseInput!) {
+    recordFeedPurchase(input: $input) { ${FEED_PURCHASE_FIELDS} }
+  }
+`;
+
+const REVERSE_FEED_PURCHASE = `
+  mutation ReverseFeedPurchase($purchaseId: Int!) {
+    reverseFeedPurchase(purchaseId: $purchaseId) { ${FEED_PURCHASE_FIELDS} }
+  }
+`;
+
+const CORRECT_FEED_PURCHASE = `
+  mutation CorrectFeedPurchase($purchaseId: Int!, $input: RecordFeedPurchaseInput!) {
+    correctFeedPurchase(purchaseId: $purchaseId, input: $input) { ${FEED_PURCHASE_FIELDS} }
   }
 `;
 

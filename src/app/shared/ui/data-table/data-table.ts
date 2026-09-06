@@ -61,6 +61,7 @@ export interface DataTableColumn<T> {
             <tr
               [class.data-table__row--selectable]="selectable()"
               [class.data-table__row--selected]="selectable() && rowKey()(row) === selectedKey()"
+              [class.data-table__row--muted]="rowMuted()?.(row)"
               [attr.tabindex]="selectable() ? 0 : null"
               [attr.role]="selectable() ? 'button' : null"
               (click)="selectable() && rowSelected.emit(row)"
@@ -130,6 +131,12 @@ export interface DataTableColumn<T> {
       color: var(--muted);
       font-style: italic;
     }
+    /* A whole row dimmed - for a record that is still real and still listed,
+       but no longer in play. Opacity rather than a colour, so every cell
+       recedes together and a cell with its own colour keeps it. */
+    .data-table__row--muted td {
+      opacity: 0.55;
+    }
     .data-table__row--selectable {
       cursor: pointer;
     }
@@ -193,6 +200,17 @@ export class DataTable<T> {
    * absent means no extra column at all.
    */
   rowActions = input<TemplateRef<{ $implicit: T }> | null>(null);
+
+  /**
+   * Dim a whole row, for a record that is listed but no longer in play - a
+   * retired feed type, say.
+   *
+   * Row-level rather than per-column, and that is the distinction from
+   * `DataTableColumn.muted`: that one dims ONE CELL whose own content is a
+   * stand-in for missing data, while this says something about the record.
+   * Null by default, so a table that says nothing renders exactly as before.
+   */
+  rowMuted = input<((row: T) => boolean) | null>(null);
   /** Accessible name for the actions header - shown or not, see below. */
   actionsLabel = input('Actions');
   /**

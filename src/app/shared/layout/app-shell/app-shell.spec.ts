@@ -204,3 +204,48 @@ describe('AppShell nav gating', () => {
     expect(labels).toContain('Malisho');
   });
 });
+
+/**
+ * The feed group's gating, all three entries together.
+ *
+ * They are gated differently on purpose and the contrast is the thing worth
+ * pinning: Feeding is a read screen every role reaches, while the Catalogue
+ * and Purchases are both `manage_feed_stock` because their backends are.
+ */
+describe('AppShell feed nav gating', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  function feedNavLabels(permissions: string[]): string[] {
+    localStorage.setItem(TOKEN_KEY, 'a-token');
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
+    localStorage.setItem(CAN_SELECT_FARM_KEY, 'false');
+
+    const { fixture, element } = setup();
+    fixture.detectChanges();
+
+    return [...element.querySelectorAll('.sidebar__nav .nav-item')].map((el) =>
+      (el.textContent ?? '').trim(),
+    );
+  }
+
+  it('offers Purchases to a manage_feed_stock holder', () => {
+    const labels = feedNavLabels(['view_dashboard', 'manage_feed_stock']);
+
+    expect(labels).toContain('Manunuzi ya Chakula');
+    expect(labels).toContain('Katalogi ya Chakula');
+    expect(labels).toContain('Malisho');
+  });
+
+  it('hides it from a feeder, even one allowed to see costs', () => {
+    // `view_feed_cost` decides whether prices are SHOWN on a screen, never
+    // whether the screen is offered - the two permissions are independent.
+    const labels = feedNavLabels(['view_dashboard', 'log_feeding', 'view_feed_cost']);
+
+    expect(labels).not.toContain('Manunuzi ya Chakula');
+    expect(labels).not.toContain('Katalogi ya Chakula');
+    expect(labels).toContain('Malisho');
+  });
+});

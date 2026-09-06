@@ -114,6 +114,38 @@ const DISABLED = {
   data: { setFeedTypeActive: { ...GROWER_FEED, active: false } },
 };
 
+/**
+ * `feedTypeDeactivationImpact` answers. Both fields are non-null in the
+ * schema, and `remainingKg` is ZERO - not null - for a type this farm has
+ * never moved, which is why the "nothing to warn about" fixture carries two
+ * real zeroes rather than an absent field.
+ *
+ * FARM-SCOPED, unlike the catalogue row it is about: `feed_types` has no farm
+ * column, but stock and cycles do.
+ */
+const impact = (remainingKg: number, dependentActiveCycleCount: number) => ({
+  data: { feedTypeDeactivationImpact: { remainingKg, dependentActiveCycleCount } },
+});
+
+/** Nothing left in the store, no cycle depending on it - the plain case. */
+const NO_IMPACT = impact(0, 0);
+/** Kilos that would be stranded. */
+const STOCK_IMPACT = impact(42.5, 0);
+/** Cycles that would be left with nothing made for their age. */
+const CYCLE_IMPACT = impact(0, 2);
+
+/**
+ * The dialog's own sentence, read from the DOM rather than from the
+ * component - the point of these tests is that the numbers reach a person.
+ */
+const dialogMessage = (fixture: ComponentFixture<FeedCatalog>) =>
+  (
+    (fixture.nativeElement as HTMLElement).querySelector('.dialog__message')?.textContent ?? ''
+  ).replace(/\s+/g, ' ');
+
+/** The same locale formatting the screen uses, so the assertion is not en-US only. */
+const kg = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
 const DELETED = { data: { deleteFeedType: true } };
 
 /**
@@ -601,12 +633,26 @@ describe('FeedCatalog', () => {
   });
 
   describe('disabling and enabling', () => {
-    it('sends setFeedTypeActive(false) and refreshes, with no confirmation', async () => {
+    it('reads the impact FIRST, then disables on confirm, then refreshes', async () => {
       const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
       await load(fixture, httpMock);
 
       component.toggleActive(GROWER_FEED);
 
+      // The read comes before anything is written, and it carries a NUMBER:
+      // `feedTypeDeactivationImpact(feedTypeId: Int!)`, while the row's own
+      // `feedTypeId` is `ID!` and arrives a string.
+      const check = gql(httpMock, 'query FeedTypeDeactivationImpact');
+      expect((check.request.body as { variables: unknown }).variables).toEqual({ feedTypeId: 3 });
+      check.flush(NO_IMPACT);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      // Nothing has been written yet - the dialog is the whole of what the
+      // click produced.
+      expect(component.deactivateTarget()).toEqual(GROWER_FEED);
+
+      component.confirmDeactivate();
       const req = gql(httpMock, 'mutation SetFeedTypeActive');
       expect((req.request.body as { variables: unknown }).variables).toEqual({
         feedTypeId: 3,
@@ -621,17 +667,99 @@ describe('FeedCatalog', () => {
       fixture.detectChanges();
 
       expect(component.toastMessage()).toBe(FEED_CATALOG_I18N.sw.deactivatedToast);
+      expect(component.deactivateTarget()).toBeNull();
       httpMock.verify();
     });
 
-    it('sends active: true for a row that is already disabled', async () => {
+    it('warns about kilos left in the store when remainingKg > 0', async () => {
+      const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
+      await load(fixture, httpMock);
+
+      component.toggleActive(GROWER_FEED);
+      gql(httpMock, 'query FeedTypeDeactivationImpact').flush(STOCK_IMPACT);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      // The backend's number, named with the type it belongs to - the
+      // sentence is useless without both.
+      expect(dialogMessage(fixture)).toContain(
+        FEED_CATALOG_I18N.sw.deactivateStockWarning('Pellet 3mm', kg(42.5)),
+      );
+      // No cycle depends on it, so that warning is absent rather than
+      // printed with a zero in it.
+      expect(dialogMessage(fixture)).not.toContain(FEED_CATALOG_I18N.sw.deactivateCycleWarning(0));
+      httpMock.verify();
+    });
+
+    it('warns about cycles left with nothing when dependentActiveCycleCount > 0', async () => {
+      const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
+      await load(fixture, httpMock);
+
+      component.toggleActive(GROWER_FEED);
+      gql(httpMock, 'query FeedTypeDeactivationImpact').flush(CYCLE_IMPACT);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(dialogMessage(fixture)).toContain(FEED_CATALOG_I18N.sw.deactivateCycleWarning(2));
+      // Nothing in the store, so no stock line - see the note on the
+      // component's deactivateMessage.
+      expect(dialogMessage(fixture)).not.toContain('kg');
+      httpMock.verify();
+    });
+
+    it('asks plainly, with no alarm, when both numbers are zero', async () => {
+      const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
+      await load(fixture, httpMock);
+
+      component.toggleActive(GROWER_FEED);
+      gql(httpMock, 'query FeedTypeDeactivationImpact').flush(NO_IMPACT);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const message = dialogMessage(fixture);
+      // A dialog that sounds the alarm every time is one people stop
+      // reading, so the plain case gets only the plain line.
+      expect(message).toBe(FEED_CATALOG_I18N.sw.deactivateMessage);
+      expect(message).not.toContain('kg');
+      httpMock.verify();
+    });
+
+    it('writes nothing when the question is cancelled', async () => {
+      const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
+      await load(fixture, httpMock);
+
+      component.toggleActive(GROWER_FEED);
+      gql(httpMock, 'query FeedTypeDeactivationImpact').flush(STOCK_IMPACT);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      component.cancelDeactivate();
+      fixture.detectChanges();
+
+      expect(component.deactivateTarget()).toBeNull();
+      expect(component.deactivateImpact()).toBeNull();
+      // The mutation was never sent, and neither was a refresh: nothing
+      // changed, so there is nothing to re-read. httpMock.verify() is the
+      // assertion - an outstanding request would fail it.
+      httpMock.verify();
+    });
+
+    it('enables a disabled type outright - no impact read, no question', async () => {
       const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
       await load(fixture, httpMock);
 
       component.toggleActive(RETIRED_FEED);
 
+      // Straight to the mutation. Bringing a type back takes nothing away,
+      // so there is nothing to warn about and no request worth spending -
+      // verify() below would fail on an impact read left outstanding.
       const req = gql(httpMock, 'mutation SetFeedTypeActive');
-      expect((req.request.body as { variables: { active: boolean } }).variables.active).toBe(true);
+      expect((req.request.body as { variables: unknown }).variables).toEqual({
+        feedTypeId: 7,
+        active: true,
+      });
+      expect(component.deactivateTarget()).toBeNull();
+
       req.flush({ data: { setFeedTypeActive: { ...RETIRED_FEED, active: true } } });
       await fixture.whenStable();
       fixture.detectChanges();
@@ -640,6 +768,47 @@ describe('FeedCatalog', () => {
       fixture.detectChanges();
 
       expect(component.toastMessage()).toBe(FEED_CATALOG_I18N.sw.activatedToast);
+      httpMock.verify();
+    });
+
+    it('does not disable unwarned when the impact read fails', async () => {
+      const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
+      await load(fixture, httpMock);
+
+      component.toggleActive(GROWER_FEED);
+      gql(httpMock, 'query FeedTypeDeactivationImpact').flush({
+        data: null,
+        errors: [
+          {
+            message: "Huna ruhusa ya 'manage_feed_stock'.",
+            path: ['feedTypeDeactivationImpact'],
+            extensions: { errorCode: 'FORBIDDEN', classification: 'FORBIDDEN' },
+          },
+        ],
+      });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      // It stops. Falling through to the mutation would disable the type
+      // with the warning silently skipped, which is the one outcome this
+      // flow exists to prevent.
+      expect(component.deactivateTarget()).toBeNull();
+      expect(testId(fixture, 'action-error')).toBeTruthy();
+      httpMock.verify();
+    });
+
+    it('renders the whole retired row dimmed, not just its status cell', async () => {
+      const { fixture, httpMock } = setup(CATALOG_MANAGER);
+
+      await load(fixture, httpMock);
+
+      const muted = (fixture.nativeElement as HTMLElement).querySelectorAll(
+        'tr.data-table__row--muted',
+      );
+      // One of the three, and it is the disabled one. The row stays in the
+      // list - old feedings point at it - it is just no longer in play.
+      expect(muted.length).toBe(1);
+      expect(muted[0].textContent).toContain('Pellet 9mm');
       httpMock.verify();
     });
   });

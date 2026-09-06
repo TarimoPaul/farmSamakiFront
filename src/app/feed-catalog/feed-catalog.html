@@ -36,6 +36,7 @@
           [columns]="columns()"
           [rows]="feedTypes()"
           [rowKey]="feedTypeKey"
+          [rowMuted]="feedTypeMuted"
           [numbered]="true"
           [numberLabel]="t().colNumber"
           [rowActions]="rowActions"
@@ -228,6 +229,21 @@
       <app-button [loading]="saving()" (clicked)="submit()">{{ t().save }}</app-button>
     </div>
   </app-modal>
+
+  <!-- Disabling asks first, and the question carries the two numbers
+       `feedTypeDeactivationImpact` just answered with - which is why the
+       dialog is opened by that answer arriving, not by the click. Enabling
+       never reaches here: it takes nothing away. -->
+  <app-confirm-dialog
+    [open]="!!deactivateTarget()"
+    [title]="t().deactivateTitle"
+    [message]="deactivateMessage()"
+    [confirmLabel]="t().deactivateConfirm"
+    [cancelLabel]="t().cancel"
+    [loading]="deactivating()"
+    (confirmed)="confirmDeactivate()"
+    (cancelled)="cancelDeactivate()"
+  />
 
   <app-confirm-dialog
     [open]="!!deleteTarget()"

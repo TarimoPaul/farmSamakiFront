@@ -79,6 +79,21 @@ export const ERROR_CODE = {
    * down by kind, so the screen shows that rather than a line of its own.
    */
   FEED_TYPE_IN_USE: 'FEED_TYPE_IN_USE',
+  /**
+   * 409 - the purchase has already been reversed, so it can be neither
+   * reversed nor corrected again (FeedService.reverseFeedPurchase /
+   * correctFeedPurchase).
+   *
+   * NOT a formality - it protects a NUMBER. Reversing writes an OUT movement
+   * for the same kilos, so doing it twice would take those kilos out of the
+   * farm's balance TWICE for one purchase that happened once. A second
+   * request arriving from a double-click, or from a screen that never saw the
+   * first answer, must not cost the store.
+   *
+   * Unlike ROLE_IN_USE, retrying can never succeed: a reversed purchase stays
+   * reversed. The screen says so rather than offering a retry.
+   */
+  PURCHASE_ALREADY_REVERSED: 'PURCHASE_ALREADY_REVERSED',
   /** 400 - the submitted data was refused on business rules. A field error. */
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   /** 429 - rate limited (login: 10 per 5 min per IP; register: 5 per hour). */

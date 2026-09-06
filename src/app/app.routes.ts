@@ -10,6 +10,7 @@ import { Roles } from './roles/roles';
 import { Production } from './production/production';
 import { Feeding } from './feeding/feeding';
 import { FeedCatalog } from './feed-catalog/feed-catalog';
+import { FeedPurchases } from './feed-purchases/feed-purchases';
 import { WaterQuality } from './water-quality/water-quality';
 import { authGuard, guestGuard, permissionGuard, sessionGuard } from './core/guards/auth-guard';
 import { PERMISSION } from './core/models/permissions';
@@ -82,6 +83,23 @@ export const routes: Routes = [
   {
     path: 'feed-catalog',
     component: FeedCatalog,
+    canActivate: [permissionGuard(PERMISSION.MANAGE_FEED_STOCK)],
+  },
+  // The same `manage_feed_stock` as the catalogue, and for an overlapping
+  // reason: `recordFeedPurchase` is that code, and so is the `feedTypes` read
+  // that fills this screen's dropdown.
+  //
+  // The purchase LIST is looser - `feedPurchases` is only `view_dashboard`
+  // plus a farm - so this route is deliberately stricter than one of the two
+  // things it shows. A screen whose dropdown returned FORBIDDEN and whose
+  // form could not submit is not worth opening for the sake of a read that
+  // the Dashboard could carry instead.
+  //
+  // Farm-scoped, unlike the catalogue: `feedPurchases` answers for the
+  // caller's own farm, from the X-Farm-Id header.
+  {
+    path: 'feed-purchases',
+    component: FeedPurchases,
     canActivate: [permissionGuard(PERMISSION.MANAGE_FEED_STOCK)],
   },
   { path: 'water-quality', component: WaterQuality, canActivate: [authGuard] },

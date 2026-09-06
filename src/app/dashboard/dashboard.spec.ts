@@ -154,11 +154,22 @@ describe('Dashboard error surface', () => {
     const { fixture, component, httpMock } = setup();
 
     fixture.detectChanges();
+    // `manage_farms` is granted here and nowhere else in this file, so this is
+    // the one test where the rail's org-counts effect fires and asks
+    // GET /api/farms - see Dashboard.loadOrgCounts. It is a side panel and
+    // irrelevant to what is being asserted, but it has to be CLAIMED: the
+    // graphql expectOne below matches by URL and would step over it, leaving
+    // it open for verify() to report at the end.
+    httpMock.expectOne(`${environment.apiUrl}/farms`).flush({ success: true, data: [] });
     httpMock.expectOne(environment.graphqlUrl).flush(NO_FARM_RESPONSE);
     await fixture.whenStable();
     fixture.detectChanges();
     expect(component.noFarm()).toBe(true);
 
+    // Only ONE farms call, not one per selection: loadOrgCounts depends on
+    // activeFarmId - the farm /me says the backend APPLIED - which no
+    // switcher click can move on its own. What the selection does move is the
+    // dashboard query below, which is the effect this test is about.
     TestBed.inject(FarmSelectionService).select(19);
     fixture.detectChanges();
 

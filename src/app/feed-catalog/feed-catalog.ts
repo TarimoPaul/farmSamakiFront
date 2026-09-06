@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { LanguageService } from '../core/services/language';
 import { FeedService } from '../core/services/feed';
-import { FeedType } from '../core/models/feed';
+import { FeedType, FeedTypeDeactivationImpact } from '../core/models/feed';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
@@ -67,7 +67,20 @@ const NAME_MAX_LENGTH = 80;
  *  - DISABLE is the intended way to retire a feed, and V16 says so outright.
  *    The type stays in the catalogue, every past purchase and feeding still
  *    reads it, and all it loses is its place in `feedTypesForCycle` - so
- *    nobody can pick it for a NEW feeding. Reversible, so no confirmation.
+ *    nobody can pick it for a NEW feeding.
+ *
+ *    IT ASKS FIRST, AND THE QUESTION CARRIES NUMBERS. Reversibility is why
+ *    the question is not alarming, not why there is none: disabling a type
+ *    strands whatever kilos of it are in the store, and can leave a running
+ *    cycle with nothing made for its age. So the screen reads
+ *    `feedTypeDeactivationImpact` FIRST and puts the two numbers it answers
+ *    with into the confirmation. The backend never refuses on them - the
+ *    schema says so outright, because leftover stock is the usual REASON for
+ *    retiring a feed - so warning is the UI's whole job here, and blocking is
+ *    nobody's.
+ *
+ *    ENABLING ASKS NOTHING. Bringing a type back takes nothing away, so there
+ *    is no impact to read and no request spent reading it.
  *  - DELETE is refused outright while anything points at the type
  *    (FEED_TYPE_IN_USE), because the backend's delete is SOFT and
  *    `FeedingLog.feedType` is `FeedType!`: hiding a referenced type does not
@@ -160,8 +173,65 @@ export class FeedCatalog implements OnInit {
   readonly deleteTarget = signal<FeedType | null>(null);
   readonly deleting = signal(false);
 
-  /** The type whose on/off switch is mid-flight, so only its row is busy. */
+  /**
+   * The type whose on/off switch is mid-flight, so only its row is busy.
+   *
+   * It covers the impact READ as well as the mutation - from the menu click
+   * until either the dialog opens or the switch has been thrown - because
+   * from the row's point of view those are one action, and a second click
+   * during the read would spend a second request on the same question.
+   */
   readonly togglingId = signal<string | null>(null);
+
+  /** The type whose disable is waiting on an answer, or null. */
+  readonly deactivateTarget = signal<FeedType | null>(null);
+
+  /**
+   * The numbers behind the open question. Never null while the dialog is up:
+   * it is opened BY the answer arriving, so there is no moment where the
+   * dialog is asking without them.
+   */
+  readonly deactivateImpact = signal<FeedTypeDeactivationImpact | null>(null);
+
+  /** The dialog's own busy state - the mutation it sent, not the read before it. */
+  readonly deactivating = computed(() => {
+    const target = this.deactivateTarget();
+    return !!target && this.togglingId() === target.feedTypeId;
+  });
+
+  /**
+   * The confirmation's sentence, built from what the backend just answered.
+   *
+   * EACH WARNING IS GATED ON ITS OWN NUMBER, and a zero prints nothing: the
+   * plain case - no stock, no dependent cycle - gets the plain line, because
+   * a dialog that sounds the alarm every time is a dialog people stop
+   * reading. Both numbers can be non-zero, and then both lines show.
+   *
+   * `remainingKg > 0`, not `!== 0`: the balance can be NEGATIVE (the ledger
+   * reports, it does not judge), and negative kilos are a discrepancy for the
+   * stock screen to explain, not stock that disabling would strand.
+   *
+   * The reversibility line comes LAST, after any warning, so the warning is
+   * the first thing read and the reassurance does not soften it.
+   */
+  readonly deactivateMessage = computed(() => {
+    const target = this.deactivateTarget();
+    const impact = this.deactivateImpact();
+    if (!target || !impact) {
+      return '';
+    }
+
+    const t = this.t();
+    const lines: string[] = [];
+    if (impact.remainingKg > 0) {
+      lines.push(t.deactivateStockWarning(target.name, formatNumber(impact.remainingKg)));
+    }
+    if (impact.dependentActiveCycleCount > 0) {
+      lines.push(t.deactivateCycleWarning(impact.dependentActiveCycleCount));
+    }
+    lines.push(t.deactivateMessage);
+    return lines.join(' ');
+  });
 
   /**
    * The ages are left as text controls rather than declared `number`.
@@ -193,6 +263,16 @@ export class FeedCatalog implements OnInit {
   });
 
   readonly feedTypeKey = (type: FeedType): string => type.feedTypeId;
+
+  /**
+   * A retired row, dimmed as a whole.
+   *
+   * The status cell alone was not enough: `activeOnly: false` mixes live and
+   * retired types in one list, and the thing an admin scanning it needs to
+   * see is which rows are still in play - a judgement they should be able to
+   * make without reading across to a column.
+   */
+  readonly feedTypeMuted = (type: FeedType): boolean => !type.active;
 
   /** Exposed so the input's own `maxlength` and the check below stay one number. */
   readonly nameMaxLength = NAME_MAX_LENGTH;
@@ -351,28 +431,90 @@ export class FeedCatalog implements OnInit {
   // -------------------------------------------------- disable / enable
 
   /**
-   * Flips a type on or off. No confirmation, deliberately: nothing is lost
-   * either way, every past record still reads it, and the same menu item puts
-   * it straight back.
+   * Flips a type on or off - and the two directions are NOT symmetrical.
+   *
+   * ENABLING goes straight through. It takes nothing away from anybody, so
+   * there is nothing to warn about and no impact worth a request.
+   *
+   * DISABLING reads `feedTypeDeactivationImpact` first and opens the
+   * confirmation with the answer. The read is on the way IN, not around the
+   * mutation, because its numbers are the question: without them the dialog
+   * could only ask "are you sure?", which is a question nobody can answer. A
+   * failed read does NOT fall through to an unwarned disable - it stops, and
+   * the refusal goes to the banner.
    */
   toggleActive(type: FeedType): void {
-    if (this.togglingId() !== null) {
+    if (this.togglingId() !== null || this.deactivateTarget() !== null) {
       return;
     }
     this.actionError.set(null);
-    this.togglingId.set(type.feedTypeId);
 
-    this.feedService.setFeedTypeActive(Number(type.feedTypeId), !type.active).subscribe({
-      next: () => {
+    if (!type.active) {
+      this.setActive(type, true);
+      return;
+    }
+
+    this.togglingId.set(type.feedTypeId);
+    this.feedService.feedTypeDeactivationImpact(Number(type.feedTypeId)).subscribe({
+      next: (impact) => {
         this.togglingId.set(null);
-        this.toastMessage.set(type.active ? this.t().deactivatedToast : this.t().activatedToast);
-        this.fetch();
+        this.deactivateImpact.set(impact);
+        this.deactivateTarget.set(type);
       },
       error: (err: unknown) => {
         this.togglingId.set(null);
         this.showActionError(asApiError(err));
       },
     });
+  }
+
+  /** Cancel: the switch is never thrown, and the read before it wrote nothing. */
+  cancelDeactivate(): void {
+    if (this.deactivating()) {
+      return;
+    }
+    this.deactivateTarget.set(null);
+    this.deactivateImpact.set(null);
+  }
+
+  confirmDeactivate(): void {
+    const type = this.deactivateTarget();
+    if (!type || this.togglingId() !== null) {
+      return;
+    }
+    this.setActive(type, false);
+  }
+
+  /**
+   * The mutation itself, shared by both directions.
+   *
+   * The list is RE-READ rather than patched from the response, for the same
+   * reason the create does it: after a type is retired the catalogue is what
+   * the backend says it is, and that is one cheap call away.
+   */
+  private setActive(type: FeedType, active: boolean): void {
+    this.togglingId.set(type.feedTypeId);
+
+    this.feedService.setFeedTypeActive(Number(type.feedTypeId), active).subscribe({
+      next: () => {
+        this.closeToggle();
+        this.toastMessage.set(active ? this.t().activatedToast : this.t().deactivatedToast);
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        // The dialog closes on failure too: the refusal is not a re-ask of
+        // the same question, and it belongs in the banner where it can be
+        // read without a modal over it - the same choice the delete makes.
+        this.closeToggle();
+        this.showActionError(asApiError(err));
+      },
+    });
+  }
+
+  private closeToggle(): void {
+    this.togglingId.set(null);
+    this.deactivateTarget.set(null);
+    this.deactivateImpact.set(null);
   }
 
   isToggling(type: FeedType): boolean {
@@ -491,4 +633,14 @@ function parseAge(raw: unknown): number | null {
   }
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Kilos as a person reads them, in the browser's locale.
+ *
+ * Only ever handed `remainingKg`, and only when it is above zero - so there
+ * is no path here for a null or a masked value to arrive and print as "0".
+ */
+function formatNumber(value: number): string {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }

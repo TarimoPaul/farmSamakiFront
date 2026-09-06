@@ -1,0 +1,102 @@
+@use '../shared/styles/screen' as *;
+
+.purchases {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.purchases__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.card__hint {
+  margin: 0.25rem 0 0;
+  max-width: 70ch;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* The post-save confirmation. A success, not a warning, so it reads as an
+   ordinary card with a brand-tinted edge rather than as a banner. */
+.confirm {
+  border-left: 4px solid var(--brand);
+}
+
+.confirm__line {
+  margin: 0;
+  padding: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--on-surface);
+  line-height: 1.6;
+}
+
+.confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The "catalogue is empty" card: an explanation with a way out, not a
+   failure, so it gets ordinary card copy. Same treatment as the Feeding
+   screen's "no cycle" panel. */
+.no-types__body {
+  margin: 0.5rem 0 0;
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.no-types__actions {
+  margin-top: 1rem;
+  padding: 0 0.25rem 0.25rem;
+}
+
+.purchase-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 0.25rem 0.25rem;
+}
+
+/* Four fields across on a desk, stacking on a phone at the store door. */
+.purchase-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.purchase-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The correct-modal's standing warning: what correcting does to the stock
+   balance. Same treatment as the Feed Catalogue modal's notice. */
+.purchase-form__notice {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--notice-bg, var(--surface-2, transparent));
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--on-surface);
+}
+
+/* A row whose only "action" is an explanation - a reversed purchase has
+   none left. Styled as copy, not as a disabled control. */
+.menu-notice {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  max-width: 26ch;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+}

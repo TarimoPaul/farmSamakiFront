@@ -1,0 +1,302 @@
+<app-shell>
+  <section class="purchases">
+    <header class="purchases__head">
+      <div>
+        <h1 class="page-title">{{ t().title }}</h1>
+        <p class="page-subtitle">{{ t().subtitle }}</p>
+      </div>
+    </header>
+
+    <!-- A refused row action - in practice an already-reversed purchase.
+         It stays until dismissed because it is not a retryable failure: the
+         answer is that this row is already done with. -->
+    @if (actionErrorMessage(); as message) {
+      <div class="panel-error" role="alert" data-testid="action-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="dismissActionError()">
+          {{ t().close }}
+        </app-button>
+      </div>
+    }
+
+    @if (loading()) {
+      <p class="panel-status">{{ t().loading }}</p>
+    } @else if (loadErrorMessage(); as message) {
+      <div class="panel-error" role="alert" data-testid="load-error">
+        <p>{{ message }}</p>
+        <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+      </div>
+    } @else {
+      <!-- The purchase just recorded, confirmed back with its total.
+           The total is the one number the form did not ask for - the database
+           generates it - so showing it is how the buyer checks the price they
+           typed before it becomes a financial record.
+
+           It comes from the MUTATION's answer, which the backend does not
+           mask, so a buyer without `view_feed_cost` still sees their own
+           arithmetic here even though the table below will dash it out. -->
+      @if (lastPurchase(); as purchase) {
+        <section class="card confirm" role="status" data-panel="purchase-confirm">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().totalConfirmTitle }}</h2>
+          </header>
+          <p class="confirm__line">
+            <strong>{{ purchase.feedType.name }}</strong>
+            &middot; {{ quantity(purchase.quantityKg) }} {{ t().kg }} {{ t().times }}
+            {{ cost(purchase.unitCost) }} &middot; {{ t().totalConfirmTotal }}:
+            <strong data-testid="confirm-total">{{ cost(purchase.totalCost) }}</strong>
+          </p>
+          <div class="confirm__actions">
+            <app-button variant="ghost" (clicked)="dismissConfirmation()">
+              {{ t().close }}
+            </app-button>
+          </div>
+        </section>
+      }
+
+      <section class="card" data-panel="purchases-list">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().listTitle }}</h2>
+        </header>
+
+        <app-data-table
+          [columns]="columns()"
+          [rows]="purchases()"
+          [rowKey]="purchaseKey"
+          [numbered]="true"
+          [numberLabel]="t().colNumber"
+          [rowActions]="rowActions"
+          [actionsLabel]="t().actions"
+          [showActionsLabel]="true"
+        >
+          <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
+        </app-data-table>
+
+        <!-- Both actions are CORRECTING ENTRIES, not edits in place - see the
+             note on the component. A reversed purchase offers neither: doing
+             it twice would take its kilos out of the balance twice, which is
+             what the backend refuses with PURCHASE_ALREADY_REVERSED. The
+             menu says why rather than showing two dead buttons. -->
+        <ng-template #rowActions let-purchase>
+          <app-action-menu [label]="t().actions">
+            @if (purchase.reversed) {
+              <p class="menu-notice" data-testid="already-reversed">
+                {{ t().alreadyReversedNotice }}
+              </p>
+            } @else {
+              <button type="button" role="menuitem" (click)="openEdit(purchase)">
+                {{ t().edit }}
+              </button>
+
+              <hr />
+
+              <button
+                type="button"
+                role="menuitem"
+                class="is-danger"
+                (click)="askReverse(purchase)"
+              >
+                {{ t().reverse }}
+              </button>
+            }
+          </app-action-menu>
+        </ng-template>
+      </section>
+
+      <!-- An empty catalogue is a real dead end, not an empty dropdown: the
+           answer is on another screen, and this form must never grow a second
+           way to create a feed type. Everyone who can reach this route holds
+           `manage_feed_stock` (the guard, and the catalogue read that fills
+           the dropdown, are the same code), so the way out is offered
+           unconditionally - there is nobody here who could not take it. -->
+      @if (noFeedTypes()) {
+        <section class="card" data-panel="no-feed-types">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().noFeedTypesTitle }}</h2>
+          </header>
+          <p class="no-types__body">{{ t().noFeedTypesMessage }}</p>
+          <div class="no-types__actions">
+            <app-button (clicked)="goToFeedCatalog()">{{ t().goToFeedCatalog }}</app-button>
+          </div>
+        </section>
+      } @else {
+        <section class="card" data-panel="purchase-form">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().formTitle }}</h2>
+            <p class="card__hint">{{ t().formHint }}</p>
+          </header>
+
+          <form class="purchase-form" [formGroup]="form" (ngSubmit)="submit()">
+            <div class="purchase-form__grid">
+              <app-form-field [label]="t().fieldFeedType" for="purchase-feed-type">
+                <!-- The GLOBAL catalogue, not feedTypesForCycle: buying is not
+                     feeding, and a farm stocks up for fish that are not in the
+                     ponds yet, so age filtering would be wrong here. -->
+                <select id="purchase-feed-type" class="text-input" formControlName="feedTypeId">
+                  <option value="">{{ t().fieldFeedTypePlaceholder }}</option>
+                  @for (type of feedTypes(); track type.feedTypeId) {
+                    <option [value]="type.feedTypeId">{{ type.name }}</option>
+                  }
+                </select>
+              </app-form-field>
+
+              <app-form-field [label]="t().fieldQuantity" for="purchase-quantity">
+                <input
+                  id="purchase-quantity"
+                  class="text-input"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  formControlName="quantityKg"
+                />
+              </app-form-field>
+
+              <app-form-field [label]="t().fieldUnitCost" for="purchase-unit-cost">
+                <input
+                  id="purchase-unit-cost"
+                  class="text-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  formControlName="unitCost"
+                />
+              </app-form-field>
+
+              <app-form-field [label]="t().fieldDate" for="purchase-date">
+                <input
+                  id="purchase-date"
+                  class="text-input"
+                  type="date"
+                  formControlName="purchaseDate"
+                />
+              </app-form-field>
+            </div>
+
+            <app-form-field [label]="t().fieldSupplier" for="purchase-supplier">
+              <input
+                id="purchase-supplier"
+                class="text-input"
+                type="text"
+                formControlName="supplier"
+                [placeholder]="t().fieldSupplierHint"
+                autocomplete="off"
+              />
+            </app-form-field>
+
+            @if (formError(); as message) {
+              <p class="form-error" role="alert" data-testid="form-error">{{ message }}</p>
+            }
+
+            <!-- type="submit" and NO (clicked) handler: the button is inside
+                 the form, so a click goes through ngSubmit exactly as Enter
+                 does. Wiring both would call submit() twice. -->
+            <div class="purchase-form__actions">
+              <app-button type="submit" [loading]="saving()">{{ t().submit }}</app-button>
+            </div>
+          </form>
+        </section>
+      }
+    }
+  </section>
+
+  <!-- Correcting reuses the record form's controls - see editTarget. Only one
+       of the two is ever open, so one set of rules serves both. -->
+  <app-modal
+    [open]="!!editTarget()"
+    [title]="t().editTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeEdit()"
+  >
+    <form class="purchase-form" [formGroup]="form" (ngSubmit)="submit()">
+      <p class="purchase-form__notice">{{ t().editWarning }}</p>
+
+      <div class="purchase-form__grid">
+        <app-form-field [label]="t().fieldFeedType" for="edit-purchase-feed-type">
+          <select id="edit-purchase-feed-type" class="text-input" formControlName="feedTypeId">
+            <option value="">{{ t().fieldFeedTypePlaceholder }}</option>
+            @for (type of feedTypes(); track type.feedTypeId) {
+              <option [value]="type.feedTypeId">{{ type.name }}</option>
+            }
+          </select>
+        </app-form-field>
+
+        <app-form-field [label]="t().fieldQuantity" for="edit-purchase-quantity">
+          <input
+            id="edit-purchase-quantity"
+            class="text-input"
+            type="number"
+            step="0.1"
+            min="0"
+            formControlName="quantityKg"
+          />
+        </app-form-field>
+
+        <!-- Left EMPTY when the price was masked for this reader: they were
+             never sent it, so it cannot be pre-filled, and pre-filling 0
+             would post a purchase worth nothing. -->
+        <app-form-field [label]="t().fieldUnitCost" for="edit-purchase-unit-cost">
+          <input
+            id="edit-purchase-unit-cost"
+            class="text-input"
+            type="number"
+            step="0.01"
+            min="0"
+            formControlName="unitCost"
+          />
+        </app-form-field>
+
+        <app-form-field [label]="t().fieldDate" for="edit-purchase-date">
+          <input
+            id="edit-purchase-date"
+            class="text-input"
+            type="date"
+            formControlName="purchaseDate"
+          />
+        </app-form-field>
+      </div>
+
+      <app-form-field [label]="t().fieldSupplier" for="edit-purchase-supplier">
+        <input
+          id="edit-purchase-supplier"
+          class="text-input"
+          type="text"
+          formControlName="supplier"
+          [placeholder]="t().fieldSupplierHint"
+          autocomplete="off"
+        />
+      </app-form-field>
+
+      @if (formError(); as message) {
+        <p class="form-error" role="alert" data-testid="edit-form-error">{{ message }}</p>
+      }
+
+      <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeEdit()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="saving()" (clicked)="submit()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-confirm-dialog
+    [open]="!!reverseTarget()"
+    [title]="t().reverseTitle"
+    [message]="t().reverseMessage"
+    [confirmLabel]="t().reverseConfirm"
+    [cancelLabel]="t().cancel"
+    [loading]="reversing()"
+    (confirmed)="confirmReverse()"
+    (cancelled)="cancelReverse()"
+  />
+
+  <app-toast
+    [open]="!!toastMessage()"
+    variant="success"
+    [message]="toastMessage() ?? ''"
+    (closed)="dismissToast()"
+  />
+</app-shell>

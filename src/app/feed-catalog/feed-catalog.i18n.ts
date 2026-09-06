@@ -79,6 +79,21 @@ export const FEED_CATALOG_I18N = {
     activate: 'Rudisha',
     deactivatedToast: 'Aina imezimwa. Haitachaguliwa tena kwa ulishaji mpya.',
     activatedToast: 'Aina imerudishwa.',
+
+    // Dirisha la kuthibitisha kuzima. Linafunguliwa BAADA ya
+    // feedTypeDeactivationImpact kujibu, ndiyo maana lina namba halisi.
+    deactivateTitle: 'Zima aina hii ya chakula?',
+    deactivateChecking: 'Inaangalia athari...',
+    deactivateConfirm: 'Ndiyo, izime',
+    /** Kila mara: kinachotokea, na kwamba kinarudi nyuma. */
+    deactivateMessage:
+      'Haitaonekana tena kwenye orodha ya kuchagua chakula cha ulishaji mpya. Rekodi za zamani hazibadiliki, na unaweza kuirudisha wakati wowote.',
+    /** remainingKg > 0. Kilo zilizobaki ghalani zitakwama. */
+    deactivateStockWarning: (name: string, kg: string) =>
+      `${name} ina ${kg} kg bado - ukizima haitaweza kulishwa.`,
+    /** dependentActiveCycleCount > 0. Mizunguko isiyo na chaguo jingine. */
+    deactivateCycleWarning: (count: number) =>
+      `Cycle ${count} zinazotegemea chakula hiki pekee zitabaki bila chakula.`,
     inactiveNotice:
       'Aina hii imezimwa: rekodi za zamani zinaisoma kama kawaida, lakini haiwezi kuchaguliwa kwa ulishaji mpya hadi irudishwe.',
 
@@ -145,6 +160,16 @@ export const FEED_CATALOG_I18N = {
     activate: 'Enable',
     deactivatedToast: 'Feed type disabled. It will not be offered for new feedings.',
     activatedToast: 'Feed type enabled again.',
+
+    deactivateTitle: 'Disable this feed type?',
+    deactivateChecking: 'Checking what this affects...',
+    deactivateConfirm: 'Yes, disable it',
+    deactivateMessage:
+      'It will stop appearing in the list of feeds to choose for a new feeding. Past records are unaffected, and you can enable it again at any time.',
+    deactivateStockWarning: (name: string, kg: string) =>
+      `${name} still has ${kg} kg - it can't be fed while inactive.`,
+    deactivateCycleWarning: (count: number) =>
+      `${count} active cycle(s) rely on this feed as their only option and will be left with none.`,
     inactiveNotice:
       'This type is disabled: past records still read it normally, but it cannot be chosen for a new feeding until it is enabled again.',
 
