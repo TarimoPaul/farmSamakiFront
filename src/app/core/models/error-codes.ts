@@ -94,6 +94,22 @@ export const ERROR_CODE = {
    * reversed. The screen says so rather than offering a retry.
    */
   PURCHASE_ALREADY_REVERSED: 'PURCHASE_ALREADY_REVERSED',
+  /**
+   * 409 - the cycle has already been closed, so it cannot be closed again
+   * (CycleService.requireStillOpen).
+   *
+   * The same shape as PURCHASE_ALREADY_REVERSED, and it protects a NUMBER for
+   * the same reason. Closing writes the harvest columns, and
+   * `actual_survival_rate` is computed FROM them - so a second request (a
+   * double-click, or a screen that never saw the first answer) would write a
+   * different harvest over the recorded one and silently move the survival
+   * rate with it. A harvest happens ONCE.
+   *
+   * Retrying can never succeed: a closed cycle stays closed. The screen says
+   * so rather than offering a retry, and re-reads so the row shows the
+   * harvest that is actually stored.
+   */
+  CYCLE_ALREADY_CLOSED: 'CYCLE_ALREADY_CLOSED',
   /** 400 - the submitted data was refused on business rules. A field error. */
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   /** 429 - rate limited (login: 10 per 5 min per IP; register: 5 per hour). */

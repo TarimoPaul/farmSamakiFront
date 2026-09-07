@@ -249,3 +249,48 @@ describe('AppShell feed nav gating', () => {
     expect(labels).toContain('Malisho');
   });
 });
+
+/**
+ * The Species entry, gated on `manage_species`.
+ *
+ * It matters because it is the first entry whose screen's READ is open to
+ * everybody: `species` is `view_dashboard`, and a WORKER really does read the
+ * list - on Production, where they pick from it while starting a cycle. What
+ * this entry offers is the WRITE, which is `manage_species` (V20, OWNER and
+ * FARM_MANAGER). An entry offered to a WORKER would land them on a guard.
+ */
+describe('AppShell species nav gating', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  function navLabels(permissions: string[]): string[] {
+    localStorage.setItem(TOKEN_KEY, 'a-token');
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
+    localStorage.setItem(CAN_SELECT_FARM_KEY, 'false');
+
+    const { fixture, element } = setup();
+    fixture.detectChanges();
+
+    return [...element.querySelectorAll('.sidebar__nav .nav-item')].map((el) =>
+      (el.textContent ?? '').trim(),
+    );
+  }
+
+  it('offers Species to a manage_species holder', () => {
+    const labels = navLabels(['view_dashboard', 'edit_cycle', 'manage_species']);
+
+    expect(labels).toContain('Aina za Samaki');
+    expect(labels).toContain('Uzalishaji');
+  });
+
+  it('hides it from someone who may start a cycle but not write the catalogue', () => {
+    // `edit_cycle` CHOOSES a species; it does not add one. Production stays,
+    // because that is where the choosing happens.
+    const labels = navLabels(['view_dashboard', 'edit_cycle', 'log_feeding']);
+
+    expect(labels).not.toContain('Aina za Samaki');
+    expect(labels).toContain('Uzalishaji');
+  });
+});

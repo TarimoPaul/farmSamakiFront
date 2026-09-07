@@ -1,25 +1,20 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { GraphqlService } from './graphql';
-import { Cycle, CreateCycleInput } from '../models/cycle';
+import { Cycle, CloseCycleInput, CreateCycleInput } from '../models/cycle';
 import { CreateProductionUnitInput, ProductionUnit } from '../models/production-unit';
 import { Species } from '../models/species';
-
 
 @Injectable({ providedIn: 'root' })
 export class ProductionService {
   private readonly graphql = inject(GraphqlService);
 
-
   loadContext(): Observable<ProductionContext> {
     return this.graphql.query<ProductionContext>(CONTEXT_QUERY);
   }
 
- 
   listCycles(): Observable<Cycle[]> {
-    return this.graphql
-      .query<{ cycles: Cycle[] }>(CYCLES_QUERY)
-      .pipe(map((data) => data.cycles));
+    return this.graphql.query<{ cycles: Cycle[] }>(CYCLES_QUERY).pipe(map((data) => data.cycles));
   }
 
   createUnit(input: CreateProductionUnitInput): Observable<ProductionUnit> {
@@ -32,6 +27,27 @@ export class ProductionService {
     return this.graphql
       .query<{ createCycle: Cycle }>(CREATE_CYCLE, { input })
       .pipe(map((data) => data.createCycle));
+  }
+
+  /**
+   * Closes a cycle - BY HAND, always. Nothing else in the app calls this and
+   * nothing schedules it: `expectedHarvestDate` passing is a prediction
+   * coming true, not a trigger.
+   *
+   * The arguments are spread rather than wrapped, because `closeCycle` takes
+   * six top-level arguments and has no `input` type - see CloseCycleInput.
+   */
+  closeCycle(input: CloseCycleInput): Observable<Cycle> {
+    return this.graphql
+      .query<{ closeCycle: Cycle }>(CLOSE_CYCLE, {
+        cycleId: input.cycleId,
+        outcome: input.outcome,
+        actualHarvestDate: input.actualHarvestDate,
+        harvestedCount: input.harvestedCount,
+        totalWeightKg: input.totalWeightKg,
+        notes: input.notes ?? null,
+      })
+      .pipe(map((data) => data.closeCycle));
   }
 }
 
@@ -55,9 +71,14 @@ const CYCLE_FIELDS = `
   speciesName
   stockingDate
   fingerlingsCount
+  stockingAgeMonths
   survivalRateEstimate
   expectedHarvestDate
   actualHarvestDate
+  harvestedCount
+  totalWeightKg
+  harvestNotes
+  actualSurvivalRate
   status
   unit {
     unitId
@@ -94,5 +115,27 @@ const CREATE_UNIT = `
 const CREATE_CYCLE = `
   mutation CreateCycle($input: CreateCycleInput!) {
     createCycle(input: $input) { ${CYCLE_FIELDS} }
+  }
+`;
+
+// `cycleId` is Int! here, NOT ID! as it is on CreateCycleInput - the caller
+// converts. `outcome` is String!, so "HARVESTED"/"FAILED" travel literally.
+const CLOSE_CYCLE = `
+  mutation CloseCycle(
+    $cycleId: Int!
+    $outcome: String!
+    $actualHarvestDate: String!
+    $harvestedCount: Int!
+    $totalWeightKg: Float!
+    $notes: String
+  ) {
+    closeCycle(
+      cycleId: $cycleId
+      outcome: $outcome
+      actualHarvestDate: $actualHarvestDate
+      harvestedCount: $harvestedCount
+      totalWeightKg: $totalWeightKg
+      notes: $notes
+    ) { ${CYCLE_FIELDS} }
   }
 `;

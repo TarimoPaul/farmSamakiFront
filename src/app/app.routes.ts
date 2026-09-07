@@ -8,6 +8,7 @@ import { Approvals } from './approvals/approvals';
 import { Members } from './members/members';
 import { Roles } from './roles/roles';
 import { Production } from './production/production';
+import { SpeciesScreen } from './species/species';
 import { Feeding } from './feeding/feeding';
 import { FeedCatalog } from './feed-catalog/feed-catalog';
 import { FeedPurchases } from './feed-purchases/feed-purchases';
@@ -70,8 +71,27 @@ export const routes: Routes = [
   // here on `log_feeding` would shut a VIEWER out of a history they may read,
   // and would hide the screen from someone who only holds `view_feed_stock`.
   { path: 'feeding', component: Feeding, canActivate: [authGuard] },
-  // The one feed screen that IS a permissionGuard, and the contrast with the
-  // line above is the reason to keep both: Feeding is a read screen with gated
+  // Species is the one PRODUCTION-side screen that IS a permissionGuard, and
+  // the contrast with the line above is the reason to keep both. Its two
+  // endpoints do NOT share a permission: `species` is `view_dashboard` - every
+  // role reads it, and does read it, on Production's cycle form - while
+  // `createSpecies` is `manage_species` (V20, OWNER and FARM_MANAGER only).
+  //
+  // So this route is DELIBERATELY STRICTER than the read it shows. The screen
+  // exists to WRITE the catalogue; for anybody who may only read it, the list
+  // is already on Production, and opening a screen whose one control the
+  // backend refuses would be worse than not offering it. That is also why
+  // nothing inside the screen is gated again.
+  //
+  // NOT farm-scoped. `species` has no farm column, so this route means the
+  // same thing whichever farm is selected.
+  {
+    path: 'species',
+    component: SpeciesScreen,
+    canActivate: [permissionGuard(PERMISSION.MANAGE_SPECIES)],
+  },
+  // The one feed screen that IS a permissionGuard, and the contrast with
+  // Feeding is the reason to keep both: Feeding is a read screen with gated
   // controls inside it, while every endpoint behind the catalogue - the list
   // as well as the create - is `manage_feed_stock` on the backend
   // (FeedService.listFeedTypes requires it too). There is no version of this

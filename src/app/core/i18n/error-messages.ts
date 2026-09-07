@@ -48,6 +48,14 @@ const ERROR_CODE_MESSAGES: Record<string, Record<Lang, string>> = {
     sw: 'Mmiliki wa shamba hawezi kutolewa kwenye shamba lake.',
     en: 'The farm owner cannot be removed from their own farm.',
   },
+  // The Swahili is the backend's own wording, minus the dates it interpolates
+  // - a screen that has just re-read the cycle is showing those anyway. The
+  // English exists because the backend has none: without it, closing a cycle
+  // twice answered an English UI in Swahili.
+  [ERROR_CODE.CYCLE_ALREADY_CLOSED]: {
+    sw: 'Mzunguko huu tayari umefungwa. Hauwezi kufungwa tena.',
+    en: 'This cycle has already been closed. It cannot be closed again.',
+  },
   [ERROR_CODE.VALIDATION_ERROR]: {
     sw: 'Taarifa ulizojaza hazikubaliki.',
     en: 'The details you entered were not accepted.',
@@ -79,4 +87,44 @@ export function apiErrorMessage(error: ApiError, lang: Lang, preferBackendMessag
 
   const mapped = error.errorCode ? ERROR_CODE_MESSAGES[error.errorCode] : undefined;
   return mapped ? mapped[lang] : FALLBACK_MESSAGE[lang];
+}
+
+/**
+ * The two ways `closeCycle` is refused that have NO code of their own.
+ *
+ * Both arrive as a plain VALIDATION_ERROR, so there is nothing in
+ * `extensions` to tell them apart - and this file's whole rule is that we
+ * branch on codes, never on prose. So the CALLER names the rule: the close
+ * form knows the stocking date it is closing against and the outcome it is
+ * sending, which is everything needed to say which rule was broken without
+ * reading a single word of the backend's sentence.
+ *
+ * They live here rather than in the screen's own copy because they are the
+ * English half of a backend message that is always Swahili - the same job
+ * ERROR_CODE_MESSAGES does, for a failure that happens to be identified by a
+ * rule instead of a code.
+ */
+export const CYCLE_CLOSE_RULE = {
+  /** actualHarvestDate before the cycle's stockingDate: a negative cycle. */
+  HARVEST_BEFORE_STOCKING: 'HARVEST_BEFORE_STOCKING',
+  /** Outcome HARVESTED with a zero count or weight: that is a FAILED cycle. */
+  HARVESTED_WITH_ZERO: 'HARVESTED_WITH_ZERO',
+} as const;
+
+export type CycleCloseRule = (typeof CYCLE_CLOSE_RULE)[keyof typeof CYCLE_CLOSE_RULE];
+
+const CYCLE_CLOSE_RULE_MESSAGES: Record<CycleCloseRule, Record<Lang, string>> = {
+  [CYCLE_CLOSE_RULE.HARVEST_BEFORE_STOCKING]: {
+    sw: 'Tarehe ya mavuno haiwezi kuwa kabla ya tarehe ya kupanda.',
+    en: 'The harvest date cannot be before the stocking date.',
+  },
+  [CYCLE_CLOSE_RULE.HARVESTED_WITH_ZERO]: {
+    sw: "Mavuno ya sifuri si mavuno. Idadi na uzito lazima viwe zaidi ya sifuri, au tumia matokeo 'Umeshindwa'.",
+    en: "A harvest of zero is not a harvest. Count and weight must be above zero, or use the 'Failed' outcome.",
+  },
+};
+
+/** The line for a named close rule, in the UI language. */
+export function cycleCloseRuleMessage(rule: CycleCloseRule, lang: Lang): string {
+  return CYCLE_CLOSE_RULE_MESSAGES[rule][lang];
 }

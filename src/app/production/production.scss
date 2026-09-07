@@ -61,3 +61,89 @@
   gap: 1rem;
   padding-bottom: 0.25rem;
 }
+
+/* A line of explanation under a control - why the field is there, or what
+   the form is NOT asking for. Quieter than a label, louder than nothing. */
+.field-note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* The predicted harvest date has arrived. Deliberately NOT an error and not
+   a call to action with a button in it: nothing is wrong, and nothing here
+   changes the cycle. */
+.selection__ready {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--notice) 12%, transparent);
+  color: var(--on-surface);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-width: 70ch;
+}
+
+.harvest {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.harvest__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.harvest__grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem 1.25rem;
+}
+
+/* The estimate and the actual, in two columns that stay two columns. They
+   are only readable AS A COMPARISON when they sit beside each other, so this
+   grid is fixed at two rather than auto-fitting down to one. */
+.harvest__survival {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1.25rem;
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--brand) 7%, transparent);
+}
+
+.harvest__item dt {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.harvest__item dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.harvest__notes {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--on-surface);
+  max-width: 70ch;
+}
+
+.harvest__notes-label {
+  font-weight: 600;
+  color: var(--muted);
+}

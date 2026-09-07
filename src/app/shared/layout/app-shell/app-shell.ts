@@ -19,6 +19,7 @@ type IconKey =
   | 'farm'
   | 'box'
   | 'cycle'
+  | 'fish'
   | 'feed'
   | 'drop'
   | 'users'
@@ -66,6 +67,21 @@ const NAV_ITEMS: readonly ShellNavItem[] = [
   // started in a unit, and splitting them would mean two routes showing each
   // other's data. The old route-less `navCycles` placeholder is gone with it.
   { key: 'navProduction', icon: 'box', route: '/production' },
+  // Under Production, because the catalogue it manages is what the cycle form
+  // above it picks from - a cycle cannot be started without a species.
+  //
+  // GATED, unlike Production itself, and the two are gated differently for a
+  // reason worth stating: `species` is a `view_dashboard` read, so every role
+  // on Production already sees the list there. What this entry offers is the
+  // WRITE, which is `manage_species` (V20, OWNER and FARM_MANAGER) - so
+  // offering it to anyone else would be offering a screen whose only control
+  // is one the backend refuses.
+  {
+    key: 'navSpecies',
+    icon: 'fish',
+    route: '/species',
+    permission: PERMISSION.MANAGE_SPECIES,
+  },
   { key: 'navFeeding', icon: 'feed', route: '/feeding' },
   // Under Feeding, and unlike it, GATED - because the backend gates it. Both
   // catalogue endpoints are `manage_feed_stock`, so a feeder who sees Feeding

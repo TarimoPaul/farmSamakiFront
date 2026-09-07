@@ -27,15 +27,92 @@
             <p class="selection__line">
               <strong>{{ cycle.unit.code }}</strong>
               &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
-              {{ cycle.stockingDate }} &middot; {{ cycle.status }}
+              {{ cycle.stockingDate }} &middot; {{ outcomeLabel(cycle.status) }}
+              @if (selectedIsReady()) {
+                <app-status-badge variant="pending" [status]="t().readyBadge" />
+              }
             </p>
             <div class="selection__actions">
               <app-button (clicked)="goToWaterQuality()">{{ t().goToWater }}</app-button>
+              <!-- Closing is `edit_cycle`, the SAME permission as starting -
+                   the backend adds no new one - and it is offered only while
+                   the cycle is still open. -->
+              @if (selectedIsActive()) {
+                <app-button
+                  variant="secondary"
+                  *appHasPermission="PERMISSION.EDIT_CYCLE"
+                  (clicked)="openCloseForm(cycle)"
+                >
+                  {{ t().closeCycle }}
+                </app-button>
+              }
               <app-button variant="ghost" (clicked)="clearSelection()">
                 {{ t().clearSelection }}
               </app-button>
             </div>
           </div>
+
+          <!-- Advice, not an alarm and not an action: the date has come round.
+               Nothing here changes the cycle - a person does that below. -->
+          @if (selectedIsReady()) {
+            <p class="selection__ready" data-ready-banner>{{ t().readyBanner }}</p>
+          }
+
+          @if (closeActionErrorMessage(); as message) {
+            <div class="panel-error" role="alert" data-close-error>
+              <p>{{ message }}</p>
+              <app-button variant="ghost" (clicked)="dismissCloseActionError()">
+                {{ t().close }}
+              </app-button>
+            </div>
+          }
+
+          @if (selectedIsClosed()) {
+            <div class="harvest" data-panel="harvest">
+              <h3 class="harvest__title">{{ t().harvestTitle }}</h3>
+              <dl class="harvest__grid">
+                <div class="harvest__item">
+                  <dt>{{ t().harvestOutcome }}</dt>
+                  <dd>{{ outcomeLabel(cycle.status) }}</dd>
+                </div>
+                <div class="harvest__item">
+                  <dt>{{ t().harvestDate }}</dt>
+                  <dd>{{ cycle.actualHarvestDate ?? t().notSet }}</dd>
+                </div>
+                <div class="harvest__item">
+                  <dt>{{ t().harvestCount }}</dt>
+                  <dd>{{ cycle.harvestedCount ?? t().notSet }}</dd>
+                </div>
+                <div class="harvest__item">
+                  <dt>{{ t().harvestWeight }}</dt>
+                  <dd>{{ cycle.totalWeightKg ?? t().notSet }}</dd>
+                </div>
+              </dl>
+
+              <!-- THE TWO NUMBERS, SIDE BY SIDE AND SEPARATELY LABELLED.
+                   The estimate is what was planned on stocking day; the
+                   actual is what the harvest produced. Showing one, or
+                   averaging them, would throw away the only comparison this
+                   screen can teach anybody anything with. -->
+              <dl class="harvest__survival" data-survival>
+                <div class="harvest__item">
+                  <dt>{{ t().survivalEstimateLabel }}</dt>
+                  <dd data-survival-estimate>{{ survivalPercent(cycle.survivalRateEstimate) }}</dd>
+                </div>
+                <div class="harvest__item">
+                  <dt>{{ t().survivalActualLabel }}</dt>
+                  <dd data-survival-actual>
+                    {{ survivalPercent(cycle.actualSurvivalRate) ?? t().survivalActualPending }}
+                  </dd>
+                </div>
+              </dl>
+
+              <p class="harvest__notes">
+                <span class="harvest__notes-label">{{ t().harvestNotes }}:</span>
+                {{ cycle.harvestNotes || t().noNotes }}
+              </p>
+            </div>
+          }
         } @else {
           <p class="selection__hint">{{ t().selectedNone }}</p>
         }
@@ -214,6 +291,19 @@
         />
       </app-form-field>
 
+      <app-form-field [label]="t().fieldCycleAge" for="cycle-age">
+        <input
+          id="cycle-age"
+          class="text-input"
+          type="number"
+          step="1"
+          min="0"
+          formControlName="stockingAgeMonths"
+          [placeholder]="t().fieldCycleAgeHint"
+        />
+        <p class="field-note">{{ t().fieldCycleAgeNote }}</p>
+      </app-form-field>
+
       <app-form-field [label]="t().fieldCycleSurvival" for="cycle-survival">
         <input
           id="cycle-survival"
@@ -240,6 +330,89 @@
         {{ t().cancel }}
       </app-button>
       <app-button [loading]="saving()" (clicked)="submitCycle()">{{ t().save }}</app-button>
+    </div>
+  </app-modal>
+
+  <app-modal
+    [open]="!!closeTarget()"
+    [title]="t().closeFormTitle"
+    [closeLabel]="t().close"
+    (dismissed)="closeCloseForm()"
+  >
+    <form class="stack-form" [formGroup]="closeForm" (ngSubmit)="submitClose()">
+      @if (closeTarget(); as cycle) {
+        <p class="selection__line">
+          <strong>{{ cycle.unit.code }}</strong>
+          &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
+          {{ cycle.stockingDate }}
+        </p>
+      }
+
+      <app-form-field [label]="t().fieldOutcome" for="close-outcome" [required]="true">
+        <select id="close-outcome" class="text-input" formControlName="outcome">
+          @for (outcome of cycleOutcomes; track outcome) {
+            <option [value]="outcome">{{ outcomeLabel(outcome) }}</option>
+          }
+        </select>
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldHarvestDate" for="close-date" [required]="true">
+        <input id="close-date" class="text-input" type="date" formControlName="actualHarvestDate" />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldHarvestedCount" for="close-count" [required]="true">
+        <input
+          id="close-count"
+          class="text-input"
+          type="number"
+          step="1"
+          min="0"
+          formControlName="harvestedCount"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldTotalWeight" for="close-weight" [required]="true">
+        <input
+          id="close-weight"
+          class="text-input"
+          type="number"
+          step="0.01"
+          min="0"
+          formControlName="totalWeightKg"
+        />
+      </app-form-field>
+
+      <app-form-field [label]="t().fieldHarvestNotes" for="close-notes">
+        <textarea
+          id="close-notes"
+          class="text-input"
+          rows="3"
+          formControlName="notes"
+          [placeholder]="t().optional"
+        ></textarea>
+      </app-form-field>
+
+      <!-- Said out loud, because its absence from the form is the surprising
+           part: the survival rate is computed, never typed. -->
+      <p class="field-note">{{ t().closeHint }}</p>
+
+      @if (closeFieldError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+      @if (closeFormError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+
+      <button type="submit" hidden></button>
+    </form>
+
+    <div slot="actions">
+      <app-button variant="ghost" [disabled]="closing()" (clicked)="closeCloseForm()">
+        {{ t().cancel }}
+      </app-button>
+      <app-button [loading]="closing()" (clicked)="submitClose()">
+        {{ t().closeCycle }}
+      </app-button>
     </div>
   </app-modal>
 

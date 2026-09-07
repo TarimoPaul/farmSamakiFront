@@ -21,6 +21,18 @@ export const PERMISSION = {
   EDIT_CYCLE: 'edit_cycle',
   /** Create a tank/pond. Gates the "new unit" control on Production. */
   MANAGE_UNITS: 'manage_units',
+  /**
+   * ADD to the species catalogue. Gates the Species screen and its nav entry.
+   *
+   * Split from VIEW_DASHBOARD, which still reads the list, and the split is
+   * the point: every WORKER starting a cycle has to SEE the species, but what
+   * is written here has no `farm_id` and therefore appears on every farm at
+   * once - so writing is not a capability of everyone who may read a report.
+   *
+   * Seeded by the backend's V20 migration and granted to OWNER and
+   * FARM_MANAGER only.
+   */
+  MANAGE_SPECIES: 'manage_species',
   MARK_TASK_DONE: 'mark_task_done',
   VIEW_FINANCE: 'view_finance',
   /**
