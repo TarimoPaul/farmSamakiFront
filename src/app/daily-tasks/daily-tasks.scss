@@ -1,0 +1,205 @@
+@use '../shared/styles/screen' as *;
+
+/* The one colour this screen adds. The palette has no green - the brand is
+   orange and --brand is what "approved" means everywhere else - but a task
+   sheet is read by glancing down the left edge for ticks, and orange ticks on
+   an orange-accented page do not separate from the rest. So: a green scoped
+   to this component, defined in both themes like every other token, and used
+   for nothing but "this one is done". */
+:host {
+  --task-done: #2e7d32;
+  --task-done-bg: rgba(46, 125, 50, 0.08);
+}
+
+:host-context(:root[data-theme='dark']) {
+  --task-done: #6ee7a2;
+  --task-done-bg: rgba(110, 231, 162, 0.1);
+}
+
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.tasks__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* The picker sits in the header rather than in the card, because it governs
+   the whole sheet - including the empty state and the error panel, which
+   replace the card entirely. */
+.tasks__date {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.tasks__date-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.tasks__date-input {
+  width: auto;
+}
+
+/* A future day: a notice, not an error. Nothing has failed - the day simply
+   has not happened, and the sheet is still worth reading. */
+.tasks__notice {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  background: var(--notice-bg);
+  color: var(--notice);
+  font-size: 0.88rem;
+
+  p {
+    margin: 0.35rem 0 0;
+    line-height: 1.5;
+  }
+}
+
+.tasks__card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tasks__progress {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+
+  strong {
+    color: var(--on-surface);
+  }
+}
+
+.tasks__error {
+  margin: 0 0.25rem 0.75rem;
+}
+
+.task-group {
+  padding: 0 0.25rem;
+
+  & + & {
+    margin-top: 1.25rem;
+  }
+}
+
+/* The unit and the species, which together are the only thing that tells two
+   identically-named tasks apart. Sticky, so the heading stays with its rows
+   on a long farm-wide sheet scrolled on a phone. */
+.task-group__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.task-group__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.task--done {
+  background: var(--task-done-bg);
+  border-radius: var(--radius);
+}
+
+/* The glance column: a tick or an open circle, in that order down the page.
+   Fixed width so the two never shift the text beside them. */
+.task__tick {
+  flex: none;
+  width: 1.25rem;
+  font-size: 1rem;
+  line-height: 1;
+  text-align: center;
+  color: var(--muted);
+
+  .task--done & {
+    color: var(--task-done);
+    font-weight: 700;
+  }
+}
+
+.task__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.task__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.task__time {
+  margin-left: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Who did it and when. Green, because it is the answer to the question the
+   done row is announcing - and shown to everyone who can open the screen. */
+.task__by {
+  font-size: 0.78rem;
+  color: var(--task-done);
+}
+
+.task__meta {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.task__action {
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  /* The badge and the button drop under the task name rather than squeezing
+     it: this is the screen somebody opens one-handed at the tank. */
+  .task {
+    flex-wrap: wrap;
+  }
+
+  .task__body {
+    flex-basis: calc(100% - 2rem);
+  }
+}

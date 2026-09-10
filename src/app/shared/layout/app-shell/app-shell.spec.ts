@@ -294,3 +294,90 @@ describe('AppShell species nav gating', () => {
     expect(labels).toContain('Uzalishaji');
   });
 });
+
+/**
+ * The Asset Register entry, gated on `manage_assets` - the same code as its
+ * route, and the code of the register's very first read. Offered to anyone
+ * else, it would open onto a FORBIDDEN.
+ */
+describe('AppShell assets nav gating', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  function navLabels(permissions: string[]): string[] {
+    localStorage.setItem(TOKEN_KEY, 'a-token');
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
+    localStorage.setItem(CAN_SELECT_FARM_KEY, 'false');
+
+    const { fixture, element } = setup();
+    fixture.detectChanges();
+
+    return [...element.querySelectorAll('.sidebar__nav .nav-item')].map((el) =>
+      (el.textContent ?? '').trim(),
+    );
+  }
+
+  it('offers the register to a manage_assets holder', () => {
+    const labels = navLabels(['view_dashboard', 'manage_assets']);
+
+    expect(labels).toContain('Daftari la Mali');
+  });
+
+  it('hides it without manage_assets, however much else is held', () => {
+    const labels = navLabels([
+      'view_dashboard',
+      'manage_farms',
+      'manage_users',
+      'manage_feed_stock',
+      'manage_species',
+    ]);
+
+    expect(labels).not.toContain('Daftari la Mali');
+    expect(labels).toContain('Dashibodi');
+  });
+});
+
+/**
+ * Every nav entry goes somewhere.
+ *
+ * The nav renders a route-less entry as an inert "coming soon" span, and
+ * Settings was the last one - a gear that could never take anyone anywhere,
+ * with no /settings route behind it. It is gone, and this pins the rule rather
+ * than the one entry: an entry the nav offers is a LINK, and its target is a
+ * path the router knows.
+ */
+describe('AppShell nav has no dead ends', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('renders every offered entry as a link, with no inert placeholder', () => {
+    // Every permission, so the widest nav any account can be shown is checked.
+    localStorage.setItem(TOKEN_KEY, 'a-token');
+    localStorage.setItem(
+      PERMISSIONS_KEY,
+      JSON.stringify([
+        'view_dashboard',
+        'manage_farms',
+        'approve_users',
+        'manage_users',
+        'manage_species',
+        'manage_feed_stock',
+        'log_feeding',
+        'manage_assets',
+      ]),
+    );
+    localStorage.setItem(CAN_SELECT_FARM_KEY, 'false');
+
+    const { fixture, element } = setup();
+    fixture.detectChanges();
+
+    const items = [...element.querySelectorAll('.sidebar__nav .nav-item')];
+    expect(items.length).toBeGreaterThan(0);
+    expect(element.querySelector('.sidebar__nav .nav-item--disabled')).toBeNull();
+    expect(items.every((el) => el.tagName === 'A' && el.getAttribute('href'))).toBe(true);
+  });
+});

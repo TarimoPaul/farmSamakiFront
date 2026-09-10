@@ -10,9 +10,11 @@ import { Roles } from './roles/roles';
 import { Production } from './production/production';
 import { SpeciesScreen } from './species/species';
 import { Feeding } from './feeding/feeding';
+import { DailyTasks } from './daily-tasks/daily-tasks';
 import { FeedCatalog } from './feed-catalog/feed-catalog';
 import { FeedPurchases } from './feed-purchases/feed-purchases';
 import { WaterQuality } from './water-quality/water-quality';
+import { Assets } from './assets/assets';
 import { authGuard, guestGuard, permissionGuard, sessionGuard } from './core/guards/auth-guard';
 import { PERMISSION } from './core/models/permissions';
 
@@ -123,5 +125,42 @@ export const routes: Routes = [
     canActivate: [permissionGuard(PERMISSION.MANAGE_FEED_STOCK)],
   },
   { path: 'water-quality', component: WaterQuality, canActivate: [authGuard] },
+  // permissionGuard on `view_dashboard`, and the contrast with the four
+  // screens above is deliberate rather than an inconsistency.
+  //
+  // Those use authGuard because their route requirement IS just a session -
+  // what differs per person is which controls appear inside them. This screen
+  // has exactly one query, `farmDailyTasks`, and the backend gates it on
+  // `view_dashboard` and nothing else. Naming that code here makes the route
+  // say what the screen actually needs, and makes it read the SAME code the
+  // nav entry does - which is the invariant NAV_ITEMS is built around.
+  //
+  // In practice it turns nobody away: every seeded role holds
+  // `view_dashboard`. What it buys is a screen that cannot be reached by an
+  // account which has had that code taken away, instead of one that opens on
+  // a FORBIDDEN.
+  //
+  // The WRITE, `mark_task_done`, is deliberately NOT here: a VIEWER is
+  // entitled to read the sheet, including who completed what. It gates the
+  // per-row button only (see the *appHasPermission in daily-tasks.html).
+  //
+  // Farm-scoped: `farmDailyTasks` takes no farm argument and answers for the
+  // caller's farm, from the X-Farm-Id header.
+  {
+    path: 'daily-tasks',
+    component: DailyTasks,
+    canActivate: [permissionGuard(PERMISSION.VIEW_DASHBOARD)],
+  },
+  // `manage_assets`, and it is the whole gate: all four asset endpoints -
+  // the `assets` read included - are that code (V22, OWNER and FARM_MANAGER).
+  //
+  // COMPANY-WIDE, not farm-scoped: `assets` answers for every farm the caller
+  // belongs to or owns, whatever X-Farm-Id says. The one screen where the
+  // selected farm does not narrow what is shown.
+  {
+    path: 'assets',
+    component: Assets,
+    canActivate: [permissionGuard(PERMISSION.MANAGE_ASSETS)],
+  },
   { path: '**', redirectTo: 'login' },
 ];

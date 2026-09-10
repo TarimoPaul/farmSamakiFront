@@ -8,6 +8,7 @@ export const SHELL_I18N = {
   sw: {
     brandName: 'Samaki Farm',
     navDashboard: 'Dashibodi',
+    navDailyTasks: 'Kazi za Kila Siku',
     navFarms: 'Mashamba',
     navApprovals: 'Maombi ya Idhini',
     navMembers: 'Wanachama wa Shamba',
@@ -18,6 +19,7 @@ export const SHELL_I18N = {
     navFeedCatalog: 'Katalogi ya Chakula',
     navFeedPurchases: 'Manunuzi ya Chakula',
     navWater: 'Ubora wa Maji',
+    navAssets: 'Daftari la Mali',
     navSettings: 'Mipangilio',
     comingSoon: 'Inakuja hivi karibuni',
     systemInfoTitle: 'Taarifa za mfumo',
@@ -30,6 +32,7 @@ export const SHELL_I18N = {
   en: {
     brandName: 'Samaki Farm',
     navDashboard: 'Dashboard',
+    navDailyTasks: 'Daily Tasks',
     navFarms: 'Farms',
     navApprovals: 'Approvals',
     navMembers: 'Farm Members',
@@ -40,6 +43,7 @@ export const SHELL_I18N = {
     navFeedCatalog: 'Feed Catalogue',
     navFeedPurchases: 'Feed Purchases',
     navWater: 'Water Quality',
+    navAssets: 'Asset Register',
     navSettings: 'Settings',
     comingSoon: 'Coming soon',
     systemInfoTitle: 'System info',

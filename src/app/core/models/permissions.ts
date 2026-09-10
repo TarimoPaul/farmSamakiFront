@@ -77,6 +77,15 @@ export const PERMISSION = {
    * which is the plain case this screen is built around, not an edge one.
    */
   VIEW_FEED_STOCK: 'view_feed_stock',
+  /**
+   * The asset register - READ and write both. Gates the Assets screen and its
+   * nav entry.
+   *
+   * Seeded by the backend's V22 migration and granted to OWNER and
+   * FARM_MANAGER. Unlike the catalogues, even the list is this code: the only
+   * reader of the register is the person keeping it.
+   */
+  MANAGE_ASSETS: 'manage_assets',
 } as const;
 
 export type Permission = (typeof PERMISSION)[keyof typeof PERMISSION];

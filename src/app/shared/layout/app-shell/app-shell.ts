@@ -27,6 +27,8 @@ type IconKey =
   | 'shield'
   | 'list'
   | 'cart'
+  | 'tasks'
+  | 'briefcase'
   | 'gear';
 
 interface ShellNavItem {
@@ -47,6 +49,21 @@ interface ShellNavItem {
  */
 const NAV_ITEMS: readonly ShellNavItem[] = [
   { key: 'navDashboard', icon: 'grid', route: '/dashboard' },
+  // Second, above the admin entries, because it is the screen the day starts
+  // on: a worker opening their phone in the morning wants the list of what to
+  // do, and an owner wants "on this date, what was done and by whom?". Both
+  // are this one screen.
+  //
+  // The permission is stated rather than left off even though every seeded
+  // role holds `view_dashboard`, because the rule this list is built on is
+  // that an entry names the SAME code its route guards on - and /daily-tasks
+  // guards on this one. Left blank, the two would agree only by accident.
+  {
+    key: 'navDailyTasks',
+    icon: 'tasks',
+    route: '/daily-tasks',
+    permission: PERMISSION.VIEW_DASHBOARD,
+  },
   { key: 'navFarms', icon: 'farm', route: '/farms', permission: PERMISSION.MANAGE_FARMS },
   {
     key: 'navApprovals',
@@ -104,7 +121,21 @@ const NAV_ITEMS: readonly ShellNavItem[] = [
     permission: PERMISSION.MANAGE_FEED_STOCK,
   },
   { key: 'navWater', icon: 'drop', route: '/water-quality' },
-  { key: 'navSettings', icon: 'gear' },
+  // Last, and apart from the farm-side screens above: the register is
+  // COMPANY-WIDE, across every farm the caller holds. Same code as its route
+  // - `manage_assets` (OWNER and FARM_MANAGER) - so a WORKER is never offered
+  // a screen whose very first read the backend refuses.
+  {
+    key: 'navAssets',
+    icon: 'briefcase',
+    route: '/assets',
+    permission: PERMISSION.MANAGE_ASSETS,
+  },
+  // No Settings entry. There is no /settings route and no screen behind it, so
+  // the entry was nothing but a gear the nav could never take anyone to - the
+  // same reason the route-less `navCycles` placeholder went. Its label and its
+  // gear icon are LEFT IN PLACE, ready for the day the screen exists: put the
+  // entry back here, with a route, and nothing else has to be rewritten.
 ];
 
 /**
