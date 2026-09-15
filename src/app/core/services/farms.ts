@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response';
-import { CreateFarmRequest, Farm, UpdateFarmRequest } from '../models/farm';
+import { CreateFarmRequest, Farm, MyFarm, UpdateFarmRequest } from '../models/farm';
 import { restError } from '../http/rest-error';
 import { AuthErrorHandler } from './auth-error-handler';
 
@@ -27,6 +27,20 @@ export class FarmsService {
    */
   list(): Observable<Farm[]> {
     return this.http.get<ApiResponse<Farm[]>>(this.baseUrl).pipe(
+      map((res) => res.data ?? []),
+      restError(this.authErrorHandler),
+    );
+  }
+
+  /**
+   * The farms the switcher may offer THIS caller - see MyFarm.
+   *
+   * No permission needed: everyone may know their own farms. Lives here
+   * rather than on AuthService because the switcher is its only reader, and
+   * it already came here for its list.
+   */
+  myFarms(): Observable<MyFarm[]> {
+    return this.http.get<ApiResponse<MyFarm[]>>(`${environment.apiUrl}/auth/my-farms`).pipe(
       map((res) => res.data ?? []),
       restError(this.authErrorHandler),
     );

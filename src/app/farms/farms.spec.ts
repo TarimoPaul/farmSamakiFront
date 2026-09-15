@@ -4,6 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { Farms } from './farms';
+import { FARMS_I18N } from './farms.i18n';
 import { LanguageService } from '../core/services/language';
 import { environment } from '../../environments/environment';
 
@@ -107,16 +108,14 @@ describe('Farms', () => {
       const { fixture, component, httpMock } = setup(['manage_farms']);
 
       fixture.detectChanges();
-      httpMock
-        .expectOne(FARMS_URL)
-        .flush(
-          {
-            success: false,
-            message: 'Huna ruhusa ya kufikia rasilimali hii.',
-            errorCode: 'FORBIDDEN',
-          },
-          { status: 403, statusText: 'Forbidden' },
-        );
+      httpMock.expectOne(FARMS_URL).flush(
+        {
+          success: false,
+          message: 'Huna ruhusa ya kufikia rasilimali hii.',
+          errorCode: 'FORBIDDEN',
+        },
+        { status: 403, statusText: 'Forbidden' },
+      );
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -313,5 +312,128 @@ describe('Farms', () => {
       httpMock.expectNone((r) => r.method === 'POST');
       expect(component.nameError()).toBe('Jina la shamba linahitajika.');
     });
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * HAKUNA KALENDA: shamba halina tarehe yoyote kwenye waya (jina, eneo,
+ * mmiliki), hivyo "mashamba yalivyokuwa Machi" halina data nyuma yake.
+ *
+ * Kadi ya WANACHAMA ina lango lile lile la paneli ya kushoto - `manage_users`
+ * ni uwezo tofauti na kuorodhesha mashamba, na `members()` ni tupu bila hiyo.
+ * Kadi isiyo na lango ingesomeka kama "shamba hili halina mtu" kwa msimamizi
+ * ambaye hakuwahi kuruhusiwa kuuliza.
+ */
+describe('Farms summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  async function open(permissions: string[]) {
+    const { fixture, component, httpMock } = setup(permissions);
+    fixture.detectChanges();
+    httpMock.expectOne(FARMS_URL).flush(FARMS_RESPONSE);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return { fixture, component, httpMock };
+  }
+
+  const rail = (fixture: ComponentFixture<Farms>) =>
+    (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+
+  it('counts the farms, and the ones still without an owner', async () => {
+    const { fixture, component, httpMock } = await open(['manage_farms', 'manage_users']);
+
+    const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+
+    expect(by('Mashamba yote')).toBe('2');
+    // Shamba la 19 halina mmiliki: ni pengo halisi kwenye usanidi, si data
+    // iliyopotea - umiliki unatoka kwenye nafasi ya OWNER, si kwa kuunda.
+    expect(by('Yenye mmiliki')).toBe('1');
+    expect(by('Bila mmiliki')).toBe('1');
+    expect(by('Bila eneo')).toBe('0');
+    httpMock.verify();
+  });
+
+  it('moves the create button off the page corner and into the intro card', async () => {
+    const { fixture, httpMock } = await open(['manage_farms']);
+
+    // Kitufe kinachoelea kimeondoka kabisa.
+    expect((fixture.nativeElement as HTMLElement).querySelector('.page-actions')).toBeNull();
+    // Na kiko ndani ya kadi ya maelezo, si mahali pengine kwenye rail.
+    const intro = rail(fixture).querySelector('.side-card--intro')!;
+    expect(intro.querySelector('.intro__actions app-button')?.textContent).toContain(
+      'Ongeza shamba',
+    );
+    httpMock.verify();
+  });
+
+  it('fills the selected-farm card from the row that was clicked', async () => {
+    const { fixture, component, httpMock } = await open(['manage_farms', 'manage_users']);
+
+    // Kabla ya kuchagua: kadi inaeleza la kufanya badala ya kuwa tupu.
+    expect(component.selectedDetail()).toBeNull();
+    expect(rail(fixture).querySelector('[data-rail="selected"]')?.textContent).toContain(
+      'Bofya shamba kwenye jedwali',
+    );
+
+    component.selectFarm(component.farms()[1]); // UI Farms Test, bila mmiliki
+    httpMock.expectOne(`${USERS_URL}?farmId=19`).flush(MEMBERS_RESPONSE);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const card = rail(fixture).querySelector('[data-rail="selected"]')!;
+    expect(card.textContent).toContain('UI Farms Test');
+    expect(card.textContent).toContain('Mbeya');
+    expect(card.textContent).toContain('Hakuna mmiliki bado');
+    httpMock.verify();
+  });
+
+  it('breaks the selected farm down by role', async () => {
+    const { fixture, component, httpMock } = await open(['manage_farms', 'manage_users']);
+
+    component.selectFarm(component.farms()[1]);
+    httpMock.expectOne(`${USERS_URL}?farmId=19`).flush(MEMBERS_RESPONSE);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Mwanachama asiye na nafasi anahesabiwa kwa jina lake, si kuachwa nje:
+    // mtu asiye na nafasi bado ni mtu kwenye shamba.
+    expect(component.membersByRole()).toEqual([
+      { role: 'OWNER', count: '1' },
+      { role: 'Hana nafasi bado', count: '1' },
+    ]);
+    httpMock.verify();
+  });
+
+  it('withholds the members card from an admin without manage_users', async () => {
+    const { fixture, httpMock } = await open(['manage_farms']);
+
+    // Hakuna ombi la watumiaji hata baada ya kuchagua - angalia selectFarm.
+    const headings = [...rail(fixture).querySelectorAll('h3')].map((h) => h.textContent?.trim());
+    expect(headings).not.toContain('Wanachama kwa nafasi');
+    expect(rail(fixture).querySelector('[data-rail="members"]')).toBeNull();
+    // Maelezo, muhtasari, shamba teule - bila kadi ya wanachama.
+    expect(rail(fixture).querySelectorAll('.side-card').length).toBe(3);
+    httpMock.verify();
+  });
+
+  it('renders the rail beside the work', async () => {
+    const { fixture, httpMock } = await open(['manage_farms', 'manage_users']);
+
+    expect(rail(fixture).parentElement?.classList.contains('module-layout')).toBe(true);
+    expect(rail(fixture).querySelectorAll('.side-card').length).toBe(4);
+    // Hakuna kalenda: hakuna tarehe ya kuchuja nayo.
+    expect(rail(fixture).querySelector('app-date-picker-card')).toBeNull();
+    httpMock.verify();
+  });
+
+  it('carries exactly the same rail keys in both languages', () => {
+    const sw = Object.keys(FARMS_I18N.sw).sort();
+    const en = Object.keys(FARMS_I18N.en).sort();
+    expect(en).toEqual(sw);
   });
 });

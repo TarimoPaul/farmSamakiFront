@@ -10,7 +10,6 @@ import { PERMISSION, PermissionDefinition } from '../core/models/permissions';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { ActionMenu } from '../shared/ui/action-menu/action-menu';
 import { Button } from '../shared/ui/button/button';
 import { ConfirmDialog } from '../shared/ui/confirm-dialog/confirm-dialog';
@@ -87,7 +86,6 @@ export interface PermissionGroup {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     ActionMenu,
     Button,
     ConfirmDialog,
@@ -256,6 +254,80 @@ export class Roles implements OnInit {
   });
 
   readonly roleKey = (role: Role): number => role.roleId;
+
+  // ── The summary rail ───────────────────────────────────────────────────
+  //
+  // Counted from `roles()` and `permissions()`, both already on the page, so
+  // the rail costs no request of its own.
+  //
+  // NO DATE PICKER: `RoleSummary` carries no timestamp, and the policy has no
+  // history on the wire - "what OWNER could do in March" is not a question
+  // this API can answer.
+
+  /**
+   * The policy in four numbers.
+   *
+   * "Bila ruhusa" is the one worth watching: an empty bundle is LEGAL - the
+   * backend documents it as the way to hold a role that grants nothing - so it
+   * is never an error, but a role somebody is being handed that opens no door
+   * is almost always a half-finished job.
+   */
+  readonly summary = computed(() => {
+    const t = this.t();
+    const rows = this.roles();
+    const active = rows.filter((role) => role.active).length;
+
+    return [
+      { label: t.railRolesAll, value: String(rows.length) },
+      { label: t.statusActive, value: String(active) },
+      { label: t.statusInactive, value: String(rows.length - active) },
+      {
+        label: t.railNoPermissions,
+        value: String(rows.filter((role) => role.permissions.length === 0).length),
+      },
+    ];
+  });
+
+  /**
+   * Roles by how much they grant, widest first.
+   *
+   * The table shows each role's count in its own row; what it cannot show is
+   * the ORDER, and the order is the security question - which bundle opens the
+   * most doors. A disabled role is kept in the list and marked, because it
+   * still grants everything it grants to whoever already holds it.
+   */
+  readonly rolesByReach = computed(() => {
+    const t = this.t();
+    return [...this.roles()]
+      .sort((a, b) => b.permissions.length - a.permissions.length)
+      .map((role) => ({
+        roleId: role.roleId,
+        name: role.active ? role.name : `${role.name} (${t.statusInactive})`,
+        count: String(role.permissions.length),
+      }));
+  });
+
+  /**
+   * The catalogue this screen writes FROM - and whether it arrived at all.
+   *
+   * A failed catalogue is not a failed screen: renaming, disabling and
+   * deleting all still work, and only permission editing is disabled (see the
+   * note on Roles). So the card reports the gap rather than the counts, which
+   * would be two honest-looking zeros.
+   */
+  readonly catalogue = computed(() => {
+    const t = this.t();
+    if (this.permissionsFailed()) {
+      return { rows: [], failed: true };
+    }
+    return {
+      rows: [
+        { label: t.railPermissionsAll, value: String(this.permissions().length) },
+        { label: t.railModules, value: String(this.groups().length) },
+      ],
+      failed: false,
+    };
+  });
 
   /** Exposed so the input's own `maxlength` and the check below stay one number. */
   readonly nameMaxLength = NAME_MAX_LENGTH;

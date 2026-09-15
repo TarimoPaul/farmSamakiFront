@@ -7,7 +7,6 @@ import { FeedType, FeedTypeDeactivationImpact } from '../core/models/feed';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { ActionMenu } from '../shared/ui/action-menu/action-menu';
 import { Button } from '../shared/ui/button/button';
 import { ConfirmDialog } from '../shared/ui/confirm-dialog/confirm-dialog';
@@ -97,7 +96,6 @@ const NAME_MAX_LENGTH = 80;
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     ActionMenu,
     Button,
     ConfirmDialog,
@@ -138,6 +136,48 @@ export class FeedCatalog implements OnInit {
    * way for the two to drift apart. This signal is what `submit()` reads to
    * decide which mutation it is sending.
    */
+  /**
+   * The rail's summary, counted from the catalogue already on the page.
+   *
+   * NO DATE PICKER, for the same reason as Species: `feed_types` has no
+   * farm_id and the query exposes no timestamps, so "the catalogue as it stood
+   * in March" has nothing behind it.
+   *
+   * The active/inactive split is the one number that matters here: a
+   * deactivated type disappears from every feeding dropdown, and the list
+   * below shows both, so the count is what says how much of it is in use.
+   */
+  readonly summary = computed(() => {
+    const t = this.t();
+    const rows = this.feedTypes();
+    const active = rows.filter((row) => row.active).length;
+
+    return [
+      { label: t.railTotal, value: String(rows.length) },
+      { label: t.railActive, value: String(active) },
+      { label: t.railInactive, value: String(rows.length - active) },
+    ];
+  });
+
+  /**
+   * The age range the catalogue covers, in months - and the GAPS in it.
+   *
+   * This is the question the feeding screen answers with "no suitable feed":
+   * a cycle whose fish fall outside every registered range cannot be fed at
+   * all. Showing the span here is what lets somebody see that coming.
+   */
+  readonly ageCover = computed(() => {
+    const t = this.t();
+    const active = this.feedTypes().filter((row) => row.active);
+    if (active.length === 0) {
+      return { from: t.dash, to: t.dash };
+    }
+    return {
+      from: String(Math.min(...active.map((row) => row.minAgeMonths))),
+      to: String(Math.max(...active.map((row) => row.maxAgeMonths))),
+    };
+  });
+
   readonly editTarget = signal<FeedType | null>(null);
 
   /**

@@ -7,7 +7,6 @@ import { Species as SpeciesRow } from '../core/models/species';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { Button } from '../shared/ui/button/button';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
@@ -65,16 +64,7 @@ const NAME_MAX_LENGTH = 80;
 @Component({
   selector: 'app-species',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    AppShell,
-    Button,
-    DataTable,
-    EmptyState,
-    FormField,
-    Toast,
-  ],
+  imports: [CommonModule, ReactiveFormsModule, Button, DataTable, EmptyState, FormField, Toast],
   templateUrl: './species.html',
   styleUrl: './species.scss',
 })
@@ -110,6 +100,42 @@ export class SpeciesScreen implements OnInit {
     name: [''],
     growthMonthsAvg: [''],
     avgHarvestWeightKg: [''],
+  });
+
+  /**
+   * The rail's summary, counted from the catalogue already on the page.
+   *
+   * NO DATE PICKER on this screen, and the absence is deliberate. `species`
+   * has no farm_id and the query exposes no timestamps at all, so "the
+   * catalogue as it stood in March" has nothing behind it - a calendar here
+   * would be a control that changes nothing.
+   *
+   * The two averages are the whole reason the catalogue exists:
+   * `growthMonthsAvg` is what computes every cycle's expected harvest date,
+   * and `avgHarvestWeightKg` is what a farmer plans a pond around.
+   */
+  readonly summary = computed(() => {
+    const t = this.t();
+    const rows = this.species();
+    const mean = (pick: (row: SpeciesRow) => number) =>
+      rows.length === 0
+        ? t.dash
+        : (rows.reduce((sum, row) => sum + pick(row), 0) / rows.length).toFixed(1);
+
+    return [
+      { label: t.railTotal, value: String(rows.length) },
+      { label: t.railAvgGrowth, value: mean((row) => row.growthMonthsAvg) },
+      { label: t.railAvgWeight, value: mean((row) => row.avgHarvestWeightKg) },
+    ];
+  });
+
+  /** The fastest species to grow - the one a short cycle would start with. */
+  readonly quickest = computed(() => {
+    const rows = this.species();
+    if (rows.length === 0) {
+      return null;
+    }
+    return rows.reduce((best, row) => (row.growthMonthsAvg < best.growthMonthsAvg ? row : best));
   });
 
   readonly columns = computed<DataTableColumn<SpeciesRow>[]>(() => {

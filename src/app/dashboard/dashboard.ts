@@ -10,8 +10,8 @@ import { PERMISSION } from '../core/models/permissions';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { ProductionUnit } from '../core/models/production-unit';
 import { Cycle } from '../core/models/cycle';
+import { DashboardDay } from '../core/models/dashboard-day';
 import { LanguageService } from '../core/services/language';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { DASHBOARD_I18N } from './dashboard.i18n';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { apiErrorMessage } from '../core/i18n/error-messages';
@@ -48,6 +48,44 @@ interface DashboardData {
   cycles: Cycle[];
 }
 
+/**
+ * Hali ya shamba tarehe nyingine - kilichoendesha kalenda inayobofyeka.
+ *
+ * Inaulizwa TU wakati tarehe iliyochaguliwa si ya leo. Leo tayari iko kwenye
+ * ukurasa: DASHBOARD_QUERY inasoma hali halisi ya sasa, na kuiuliza tena kwa
+ * njia nyingine kungeleta hatari ya namba mbili zisizolingana kwa siku ile ile.
+ */
+const DAY_QUERY = `
+  query ($date: String!) {
+    dashboardOnDate(date: $date) {
+      date
+      unitsExisting
+      unitsActive
+      unitsIdle
+      totalVolumeM3
+      cyclesRunning
+      cyclesStarted
+      cyclesClosed
+      fingerlingsRunning
+      fingerlingsStocked
+      members
+      historyStartsOn
+      historyComplete
+    }
+  }
+`;
+
+interface DashboardDayData {
+  dashboardOnDate: DashboardDay;
+}
+
+/** YYYY-MM-DD kwa saa ZA HAPA, si UTC - toISOString() ingehamisha siku. */
+function isoDate(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 const UNIT_TYPES = ['TANK', 'POND', 'BWAWA'] as const;
 const UNIT_STATUSES = ['ACTIVE', 'IDLE', 'MAINTENANCE'] as const;
 
@@ -66,7 +104,7 @@ const UNKNOWN_FAILURE = new ApiError({
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, AppShell],
+  imports: [CommonModule, RouterLink],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -153,8 +191,32 @@ export class Dashboard {
   );
 
   readonly today = new Date();
-  readonly weekDates = this.buildWeekDates(this.today);
   readonly weekdayLabels = computed(() => this.t().weekdayLabels);
+
+  // ── The date being looked at ───────────────────────────────────────────
+  //
+  // Two signals, not one, and they move independently on purpose: paging to
+  // last month to FIND a date should not change which date is being shown
+  // until one is actually clicked.
+  private readonly weekAnchor = signal(new Date());
+  readonly selectedDate = signal(isoDate(new Date()));
+
+  readonly weekDates = computed(() => this.buildWeekDates(this.weekAnchor()));
+  readonly viewingToday = computed(() => this.selectedDate() === isoDate(this.today));
+
+  /** The dated snapshot. Null whenever today is being shown - see DAY_QUERY. */
+  readonly day = signal<DashboardDay | null>(null);
+  readonly dayLoading = signal(false);
+  readonly dayError = signal<ApiError | null>(null);
+
+  /**
+   * The date has records behind it.
+   *
+   * When false, every number in `day()` is a zero that means "we have no
+   * record of that day" rather than "the farm was empty" - so the screen says
+   * so instead of rendering the zeros. See DashboardDay.historyComplete.
+   */
+  readonly dayHasHistory = computed(() => this.day()?.historyComplete !== false);
 
   readonly totalUnits = computed(() => this.units().length);
   readonly activeUnits = computed(() => this.units().filter((u) => u.status === 'ACTIVE').length);
@@ -171,6 +233,69 @@ export class Dashboard {
     return total === 0 ? 0 : Math.round((this.activeUnits() / total) * 100);
   });
 
+  // ── What the screen actually shows ─────────────────────────────────────
+  //
+  // One layer, so the template never has to ask "which date am I on?" - and,
+  // more importantly, so no card can be left behind. Wiring each card to its
+  // own conditional was the version that would eventually show one card's
+  // Tuesday next to another card's today.
+  //
+  // `day()` null = today, and today's numbers come from the live query rather
+  // than from a second answer about the same day.
+  readonly shownTotalUnits = computed(() => this.day()?.unitsExisting ?? this.totalUnits());
+  readonly shownActiveUnits = computed(() => this.day()?.unitsActive ?? this.activeUnits());
+  readonly shownCyclesRunning = computed(
+    () => this.day()?.cyclesRunning ?? this.activeCycles().length,
+  );
+  readonly shownVolumeM3 = computed(() => this.day()?.totalVolumeM3 ?? this.totalVolumeM3());
+
+  /**
+   * HIFADHI, not intake: the count of fingerlings inside the cycles that were
+   * running. `fingerlingsStocked` is the other thing - what went in THAT day -
+   * and this tile has always shown the first, so it keeps showing the first.
+   */
+  readonly shownFingerlings = computed(
+    () => this.day()?.fingerlingsRunning ?? this.totalFingerlings(),
+  );
+
+  readonly shownActivePercent = computed(() => {
+    const dated = this.day();
+    if (!dated) {
+      return this.activePercent();
+    }
+    return dated.unitsExisting === 0
+      ? 0
+      : Math.round((dated.unitsActive / dated.unitsExisting) * 100);
+  });
+
+  readonly shownMembers = computed(() => this.day()?.members ?? this.totalMembers());
+
+  /**
+   * The status bars, dated.
+   *
+   * MAINTENANCE is 0 on any past date, and that is not a gap in the answer -
+   * no code path in the backend has ever written that status (the CHECK in V1
+   * allows it, CycleService never sets it). The row is kept rather than hidden
+   * so the bars do not change shape when the date changes.
+   */
+  readonly shownUnitsByStatus = computed(() => {
+    const dated = this.day();
+    if (!dated) {
+      return this.unitsByStatus();
+    }
+    const counts: Record<(typeof UNIT_STATUSES)[number], number> = {
+      ACTIVE: dated.unitsActive,
+      IDLE: dated.unitsIdle,
+      MAINTENANCE: 0,
+    };
+    const max = Math.max(1, ...UNIT_STATUSES.map((status) => counts[status]));
+    return UNIT_STATUSES.map((status) => ({
+      status,
+      count: counts[status],
+      percent: Math.round((counts[status] / max) * 100),
+    }));
+  });
+
   readonly unitsByType = computed(() => {
     const units = this.units();
     const max = Math.max(1, ...UNIT_TYPES.map((t) => units.filter((u) => u.type === t).length));
@@ -182,7 +307,10 @@ export class Dashboard {
 
   readonly unitsByStatus = computed(() => {
     const units = this.units();
-    const max = Math.max(1, ...UNIT_STATUSES.map((s) => units.filter((u) => u.status === s).length));
+    const max = Math.max(
+      1,
+      ...UNIT_STATUSES.map((s) => units.filter((u) => u.status === s).length),
+    );
     return UNIT_STATUSES.map((status) => {
       const count = units.filter((u) => u.status === status).length;
       return { status, count, percent: Math.round((count / max) * 100) };
@@ -253,6 +381,71 @@ export class Dashboard {
         this.loading.set(false);
       },
     });
+  }
+
+  // ── Moving between dates ───────────────────────────────────────────────
+
+  /** Pages the strip by a week. Does NOT change the date being shown. */
+  shiftWeek(weeks: number): void {
+    const moved = new Date(this.weekAnchor());
+    moved.setDate(moved.getDate() + weeks * 7);
+    this.weekAnchor.set(moved);
+  }
+
+  selectDate(date: Date): void {
+    const iso = isoDate(date);
+    if (iso === this.selectedDate()) {
+      return;
+    }
+    this.selectedDate.set(iso);
+    this.loadDay();
+  }
+
+  /** Back to live data, and back to the week today is in. */
+  backToToday(): void {
+    this.selectedDate.set(isoDate(this.today));
+    this.weekAnchor.set(new Date());
+    this.day.set(null);
+    this.dayError.set(null);
+  }
+
+  isSelected(date: Date): boolean {
+    return isoDate(date) === this.selectedDate();
+  }
+
+  /**
+   * Fetches the selected date - or drops back to the live numbers if the
+   * selection IS today.
+   *
+   * Today deliberately does not go through `dashboardOnDate`. The live query
+   * already answered for today, and asking a second time by a second route is
+   * how a screen ends up showing two different numbers for one day.
+   */
+  private loadDay(): void {
+    if (this.viewingToday()) {
+      this.day.set(null);
+      this.dayError.set(null);
+      return;
+    }
+
+    this.dayLoading.set(true);
+    this.dayError.set(null);
+
+    this.graphqlService
+      .query<DashboardDayData>(DAY_QUERY, { date: this.selectedDate() })
+      .subscribe({
+        next: (data) => {
+          this.day.set(data.dashboardOnDate);
+          this.dayLoading.set(false);
+        },
+        error: (err: unknown) => {
+          // The date stays selected: dropping silently back to today would
+          // leave the strip highlighting a day the numbers are not about.
+          this.dayError.set(isApiError(err) ? err : UNKNOWN_FAILURE);
+          this.day.set(null);
+          this.dayLoading.set(false);
+        },
+      });
   }
 
   statusLabel(status: string): string {

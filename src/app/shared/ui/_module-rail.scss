@@ -1,0 +1,85 @@
+// Mpangilio wa skrini ya module: kazi kushoto, rail ya muhtasari kulia.
+//
+// Ni sehemu ya pili ya lugha ya rail. _side-card.scss inatoa KADI zenyewe;
+// hii inatoa GRID inayozishika. Zote mbili ni za pamoja kwa sababu skrini sita
+// zinazitumia, na nakala ya pili ingetofautiana mara ya kwanza mmoja
+// unapoguswa - hasa kikomo cha 1280px, ambacho ni uamuzi mmoja wa muundo, si
+// namba ya kuandikwa mara sita.
+// Work on the left, summary rail on the right. Same shape as the dashboard's
+// own two-column grid, and the same breakpoint: below 1280px the tables need
+// every pixel of the canvas, so the rail goes rather than squeezing six
+// columns - two of them dates - into 672px.
+.module-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 1.25rem;
+
+  @media (max-width: 1280px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.module-layout__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.module-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  @media (max-width: 1280px) {
+    display: none;
+  }
+}
+
+// The card that says what this screen is for, and holds the two things you
+// can start from it.
+.side-card--intro {
+  .intro__body {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  // Numbered, because they ARE an order: a cycle cannot be started without a
+  // unit, and nothing can be logged without a selected cycle.
+  .intro__steps {
+    margin: 0.6rem 0 0;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+
+  // One row, both buttons the same width.
+  //
+  // The rail is 300px, so after the card's padding and the gap each button
+  // gets about 128px - narrower than "Anzisha mzunguko" on one line. The
+  // label WRAPS rather than being clipped or forcing a scrollbar, and
+  // `align-items: stretch` (the default) then gives the short label's button
+  // the same height as the wrapped one, so the pair still reads as one bar.
+  .intro__actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
+  }
+
+  // Equal shares of the row. `min-width: 0` is what allows that: a flex item
+  // will not shrink below its content's intrinsic width without it, and the
+  // longer label would take more than half the row.
+  .intro__actions app-button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}

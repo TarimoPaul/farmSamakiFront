@@ -1,221 +1,281 @@
-<app-shell>
-  <section class="feeding">
-    <header class="feeding__head">
-      <div>
-        <h1 class="page-title">{{ t().title }}</h1>
-        <p class="page-subtitle">{{ t().subtitle }}</p>
-      </div>
-    </header>
+<section class="feeding">
+  <header class="feeding__head">
+    <div>
+      <h1 class="page-title">{{ t().title }}</h1>
+      <p class="page-subtitle">{{ t().subtitle }}</p>
+    </div>
+  </header>
 
-    @if (loading()) {
-      <p class="panel-status">{{ t().loading }}</p>
-    } @else if (loadErrorMessage(); as message) {
-      <div class="panel-error" role="alert">
-        <p>{{ message }}</p>
-        <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
-      </div>
-    } @else if (!cycle()) {
-      <!-- Not a failure: nothing has gone wrong, there is simply no cycle to
+  @if (loading()) {
+    <p class="panel-status">{{ t().loading }}</p>
+  } @else if (loadErrorMessage(); as message) {
+    <div class="panel-error" role="alert">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+    </div>
+  } @else if (!cycle()) {
+    <!-- Not a failure: nothing has gone wrong, there is simply no cycle to
            feed. It gets a card and a way out, not a red panel. -->
-      <section class="card" data-panel="no-cycle">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().noCycleTitle }}</h2>
-        </header>
-        <p class="no-cycle__body">{{ t().noCycleMessage }}</p>
-        <div class="no-cycle__actions">
-          <app-button (clicked)="goToProduction()">{{ t().goToProduction }}</app-button>
-        </div>
-      </section>
-    } @else {
-      <section class="card" data-panel="context">
-        <p class="context__line">
-          {{ t().contextLabel }}:
-          <strong>{{ cycle()!.speciesName }}</strong>
-          &middot; {{ t().contextUnit }} <strong>{{ cycle()!.unit.code }}</strong> &middot;
-          {{ cycle()!.stockingDate }}
-          @if (cycleAgeMonths(); as age) {
-            &middot; {{ t().contextAge }} <strong>{{ age }} {{ t().ageMonths }}</strong>
-          }
-        </p>
-      </section>
+    <section class="card" data-panel="no-cycle">
+      <header class="card__head">
+        <h2 class="card__title">{{ t().noCycleTitle }}</h2>
+      </header>
+      <p class="no-cycle__body">{{ t().noCycleMessage }}</p>
+      <div class="no-cycle__actions">
+        <app-button (clicked)="goToProduction()">{{ t().goToProduction }}</app-button>
+      </div>
+    </section>
+  } @else {
+    <!-- Work on the left, summary rail on the right. Nothing on the rail costs
+         a request: a feeding log carries its own logDate, so the date picker
+         only filters what this screen already holds. -->
+    <div class="module-layout">
+      <div class="module-layout__main">
+        <section class="card" data-panel="context">
+          <p class="context__line">
+            {{ t().contextLabel }}:
+            <strong>{{ cycle()!.speciesName }}</strong>
+            &middot; {{ t().contextUnit }} <strong>{{ cycle()!.unit.code }}</strong> &middot;
+            {{ cycle()!.stockingDate }}
+            @if (cycleAgeMonths(); as age) {
+              &middot; {{ t().contextAge }} <strong>{{ age }} {{ t().ageMonths }}</strong>
+            }
+          </p>
+        </section>
 
-      <!-- The server's "nothing in the store fits fish this age". A hard
+        <!-- The server's "nothing in the store fits fish this age". A hard
            banner, above the form, because the answer is not on this screen:
            somebody has to register a feed before anyone can feed anything. -->
-      @if (noSuitableFeed()) {
-        <div class="panel-error panel-error--inline" role="alert" data-panel="no-suitable-feed">
-          <strong>{{ t().noSuitableFeedTitle }}</strong>
-          <p>{{ t().noSuitableFeedMessage }}</p>
+        @if (noSuitableFeed()) {
+          <div class="panel-error panel-error--inline" role="alert" data-panel="no-suitable-feed">
+            <strong>{{ t().noSuitableFeedTitle }}</strong>
+            <p>{{ t().noSuitableFeedMessage }}</p>
 
-          <!-- The way out is a different thing for different people, so it is
+            <!-- The way out is a different thing for different people, so it is
                branched rather than shown to everybody and disabled. Somebody
                holding `manage_feed_stock` can go and register the feed; a
                feeder cannot, and a button that lands them on a guard is worse
                than being told plainly who to ask. -->
-          @if (canManageFeedCatalog()) {
-            <div class="no-suitable-feed__actions" data-testid="catalog-cta">
-              <app-button variant="secondary" (clicked)="goToFeedCatalog()">
-                {{ t().goToFeedCatalog }}
-              </app-button>
-            </div>
-          } @else {
-            <p class="no-suitable-feed__hint" data-testid="ask-manager">
-              {{ t().noSuitableFeedAskManager }}
-            </p>
-          }
-        </div>
-      }
+            @if (canManageFeedCatalog()) {
+              <div class="no-suitable-feed__actions" data-testid="catalog-cta">
+                <app-button variant="secondary" (clicked)="goToFeedCatalog()">
+                  {{ t().goToFeedCatalog }}
+                </app-button>
+              </div>
+            } @else {
+              <p class="no-suitable-feed__hint" data-testid="ask-manager">
+                {{ t().noSuitableFeedAskManager }}
+              </p>
+            }
+          </div>
+        }
 
-      <!-- The form is the WRITE permission, and it is simply absent without
+        <!-- The form is the WRITE permission, and it is simply absent without
            it: a VIEWER reads the history below and is offered nothing. -->
-      <section class="card" data-panel="log-form" *appHasPermission="PERMISSION.LOG_FEEDING">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().formTitle }}</h2>
-          <p class="card__hint">{{ t().formHint }}</p>
-        </header>
+        <section class="card" data-panel="log-form" *appHasPermission="PERMISSION.LOG_FEEDING">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().formTitle }}</h2>
+            <p class="card__hint">{{ t().formHint }}</p>
+          </header>
 
-        <form class="feed-form" [formGroup]="form" (ngSubmit)="submit()">
-          <div class="feed-form__grid">
-            <app-form-field [label]="t().fieldFeedType" for="feed-type">
-              <!-- Populated from feedTypesForCycle, NEVER from the stock
+          <form class="feed-form" [formGroup]="form" (ngSubmit)="submit()">
+            <div class="feed-form__grid">
+              <app-form-field [label]="t().fieldFeedType" for="feed-type">
+                <!-- Populated from feedTypesForCycle, NEVER from the stock
                    balance: the balance lists every feed the farm has moved,
                    including pellets too big for the fish in this cycle. -->
-              <select
-                id="feed-type"
-                class="text-input"
-                formControlName="feedTypeId"
-                (change)="onFeedTypeChange($event)"
-              >
-                <option value="">{{ t().fieldFeedTypePlaceholder }}</option>
-                @for (entry of feedTypes(); track entry.feedType.feedTypeId) {
-                  <option
-                    [value]="entry.feedType.feedTypeId"
-                    [attr.data-suitability]="entry.suitability"
-                  >
-                    {{ feedLabel(entry) }}
-                  </option>
-                }
-              </select>
-            </app-form-field>
+                <select
+                  id="feed-type"
+                  class="text-input"
+                  formControlName="feedTypeId"
+                  (change)="onFeedTypeChange($event)"
+                >
+                  <option value="">{{ t().fieldFeedTypePlaceholder }}</option>
+                  @for (entry of feedTypes(); track entry.feedType.feedTypeId) {
+                    <option
+                      [value]="entry.feedType.feedTypeId"
+                      [attr.data-suitability]="entry.suitability"
+                    >
+                      {{ feedLabel(entry) }}
+                    </option>
+                  }
+                </select>
+              </app-form-field>
 
-            <app-form-field [label]="t().fieldQuantity" for="feed-quantity">
-              <input
-                id="feed-quantity"
-                class="text-input"
-                type="number"
-                step="0.1"
-                min="0"
-                formControlName="quantityKg"
-              />
-            </app-form-field>
+              <app-form-field [label]="t().fieldQuantity" for="feed-quantity">
+                <input
+                  id="feed-quantity"
+                  class="text-input"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  formControlName="quantityKg"
+                />
+              </app-form-field>
 
-            <app-form-field [label]="t().fieldDate" for="feed-date">
-              <input id="feed-date" class="text-input" type="date" formControlName="logDate" />
-            </app-form-field>
-          </div>
+              <app-form-field [label]="t().fieldDate" for="feed-date">
+                <input id="feed-date" class="text-input" type="date" formControlName="logDate" />
+              </app-form-field>
+            </div>
 
-          <!-- Shown the moment a SAFE_LOWER feed is picked, not only on the
+            <!-- Shown the moment a SAFE_LOWER feed is picked, not only on the
                press: the person should know what they chose while they are
                still typing the amount. -->
-          @if (selectedIsSafeLower()) {
-            <p class="feed-form__note" data-note="safe-lower">
-              {{ t().suitabilitySafeLowerNote }}
+            @if (selectedIsSafeLower()) {
+              <p class="feed-form__note" data-note="safe-lower">
+                {{ t().suitabilitySafeLowerNote }}
+              </p>
+            }
+
+            @if (awaitingConfirm()) {
+              <div class="feed-form__confirm" role="alert" data-panel="safe-lower-confirm">
+                <p>{{ t().safeLowerConfirm }}</p>
+                <app-button variant="ghost" type="button" (clicked)="cancelConfirm()">
+                  {{ t().cancelConfirm }}
+                </app-button>
+              </div>
+            }
+
+            @if (formError(); as message) {
+              <p class="form-error" role="alert">{{ message }}</p>
+            }
+
+            <!-- type="submit" and NO (clicked) handler on purpose: the button is
+               inside the form, so a click goes through ngSubmit exactly as
+               pressing Enter does. Wiring both would call submit() twice. -->
+            <div class="feed-form__actions">
+              <app-button type="submit" [loading]="saving()" [disabled]="formDisabled()">
+                {{ awaitingConfirm() ? t().submitConfirm : t().submit }}
+              </app-button>
+            </div>
+          </form>
+        </section>
+
+        <!-- The whole panel is view_feed_stock. A feeder without it gets the
+           form above and the history below, and no numbers at all - that is
+           the ordinary shape of this screen, not a degraded one. -->
+        <section class="card" data-panel="stock" *appHasPermission="PERMISSION.VIEW_FEED_STOCK">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().stockTitle }}</h2>
+          </header>
+
+          @if (lowStock().length > 0) {
+            <p class="stock__banner" role="status" data-banner="low-stock">
+              {{ t().stockLowBanner }} {{ lowStockNames() }}
             </p>
           }
 
-          @if (awaitingConfirm()) {
-            <div class="feed-form__confirm" role="alert" data-panel="safe-lower-confirm">
-              <p>{{ t().safeLowerConfirm }}</p>
-              <app-button variant="ghost" type="button" (clicked)="cancelConfirm()">
-                {{ t().cancelConfirm }}
-              </app-button>
+          @if (balances().length === 0) {
+            <app-empty-state [title]="t().stockEmptyTitle" [message]="t().stockEmptyMessage" />
+          } @else {
+            <ul class="stock__list">
+              <li class="stock__head" aria-hidden="true">
+                <span>{{ t().stockColFeedType }}</span>
+                <span>{{ t().stockColRemaining }}</span>
+              </li>
+              @for (row of balances(); track balanceKey(row)) {
+                <li
+                  class="stock__row"
+                  [class.stock__row--negative]="isNegative(row)"
+                  [class.stock__row--low]="isLow(row) && !isNegative(row)"
+                  [attr.data-stock-row]="balanceKey(row)"
+                >
+                  <span class="stock__name">
+                    {{ row.feedType.name }}
+                    <small class="stock__window">{{ ageWindow(row.feedType) }}</small>
+                    @if (isNegative(row)) {
+                      <small class="stock__note">{{ t().stockNegativeNote }}</small>
+                    }
+                  </span>
+                  <span class="stock__value">{{ row.quantityKg }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+
+        <section class="card" data-panel="logs">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().listTitle }}</h2>
+          </header>
+
+          <app-data-table
+            [columns]="columns()"
+            [rows]="logs()"
+            [rowKey]="logKey"
+            [numbered]="true"
+            [numberLabel]="t().colNumber"
+          >
+            <app-empty-state
+              slot="empty"
+              [title]="t().listEmptyTitle"
+              [message]="t().listEmptyMessage"
+            />
+          </app-data-table>
+        </section>
+      </div>
+
+      <aside class="module-rail">
+        <!-- No buttons: the log form is a panel on this screen. -->
+        <div class="side-card side-card--intro">
+          <h3>{{ t().introTitle }}</h3>
+          <p class="intro__body">{{ t().introBody }}</p>
+          <ol class="intro__steps">
+            <li>{{ t().introStep1 }}</li>
+            <li>{{ t().introStep2 }}</li>
+            <li>{{ t().introStep3 }}</li>
+          </ol>
+        </div>
+
+        <div class="side-card">
+          <app-date-picker-card
+            [title]="t().railWeekTitle"
+            [weekdayLabels]="t().weekdayLabels"
+            [selected]="selectedDate()"
+            [previousLabel]="t().weekPrevious"
+            [nextLabel]="t().weekNext"
+            [selectLabel]="t().daySelect"
+            [backLabel]="t().dayBackToToday"
+            [state]="dayState()"
+            (picked)="selectDate($event)"
+            (back)="backToToday()"
+          />
+        </div>
+
+        <div class="side-card">
+          <h3>{{ t().railTitle }}</h3>
+          @for (row of summary(); track row.label) {
+            <div class="side-stat">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.value }}</strong>
             </div>
           }
+        </div>
 
-          @if (formError(); as message) {
-            <p class="form-error" role="alert">{{ message }}</p>
+        <!-- GATED exactly like the stock panel on the left. `view_feed_stock`
+             is its own permission: a feeder may need to know a sack is nearly
+             empty without being able to write purchases, and a rail that
+             showed the balance anyway would hand out the number the backend
+             is withholding. -->
+        <div class="side-card" *appHasPermission="PERMISSION.VIEW_FEED_STOCK">
+          <h3>{{ t().railStockTitle }}</h3>
+          @for (row of stockRows(); track row.name) {
+            <div class="side-stat">
+              <span>{{ row.name }}</span>
+              <strong>{{ row.value }}</strong>
+            </div>
+          } @empty {
+            <p class="intro__body">{{ t().railStockEmpty }}</p>
           }
+        </div>
+      </aside>
+    </div>
+  }
+</section>
 
-          <!-- type="submit" and NO (clicked) handler on purpose: the button is
-               inside the form, so a click goes through ngSubmit exactly as
-               pressing Enter does. Wiring both would call submit() twice. -->
-          <div class="feed-form__actions">
-            <app-button type="submit" [loading]="saving()" [disabled]="formDisabled()">
-              {{ awaitingConfirm() ? t().submitConfirm : t().submit }}
-            </app-button>
-          </div>
-        </form>
-      </section>
-
-      <!-- The whole panel is view_feed_stock. A feeder without it gets the
-           form above and the history below, and no numbers at all - that is
-           the ordinary shape of this screen, not a degraded one. -->
-      <section class="card" data-panel="stock" *appHasPermission="PERMISSION.VIEW_FEED_STOCK">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().stockTitle }}</h2>
-        </header>
-
-        @if (lowStock().length > 0) {
-          <p class="stock__banner" role="status" data-banner="low-stock">
-            {{ t().stockLowBanner }} {{ lowStockNames() }}
-          </p>
-        }
-
-        @if (balances().length === 0) {
-          <app-empty-state [title]="t().stockEmptyTitle" [message]="t().stockEmptyMessage" />
-        } @else {
-          <ul class="stock__list">
-            <li class="stock__head" aria-hidden="true">
-              <span>{{ t().stockColFeedType }}</span>
-              <span>{{ t().stockColRemaining }}</span>
-            </li>
-            @for (row of balances(); track balanceKey(row)) {
-              <li
-                class="stock__row"
-                [class.stock__row--negative]="isNegative(row)"
-                [class.stock__row--low]="isLow(row) && !isNegative(row)"
-                [attr.data-stock-row]="balanceKey(row)"
-              >
-                <span class="stock__name">
-                  {{ row.feedType.name }}
-                  <small class="stock__window">{{ ageWindow(row.feedType) }}</small>
-                  @if (isNegative(row)) {
-                    <small class="stock__note">{{ t().stockNegativeNote }}</small>
-                  }
-                </span>
-                <span class="stock__value">{{ row.quantityKg }}</span>
-              </li>
-            }
-          </ul>
-        }
-      </section>
-
-      <section class="card" data-panel="logs">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().listTitle }}</h2>
-        </header>
-
-        <app-data-table
-          [columns]="columns()"
-          [rows]="logs()"
-          [rowKey]="logKey"
-          [numbered]="true"
-          [numberLabel]="t().colNumber"
-        >
-          <app-empty-state
-            slot="empty"
-            [title]="t().listEmptyTitle"
-            [message]="t().listEmptyMessage"
-          />
-        </app-data-table>
-      </section>
-    }
-  </section>
-
-  <app-toast
-    [open]="!!toastMessage()"
-    variant="success"
-    [message]="toastMessage() ?? ''"
-    (closed)="dismissToast()"
-  />
-</app-shell>
+<app-toast
+  [open]="!!toastMessage()"
+  variant="success"
+  [message]="toastMessage() ?? ''"
+  (closed)="dismissToast()"
+/>

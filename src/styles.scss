@@ -43,8 +43,12 @@
   --sidebar-from: #2e3f48;
   --sidebar-to: #1a242b;
   --radius: 12px;
-  --font-sans:
-    -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  // The height of every control on a toolbar - the topbar's buttons, chips and
+  // toggles all read it, so they line up without each guessing a number.
+  --control-h: 36px;
+  --scrollbar-thumb: #c3ced5;
+  --scrollbar-thumb-hover: #9daab3;
+  --font-sans: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 :root[data-theme='dark'] {
@@ -74,6 +78,8 @@
   --notice-bg: rgba(251, 191, 36, 0.12);
   --sidebar-from: #1e2a33;
   --sidebar-to: #10181e;
+  --scrollbar-thumb: #3c4b56;
+  --scrollbar-thumb-hover: #556774;
 }
 
 // The login/signup pages' soft brand-tinted background wash (see
@@ -99,4 +105,43 @@ body {
   color: var(--on-surface);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+// The app's scroll areas get a bar you can SEE and grab.
+//
+// Both of these scroll only when their content genuinely runs past the
+// bottom, so a bar appearing is information - "there is more down here" - and
+// the platform default renders that as a hairline that is easy to miss and
+// fiddly to drag. This is global rather than per-component because the two
+// live in different components and must not disagree.
+//
+// The nav rail is deliberately NOT in this list: its bar would run down the
+// exact edge the active row has to meet (see app-shell.scss), so it hides its
+// scrollbar and fades its edges instead.
+.dash-content,
+.dash-side {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  // The transparent border plus `background-clip` is what makes the thumb a
+  // rounded pill with breathing room, instead of a bar wedged against the edge.
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    background-clip: content-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
+
+    &:hover {
+      background: var(--scrollbar-thumb-hover);
+      background-clip: content-box;
+    }
+  }
 }

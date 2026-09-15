@@ -31,10 +31,16 @@ export interface UserSummary {
  * UserSummary so a screen never has to stitch two responses together.
  */
 export interface MeResponse extends UserSummary {
+  /**
+   * Only /me carries it - the member lists do not. Null when none is on file.
+   * The profile screen needs it so its form shows what is actually stored.
+   */
+  email: string | null;
   permissions: string[];
   /**
-   * May this account work in a farm it does not belong to? True for ROOT
-   * only, today.
+   * Does this account have a farm to switch to? True for ROOT (any farm) and
+   * for a member of two or more farms (theirs only - the backend ignores an
+   * `X-Farm-Id` naming any other).
    *
    * The UI cannot derive it: the moment ROOT picks a farm its `farmId` stops
    * being null, so "has no farm" would stop telling ROOT apart from an

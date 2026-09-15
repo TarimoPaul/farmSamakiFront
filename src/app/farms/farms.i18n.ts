@@ -50,6 +50,24 @@ export const FARMS_I18N = {
     errorNameRequired: 'Jina la shamba linahitajika.',
     errorConflict: 'Shamba lenye jina hili tayari lipo.',
     createdToast: 'Shamba limeundwa.',
+
+    // Rail ya muhtasari. HAKUNA KALENDA: shamba halina tarehe yoyote kwenye
+    // waya, hivyo "mashamba yalivyokuwa Machi" halina data nyuma yake.
+    introTitle: 'Mashamba',
+    introBody:
+      'Mashamba ndiyo msingi wa kila kitu - kila kitengo, mzunguko na kipimo kinaning’inia kwenye shamba moja.',
+    introStep1: 'Ongeza shamba: jina na eneo.',
+    introStep2: 'Bofya shamba kwenye jedwali ili kuona wanachama wake.',
+    introStep3: 'Mmiliki anatoka kwenye nafasi ya OWNER, si kwa kuunda shamba.',
+    railTitle: 'Muhtasari wa mashamba',
+    railFarmsAll: 'Mashamba yote',
+    railFarmsOwned: 'Yenye mmiliki',
+    railFarmsUnowned: 'Bila mmiliki',
+    railFarmsNoLocation: 'Bila eneo',
+    railSelectedTitle: 'Shamba teule',
+    railSelectedEmpty: 'Bofya shamba kwenye jedwali ili kuliona hapa.',
+    railMembersTitle: 'Wanachama kwa nafasi',
+    railMembersEmpty: 'Shamba hili halina mwanachama bado.',
   },
   en: {
     title: 'Farms',
@@ -102,5 +120,21 @@ export const FARMS_I18N = {
     errorNameRequired: 'A farm name is required.',
     errorConflict: 'A farm with this name already exists.',
     createdToast: 'Farm created.',
+
+    introTitle: 'Farms',
+    introBody:
+      'Farms are what everything else hangs from - every unit, cycle and reading belongs to exactly one.',
+    introStep1: 'Add a farm: its name and where it is.',
+    introStep2: 'Click a farm in the table to see who is on it.',
+    introStep3: 'The owner comes from the OWNER role, not from creating the farm.',
+    railTitle: 'Farm summary',
+    railFarmsAll: 'All farms',
+    railFarmsOwned: 'With an owner',
+    railFarmsUnowned: 'Without an owner',
+    railFarmsNoLocation: 'Without a location',
+    railSelectedTitle: 'Selected farm',
+    railSelectedEmpty: 'Click a farm in the table to see it here.',
+    railMembersTitle: 'Members by role',
+    railMembersEmpty: 'This farm has no members yet.',
   },
 } as const;

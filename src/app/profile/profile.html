@@ -1,0 +1,202 @@
+<section class="profile">
+  <header class="profile__head">
+    <h1 class="page-title">{{ t().title }}</h1>
+    <p class="page-subtitle">{{ t().subtitle }}</p>
+  </header>
+
+  @if (loading()) {
+    <p class="panel-status">{{ t().loading }}</p>
+  } @else if (loadErrorMessage(); as message) {
+    <div class="panel-error" role="alert" data-testid="load-error">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+    </div>
+  } @else {
+    <div class="profile__layout">
+      <div class="profile__main">
+        <section class="card" data-panel="details">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().detailsTitle }}</h2>
+            <p class="card__hint">{{ t().detailsHint }}</p>
+          </header>
+
+          <form class="profile-form" [formGroup]="detailsForm" (ngSubmit)="saveDetails()">
+            <app-form-field
+              [label]="t().fieldName"
+              for="profile-name"
+              [error]="nameError()"
+              [required]="true"
+            >
+              <input
+                id="profile-name"
+                class="text-input"
+                type="text"
+                formControlName="name"
+                autocomplete="name"
+              />
+            </app-form-field>
+
+            <div class="profile-form__grid">
+              <app-form-field
+                [label]="t().fieldPhone"
+                for="profile-phone"
+                [error]="phoneError()"
+                [required]="true"
+              >
+                <input
+                  id="profile-phone"
+                  class="text-input"
+                  type="tel"
+                  formControlName="phone"
+                  autocomplete="tel"
+                />
+              </app-form-field>
+
+              <app-form-field [label]="t().fieldEmail" for="profile-email" [error]="emailError()">
+                <input
+                  id="profile-email"
+                  class="text-input"
+                  type="email"
+                  formControlName="email"
+                  autocomplete="email"
+                />
+              </app-form-field>
+            </div>
+
+            @if (detailsError(); as message) {
+              <p class="form-error" role="alert" data-testid="details-error">{{ message }}</p>
+            }
+
+            <!-- type="submit" with no (clicked): the form's ngSubmit is the one
+                 path, for the button and for Enter alike. -->
+            <div class="profile-form__actions">
+              <app-button
+                type="submit"
+                [loading]="savingDetails()"
+                [disabled]="detailsUnchanged()"
+                >{{ t().saveDetails }}</app-button
+              >
+            </div>
+          </form>
+        </section>
+
+        <section class="card" data-panel="password">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().passwordTitle }}</h2>
+            <p class="card__hint">{{ t().passwordHint }}</p>
+          </header>
+
+          <form class="profile-form" [formGroup]="passwordForm" (ngSubmit)="changePassword()">
+            <app-form-field
+              [label]="t().currentLabel"
+              for="profile-current-password"
+              [error]="passwordFieldError('currentPassword')"
+              [required]="true"
+            >
+              <input
+                id="profile-current-password"
+                class="text-input"
+                [type]="showPasswords() ? 'text' : 'password'"
+                formControlName="currentPassword"
+                autocomplete="current-password"
+                (input)="clearWrongCurrent()"
+              />
+            </app-form-field>
+
+            <div class="profile-form__grid">
+              <app-form-field
+                [label]="t().newLabel"
+                for="profile-new-password"
+                [error]="passwordFieldError('newPassword')"
+                [required]="true"
+              >
+                <input
+                  id="profile-new-password"
+                  class="text-input"
+                  [type]="showPasswords() ? 'text' : 'password'"
+                  formControlName="newPassword"
+                  autocomplete="new-password"
+                />
+              </app-form-field>
+
+              <app-form-field
+                [label]="t().confirmLabel"
+                for="profile-confirm-password"
+                [error]="passwordFieldError('confirmPassword')"
+                [required]="true"
+              >
+                <input
+                  id="profile-confirm-password"
+                  class="text-input"
+                  [type]="showPasswords() ? 'text' : 'password'"
+                  formControlName="confirmPassword"
+                  autocomplete="new-password"
+                />
+              </app-form-field>
+            </div>
+
+            <label class="profile-form__check">
+              <input
+                type="checkbox"
+                [checked]="showPasswords()"
+                (change)="showPasswords.set(!showPasswords())"
+              />
+              {{ t().showPasswords }}
+            </label>
+
+            @if (passwordError(); as message) {
+              <p class="form-error" role="alert" data-testid="password-error">{{ message }}</p>
+            }
+
+            <div class="profile-form__actions">
+              <app-button type="submit" [loading]="savingPassword()">{{
+                t().submitPassword
+              }}</app-button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      @if (me(); as me) {
+        <aside class="profile__rail">
+          <div class="profile-card" data-panel="account">
+            <span class="profile-card__avatar" aria-hidden="true">{{ initials() }}</span>
+            <p class="profile-card__name">{{ me.name }}</p>
+            <p class="profile-card__phone">{{ me.phone }}</p>
+
+            <dl class="profile-card__facts">
+              <div>
+                <dt>{{ t().labelRole }}</dt>
+                <dd>{{ roleLabel() }}</dd>
+              </div>
+              <div>
+                <dt>{{ t().labelFarm }}</dt>
+                <dd>{{ farmLabel() }}</dd>
+              </div>
+              <div>
+                <dt>{{ t().labelStatus }}</dt>
+                <dd>{{ statusLabel() }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="profile-card profile-card--plain">
+            <h3 class="profile-card__title">{{ t().permissionsTitle }}</h3>
+            <div class="profile-card__stat">
+              <span>{{ t().permissionsCount }}</span>
+              <strong>{{ permissionCount() }}</strong>
+            </div>
+            <p class="profile-card__hint">{{ t().permissionsHint }}</p>
+          </div>
+        </aside>
+      }
+    </div>
+  }
+</section>
+
+<app-toast
+  [open]="!!toastMessage()"
+  variant="success"
+  [message]="toastMessage() ?? ''"
+  (closed)="dismissToast()"
+/>

@@ -1,0 +1,384 @@
+<section class="costs">
+  <header class="costs__head">
+    <div>
+      <h1 class="page-title">{{ t().title }}</h1>
+      <p class="page-subtitle">{{ t().subtitle }}</p>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="panel-status">{{ t().loading }}</p>
+  } @else if (loadErrorMessage(); as message) {
+    <div class="panel-error" role="alert" data-testid="load-error">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+    </div>
+  } @else {
+    <!-- Work on the left, summary rail on the right. Nothing on the rail costs
+         a request: a cost carries its own costDate, so the date picker only
+         filters what this screen already holds. -->
+    <div class="module-layout">
+      <div class="module-layout__main">
+        <!-- The register, grouped by farm. Inside each farm the whole-farm
+           subtotal and every cycle's subtotal are listed apart before the
+           farm total. An empty register renders NO total - nothing to NaN. -->
+        <section class="card" data-panel="register">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().listTitle }}</h2>
+            <p class="card__hint">{{ t().listHint }}</p>
+          </header>
+
+          @if (groups().length === 0) {
+            <app-empty-state
+              data-testid="costs-empty"
+              [title]="t().emptyTitle"
+              [message]="emptyMessage()"
+            />
+          } @else {
+            @for (group of groups(); track group.farmId) {
+              <section
+                class="farm-group"
+                data-testid="farm-group"
+                [attr.data-farm-id]="group.farmId"
+              >
+                <header class="farm-group__head">
+                  <h3 class="farm-group__title">{{ group.farmName }}</h3>
+                  <span class="farm-group__count">{{ t().costCount(group.costs.length) }}</span>
+                </header>
+
+                <app-data-table
+                  [columns]="columns()"
+                  [rows]="group.costs"
+                  [rowKey]="costKey"
+                  [numbered]="true"
+                  [numberLabel]="t().colNumber"
+                />
+
+                <dl class="breakdown" [attr.aria-label]="t().breakdownTitle">
+                  @if (group.wholeFarm; as wholeFarm) {
+                    <div
+                      class="breakdown__row breakdown__row--farm"
+                      data-testid="whole-farm-subtotal"
+                    >
+                      <dt>{{ t().wholeFarmSubtotal }} ({{ wholeFarm.count }})</dt>
+                      <dd>{{ money(wholeFarm.totalCents) }}</dd>
+                    </div>
+                  }
+                  @for (cycle of group.cycles; track cycle.cycleId) {
+                    <div
+                      class="breakdown__row"
+                      data-testid="cycle-subtotal"
+                      [attr.data-cycle-id]="cycle.cycleId"
+                    >
+                      <dt>{{ t().cycleSubtotal(cycle.label ?? '') }} ({{ cycle.count }})</dt>
+                      <dd>{{ money(cycle.totalCents) }}</dd>
+                    </div>
+                  }
+                  <div class="breakdown__row breakdown__row--total" data-testid="farm-total">
+                    <dt>{{ t().farmTotal }}</dt>
+                    <dd>
+                      <strong>{{ money(group.totalCents) }}</strong>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            }
+
+            <p class="grand-total" data-testid="grand-total">
+              <span>{{ t().grandTotal }}</span>
+              <strong>{{ money(grandTotalCents()) }}</strong>
+            </p>
+          }
+        </section>
+
+        <!-- Categories come BEFORE the form: they are user-created, and the
+           form cannot be filled in until at least one exists. -->
+        <section class="card" data-panel="categories">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().categoriesTitle }}</h2>
+            <p class="card__hint">{{ t().categoriesHint }}</p>
+          </header>
+
+          @if (noCategories()) {
+            <p class="categories__empty" data-testid="no-categories">{{ t().categoriesEmpty }}</p>
+          } @else {
+            <ul class="categories__list">
+              @for (category of categories(); track category.costCategoryId) {
+                <li class="categories__chip">{{ category.name }}</li>
+              }
+            </ul>
+          }
+
+          <form class="category-form" [formGroup]="categoryForm" (ngSubmit)="submitCategory()">
+            <app-form-field
+              [label]="t().fieldCategoryName"
+              for="cost-category-name"
+              [error]="categoryNameError()"
+            >
+              <input
+                id="cost-category-name"
+                class="text-input"
+                type="text"
+                formControlName="name"
+                [maxlength]="categoryNameMaxLength"
+                [placeholder]="t().fieldCategoryNameHint"
+                autocomplete="off"
+              />
+            </app-form-field>
+            <div class="category-form__actions">
+              <app-button type="submit" variant="secondary" [loading]="savingCategory()">
+                {{ t().addCategory }}
+              </app-button>
+            </div>
+          </form>
+        </section>
+
+        @if (noFarms()) {
+          <section class="card" data-panel="no-farm">
+            <header class="card__head">
+              <h2 class="card__title">{{ t().noFarmTitle }}</h2>
+            </header>
+            <p class="guidance">
+              {{ canSelectFarm() ? t().noFarmMessageRoot : t().noFarmMessage }}
+            </p>
+          </section>
+        } @else if (noCategories()) {
+          <section class="card" data-panel="needs-category">
+            <header class="card__head">
+              <h2 class="card__title">{{ t().needsCategoryTitle }}</h2>
+            </header>
+            <p class="guidance">{{ t().needsCategoryMessage }}</p>
+          </section>
+        } @else {
+          <section class="card" data-panel="cost-form">
+            <header class="card__head">
+              <h2 class="card__title">{{ t().formTitle }}</h2>
+              <p class="card__hint">{{ t().formHint }}</p>
+            </header>
+
+            <form class="cost-form" [formGroup]="form" (ngSubmit)="submit()">
+              <app-form-field
+                [label]="t().fieldFarm"
+                for="cost-farm"
+                [error]="farmError()"
+                [required]="true"
+              >
+                <select id="cost-farm" class="text-input" formControlName="farmId">
+                  <option value="">{{ t().fieldFarmPlaceholder }}</option>
+                  @for (farm of farmOptions(); track farm.farmId) {
+                    <option [value]="farm.farmId">{{ farm.name }}</option>
+                  }
+                </select>
+              </app-form-field>
+
+              <!-- THE KEY CONTROL. Nothing preselected: the recorder states
+                 whether this is one cycle's cost or the whole farm's. -->
+              <fieldset class="attribution" data-testid="attribution">
+                <legend class="attribution__legend">
+                  {{ t().fieldAttribution }} <span class="attribution__required">*</span>
+                </legend>
+                <label class="attribution__option">
+                  <input type="radio" formControlName="attribution" value="cycle" />
+                  <span>
+                    <span class="attribution__label">{{ t().attributionCycle }}</span>
+                    <span class="attribution__hint">{{ t().attributionCycleHint }}</span>
+                  </span>
+                </label>
+                <label class="attribution__option">
+                  <input type="radio" formControlName="attribution" value="farm" />
+                  <span>
+                    <span class="attribution__label">{{ t().attributionFarm }}</span>
+                    <span class="attribution__hint">{{ t().attributionFarmHint }}</span>
+                  </span>
+                </label>
+                @if (attributionError(); as message) {
+                  <p class="attribution__error" role="alert">{{ message }}</p>
+                }
+              </fieldset>
+
+              @if (attribution() === 'cycle') {
+                <div data-testid="cycle-picker">
+                  @if (!selectedFarmId()) {
+                    <p class="guidance">{{ t().chooseFarmFirst }}</p>
+                  } @else if (cyclesLoading()) {
+                    <p class="guidance">{{ t().cyclesLoading }}</p>
+                  } @else if (cyclesError(); as message) {
+                    <p class="form-error" role="alert">{{ message }}</p>
+                  } @else if (cycleOptions().length === 0) {
+                    <p class="guidance" data-testid="no-cycles">{{ t().cyclesEmpty }}</p>
+                  } @else {
+                    <app-form-field
+                      [label]="t().fieldCycle"
+                      for="cost-cycle"
+                      [error]="cycleError()"
+                      [required]="true"
+                    >
+                      <select id="cost-cycle" class="text-input" formControlName="cycleId">
+                        <option value="">{{ t().fieldCyclePlaceholder }}</option>
+                        @for (cycle of cycleOptions(); track cycle.cycleId) {
+                          <option [value]="cycle.cycleId">{{ cycle.label }}</option>
+                        }
+                      </select>
+                    </app-form-field>
+                    <p class="cost-form__hint">{{ t().cycleHint }}</p>
+                  }
+                  @if (cycleError() && (cycleOptions().length === 0 || cyclesLoading())) {
+                    <p class="form-error" role="alert">{{ cycleError() }}</p>
+                  }
+                </div>
+              }
+
+              <div class="cost-form__grid">
+                <app-form-field
+                  [label]="t().fieldCategory"
+                  for="cost-category"
+                  [error]="categoryError()"
+                  [required]="true"
+                >
+                  <select id="cost-category" class="text-input" formControlName="costCategoryId">
+                    <option value="">{{ t().fieldCategoryPlaceholder }}</option>
+                    @for (category of categories(); track category.costCategoryId) {
+                      <option [value]="category.costCategoryId">{{ category.name }}</option>
+                    }
+                  </select>
+                </app-form-field>
+
+                <!-- step="0.01" matches NUMERIC(14,2). -->
+                <app-form-field
+                  [label]="t().fieldAmount"
+                  for="cost-amount"
+                  [error]="amountError()"
+                  [required]="true"
+                >
+                  <input
+                    id="cost-amount"
+                    class="text-input"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    formControlName="amount"
+                  />
+                </app-form-field>
+
+                <!-- [max] stops the picker offering a future day; submit() still
+                   checks, because a typed date gets past a max attribute. -->
+                <app-form-field
+                  [label]="t().fieldDate"
+                  for="cost-date"
+                  [error]="dateError()"
+                  [required]="true"
+                >
+                  <input
+                    id="cost-date"
+                    class="text-input"
+                    type="date"
+                    [max]="today"
+                    formControlName="costDate"
+                  />
+                </app-form-field>
+              </div>
+
+              <app-form-field [label]="t().fieldDescription" for="cost-description">
+                <input
+                  id="cost-description"
+                  class="text-input"
+                  type="text"
+                  formControlName="description"
+                  [placeholder]="t().fieldDescriptionHint"
+                  autocomplete="off"
+                />
+              </app-form-field>
+
+              @if (formError(); as message) {
+                <p class="form-error" role="alert" data-testid="form-error">{{ message }}</p>
+              }
+
+              <!-- type="submit" and NO (clicked) handler: a click goes through
+                 ngSubmit exactly as Enter does. -->
+              <div class="cost-form__actions">
+                <app-button type="submit" [loading]="saving()">{{ t().submit }}</app-button>
+              </div>
+            </form>
+          </section>
+        }
+      </div>
+
+      <aside class="module-rail">
+        <!-- No buttons: both forms are panels on this screen. -->
+        <div class="side-card side-card--intro">
+          <h3>{{ t().introTitle }}</h3>
+          <p class="intro__body">{{ t().introBody }}</p>
+          <ol class="intro__steps">
+            <li>{{ t().introStep1 }}</li>
+            <li>{{ t().introStep2 }}</li>
+            <li>{{ t().introStep3 }}</li>
+          </ol>
+        </div>
+
+        <div class="side-card">
+          <app-date-picker-card
+            [title]="t().railWeekTitle"
+            [weekdayLabels]="t().weekdayLabels"
+            [selected]="selectedDate()"
+            [previousLabel]="t().weekPrevious"
+            [nextLabel]="t().weekNext"
+            [selectLabel]="t().daySelect"
+            [backLabel]="t().dayBackToToday"
+            [state]="dayState()"
+            (picked)="selectDate($event)"
+            (back)="backToToday()"
+          />
+        </div>
+
+        <div class="side-card">
+          <h3>{{ t().railTitle }}</h3>
+          @for (row of summary(); track row.label) {
+            <div class="side-stat">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.value }}</strong>
+            </div>
+          }
+        </div>
+
+        <!-- The split this screen exists to keep. It counts the WHOLE register
+             rather than the selected date - see the note on the component. -->
+        <div class="side-card" data-rail="split">
+          <h3>{{ t().railSplitTitle }}</h3>
+          @for (row of attributionSplit(); track row.label) {
+            <div class="side-stat">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.value }}</strong>
+            </div>
+          }
+          <p class="intro__body">{{ t().railSplitHint }}</p>
+        </div>
+
+        <div class="side-card" data-rail="categories">
+          <h3>{{ t().railCategoriesTitle }}</h3>
+          @for (row of topCategories().rows; track row.name) {
+            <div class="side-stat">
+              <span>{{ row.name }}</span>
+              <strong>{{ row.value }}</strong>
+            </div>
+          } @empty {
+            <p class="intro__body">{{ t().railCategoriesEmpty }}</p>
+          }
+
+          <!-- What the cap left out, counted rather than dropped in silence. -->
+          @if (topCategories().remaining; as more) {
+            <p class="intro__body" data-testid="categories-more">
+              {{ t().railCategoriesMore(more) }}
+            </p>
+          }
+        </div>
+      </aside>
+    </div>
+  }
+</section>
+
+<app-toast
+  [open]="!!toastMessage()"
+  variant="success"
+  [message]="toastMessage() ?? ''"
+  (closed)="dismissToast()"
+/>

@@ -4,7 +4,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response';
 import { CreateUserRequest, UpdateUserRequest, UserSummary } from '../models/auth';
-import { AssignMembershipRequest } from '../models/membership';
+import { AssignMembershipRequest, MembershipView } from '../models/membership';
 import { restError } from '../http/rest-error';
 import { AuthErrorHandler } from './auth-error-handler';
 
@@ -172,6 +172,39 @@ export class UsersService {
   approve(userId: string): Observable<UserSummary> {
     return this.http.post<ApiResponse<UserSummary>>(`${this.baseUrl}/${userId}/approve`, null).pipe(
       map((res) => res.data!),
+      restError(this.authErrorHandler),
+    );
+  }
+
+  /**
+   * An EXISTING person, found by phone. Needs `manage_users`.
+   *
+   * The way to give somebody another farm without making them a second
+   * account - creating one would only be refused as a registered phone.
+   * `farmId` and `role` come back null on purpose: this answers "who is
+   * this", and where they are is listMemberships, with its own two-tier rule.
+   *
+   * An unknown number is 400 VALIDATION_ERROR with "Hakuna mtumiaji mwenye
+   * namba hii ya simu." ROOT is never found.
+   */
+  lookupByPhone(phone: string): Observable<UserSummary> {
+    return this.http
+      .get<ApiResponse<UserSummary>>(`${this.baseUrl}/lookup`, {
+        params: new HttpParams().set('phone', phone),
+      })
+      .pipe(
+        map((res) => res.data!),
+        restError(this.authErrorHandler),
+      );
+  }
+
+  /**
+   * The farms a person is on. Needs `manage_users`; two tiers - see
+   * MembershipView.
+   */
+  listMemberships(userId: string): Observable<MembershipView[]> {
+    return this.http.get<ApiResponse<MembershipView[]>>(`${this.baseUrl}/${userId}/memberships`).pipe(
+      map((res) => res.data ?? []),
       restError(this.authErrorHandler),
     );
   }

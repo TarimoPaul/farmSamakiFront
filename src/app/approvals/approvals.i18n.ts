@@ -61,6 +61,26 @@ export const APPROVALS_I18N = {
     // Only for the approve-only caller, who cannot assign at all.
     hintApproveOnly:
       'Una ruhusa ya kuidhinisha pekee. Aliyeidhinishwa hapa atakuwa ACTIVE bila shamba wala role — apangiwe kupitia Members.',
+
+    // Rail ya muhtasari. HAKUNA KALENDA: UserSummary haina muhuri wa muda
+    // wowote, hivyo hakuna tarehe ya kuchuja nayo - angalia safu ya nafasi.
+    introTitle: 'Idhini za Watumiaji',
+    introBody:
+      'Waliojisajili wenyewe wanasubiri hapa. Kuwaingiza kazini ni hatua mbili: kuidhinisha, kisha kuwapa shamba na nafasi.',
+    introStep1: 'Angalia foleni - aliyesubiri muda mrefu yuko juu.',
+    introStep2: 'Bofya "Idhinisha na upange" ili kumaliza hatua zote mbili kwa mara moja.',
+    introStep3: 'Ukiidhinisha pekee, mtu huyo anabaki bila shamba - kamilisha kupitia Members.',
+    railTitle: 'Foleni',
+    railPendingAll: 'Wanaosubiri',
+    railOldest: 'Amesubiri muda mrefu',
+    railQueueEmpty: 'Hakuna',
+    railPickersTitle: 'Chaguo za fomu',
+    railFarmLabel: 'Shamba',
+    railFarmAny: 'Lolote (unachagua)',
+    railFarmNone: 'Hujawekwa kwenye shamba',
+    railRolesLabel: 'Nafasi zilizopo',
+    /** Orodha ya nafasi hushindwa KIMYA (angalia loadPickers) - hapa ndipo inasemwa. */
+    railNoRoles: 'Orodha ya nafasi ni tupu. Fomu ya kupanga haitakuwa na cha kuchagua.',
   },
   en: {
     title: 'Approval requests',
@@ -107,5 +127,22 @@ export const APPROVALS_I18N = {
     noticeDismiss: 'OK',
     hintApproveOnly:
       'You may approve only. Anyone approved here becomes ACTIVE with no farm and no role — assign them from the Members screen.',
+
+    introTitle: 'User Approvals',
+    introBody:
+      'People who signed up for themselves wait here. Getting them working is two steps: approve them, then give them a farm and a role.',
+    introStep1: 'Look at the queue - whoever has waited longest is at the top.',
+    introStep2: 'Use "Approve and assign" to do both steps at once.',
+    introStep3: 'Approve alone and they stay without a farm - finish it from Members.',
+    railTitle: 'The queue',
+    railPendingAll: 'Waiting',
+    railOldest: 'Waiting longest',
+    railQueueEmpty: 'Nobody',
+    railPickersTitle: 'What the form offers',
+    railFarmLabel: 'Farm',
+    railFarmAny: 'Any (you choose)',
+    railFarmNone: 'You are not on a farm',
+    railRolesLabel: 'Roles available',
+    railNoRoles: 'The role list is empty. The assign form will have nothing to choose from.',
   },
 } as const;

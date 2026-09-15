@@ -1,0 +1,320 @@
+<section class="profit">
+  <header class="profit__head">
+    <div>
+      <h1 class="page-title">{{ t().title }}</h1>
+      <p class="page-subtitle">{{ t().subtitle }}</p>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="panel-status">{{ t().loading }}</p>
+  } @else if (loadErrorMessage(); as message) {
+    <div class="panel-error" role="alert" data-testid="load-error">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+    </div>
+  } @else if (noFarms()) {
+    <section class="card" data-panel="no-farm">
+      <app-empty-state [title]="t().noFarmTitle" [message]="t().noFarmMessage" />
+    </section>
+  } @else {
+    <!-- Farm + period. -->
+    <section class="card" data-panel="filter">
+      <header class="card__head">
+        <h2 class="card__title">{{ t().filterTitle }}</h2>
+        <p class="card__hint">{{ t().filterHint }}</p>
+      </header>
+
+      <form class="filter-form" [formGroup]="form" (ngSubmit)="runReport()">
+        <app-form-field [label]="t().fieldFarm" for="profit-farm" [error]="farmError()" [required]="true">
+          <select id="profit-farm" class="text-input" formControlName="farmId">
+            <option value="">{{ t().fieldFarmPlaceholder }}</option>
+            @for (farm of farmOptions(); track farm.farmId) {
+              <option [value]="farm.farmId">{{ farm.name }}</option>
+            }
+          </select>
+        </app-form-field>
+        <app-form-field [label]="t().fieldFrom" for="profit-from" [error]="fromError()" [required]="true">
+          <input id="profit-from" class="text-input" type="date" formControlName="fromDate" />
+        </app-form-field>
+        <app-form-field [label]="t().fieldTo" for="profit-to" [error]="toError()" [required]="true">
+          <input id="profit-to" class="text-input" type="date" formControlName="toDate" />
+        </app-form-field>
+        <div class="filter-form__actions">
+          <app-button type="submit" [loading]="reportLoading()">{{ t().runReport }}</app-button>
+        </div>
+      </form>
+
+      @if (reportError(); as message) {
+        <p class="form-error" role="alert" data-testid="report-error">{{ message }}</p>
+      }
+    </section>
+
+    @if (reportLoading()) {
+      <p class="panel-status">{{ t().reportLoading }}</p>
+    } @else if (report(); as report) {
+      <p class="report-for" data-testid="report-for">
+        {{ t().reportFor(report.farmName, report.fromDate, report.toDate) }}
+      </p>
+
+      @if (report.incompleteCycleCount > 0) {
+        <p class="notice notice--warn" role="status" data-testid="incomplete-notice">
+          ⚠ {{ t().incompleteNotice(report.incompleteCycleCount) }}
+        </p>
+      }
+
+      <!-- Headline: revenue, total costs, net. A loss is labelled a loss. -->
+      <div class="headline" data-panel="headline">
+        <div class="stat" data-testid="head-revenue">
+          <span class="stat__label">{{ t().headRevenue }}</span>
+          <strong class="stat__value">{{ money(report.farmRevenue) }}</strong>
+        </div>
+        <div class="stat" data-testid="head-costs">
+          <span class="stat__label">{{ t().headCosts }}</span>
+          <strong class="stat__value">{{ money(report.farmCosts) }}</strong>
+        </div>
+        @if (net(); as net) {
+          <div
+            class="stat"
+            [class.stat--loss]="net.loss"
+            [class.stat--profit]="!net.loss"
+            data-testid="net-profit"
+            [attr.data-loss]="net.loss"
+          >
+            <span class="stat__label">
+              {{ t().headNet }} ·
+              <span class="stat__badge" data-testid="net-kind">{{ net.loss ? t().netLoss : t().netProfit }}</span>
+            </span>
+            <strong class="stat__value">{{ money(net.value) }}</strong>
+          </div>
+        }
+      </div>
+
+      <div class="report-grid">
+        <!-- Costs by SOURCE. Never merged: each line is its own source. -->
+        <section class="card" data-panel="breakdown">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().breakdownTitle }}</h2>
+            <p class="card__hint">{{ t().breakdownHint }}</p>
+          </header>
+
+          <dl class="breakdown">
+            <div class="breakdown__row breakdown__row--source" data-testid="src-cycle-costs">
+              <dt>{{ t().srcCycleCosts }}</dt>
+              <dd>{{ money(report.cycleCosts) }}</dd>
+            </div>
+            <div class="breakdown__row breakdown__row--sub" data-testid="src-fingerling">
+              <dt>{{ t().srcFingerling }}</dt>
+              <dd>{{ money(report.fingerlingCost) }}</dd>
+            </div>
+            <div class="breakdown__row breakdown__row--sub" data-testid="src-cycle-operational">
+              <dt>{{ t().srcCycleOperational }}</dt>
+              <dd>{{ money(report.cycleOperationalCost) }}</dd>
+            </div>
+            @for (category of report.cycleOperationalCostByCategory; track category.costCategoryId) {
+              <div class="breakdown__row breakdown__row--category" data-testid="cycle-category">
+                <dt>{{ category.name }}</dt>
+                <dd>{{ money(category.amount) }}</dd>
+              </div>
+            }
+
+            <div class="breakdown__row breakdown__row--source" data-testid="src-feed">
+              <dt>{{ t().srcFeed }}</dt>
+              <dd>{{ money(report.feedCost) }}</dd>
+            </div>
+            @if (report.reversedFeedPurchasesExcluded > 0) {
+              <p class="breakdown__note" data-testid="reversed-note">
+                {{ t().reversedNote(report.reversedFeedPurchasesExcluded) }}
+              </p>
+            }
+
+            <div class="breakdown__row breakdown__row--source" data-testid="src-farm-operational">
+              <dt>{{ t().srcFarmOperational }}</dt>
+              <dd>{{ money(report.farmOperationalCost) }}</dd>
+            </div>
+            @for (category of report.farmOperationalCostByCategory; track category.costCategoryId) {
+              <div class="breakdown__row breakdown__row--category" data-testid="farm-category">
+                <dt>{{ category.name }}</dt>
+                <dd>{{ money(category.amount) }}</dd>
+              </div>
+            }
+
+            <div class="breakdown__row breakdown__row--total" data-testid="src-total">
+              <dt>{{ t().srcTotal }}</dt>
+              <dd>
+                <strong>{{ money(report.farmCosts) }}</strong>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <!-- Capital: beside profit, never inside it. -->
+        <section class="card capital" data-panel="capital" data-testid="capital">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().capitalTitle }}</h2>
+          </header>
+          <strong class="capital__value">{{ money(report.capitalTotal) }}</strong>
+          <p class="card__hint">{{ t().capitalHint }}</p>
+        </section>
+      </div>
+
+      <!-- Per-cycle breakdown. -->
+      <section class="card" data-panel="cycles">
+        <header class="card__head">
+          <h2 class="card__title">{{ t().cyclesTitle }}</h2>
+          <p class="card__hint">{{ t().cyclesHint }}</p>
+        </header>
+
+        @if (report.cycles.length === 0) {
+          <p class="guidance" data-testid="cycles-empty">{{ t().cyclesEmpty }}</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="cycle-table">
+              <thead>
+                <tr>
+                  <th scope="col">{{ t().colCycle }}</th>
+                  <th scope="col">{{ t().colHarvestDate }}</th>
+                  <th scope="col" class="num">{{ t().colRevenue }}</th>
+                  <th scope="col" class="num">{{ t().colFingerling }}</th>
+                  <th scope="col" class="num">{{ t().colOperational }}</th>
+                  <th scope="col" class="num">{{ t().colNet }}</th>
+                  <th scope="col"><span class="visually-hidden">{{ t().colActions }}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of report.cycles; track row.cycleId) {
+                  <tr data-testid="cycle-row" [attr.data-cycle-id]="row.cycleId">
+                    <td>{{ row.label }}</td>
+                    <td>{{ row.actualHarvestDate ?? '—' }}</td>
+                    <td class="num">
+                      {{ money(row.revenue) }}
+                      @if (!row.revenueRecorded) {
+                        <span
+                          class="flag"
+                          data-testid="flag-revenue"
+                          role="img"
+                          [attr.aria-label]="t().flagRevenueMissing"
+                          [title]="t().flagRevenueMissing"
+                          >⚑</span
+                        >
+                      }
+                    </td>
+                    <td class="num">
+                      {{ money(row.fingerlingCost) }}
+                      @if (!row.fingerlingCostRecorded) {
+                        <span
+                          class="flag"
+                          data-testid="flag-fingerling"
+                          role="img"
+                          [attr.aria-label]="t().flagFingerlingMissing"
+                          [title]="t().flagFingerlingMissing"
+                          >⚑</span
+                        >
+                      }
+                    </td>
+                    <td class="num">{{ money(row.cycleOperationalCost) }}</td>
+                    <td class="num" [class.money--loss]="isLoss(row.cycleNetProfit)" data-testid="cycle-row-net">
+                      {{ money(row.cycleNetProfit) }}
+                    </td>
+                    <td>
+                      <app-button variant="secondary" (clicked)="viewCycle(row.cycleId)">
+                        {{ t().viewCycle }}
+                      </app-button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    } @else if (!reportError()) {
+      <p class="guidance" data-testid="report-prompt">{{ t().promptRun }}</p>
+    }
+
+    <!-- One cycle, before feed. -->
+    <section class="card" data-panel="cycle">
+      <header class="card__head">
+        <h2 class="card__title">{{ t().cycleTitle }}</h2>
+        <p class="card__hint">{{ t().cycleHint }}</p>
+      </header>
+
+      @if (canPickCycle()) {
+        @if (cyclesLoading()) {
+          <p class="guidance">{{ t().cyclesLoading }}</p>
+        } @else if (cyclesError(); as message) {
+          <p class="form-error" role="alert">{{ message }}</p>
+        } @else if (cycleOptions().length === 0) {
+          <p class="guidance" data-testid="no-cycles">{{ t().cyclePickEmpty }}</p>
+        } @else {
+          <form class="cycle-form" [formGroup]="cycleForm" data-testid="cycle-picker">
+            <app-form-field [label]="t().fieldCycle" for="profit-cycle">
+              <select id="profit-cycle" class="text-input" formControlName="cycleId">
+                <option value="">{{ t().fieldCyclePlaceholder }}</option>
+                @for (option of cycleOptions(); track option.cycleId) {
+                  <option [value]="option.cycleId">{{ option.label }}</option>
+                }
+              </select>
+            </app-form-field>
+          </form>
+        }
+      }
+
+      @if (cycleLoading()) {
+        <p class="guidance">{{ t().cycleLoading }}</p>
+      } @else if (cycleError(); as message) {
+        <p class="form-error" role="alert" data-testid="cycle-error">{{ message }}</p>
+      } @else if (cycle(); as cycle) {
+        <div class="cycle-detail" data-testid="cycle-detail">
+          <h3 class="cycle-detail__label">{{ cycle.label }}</h3>
+
+          @if (cycleIsActive()) {
+            <p class="notice" role="status" data-testid="cycle-active">{{ t().cycleActive }}</p>
+          } @else {
+            <dl class="breakdown">
+              <div class="breakdown__row">
+                <dt>{{ t().cycleHarvestDate }}</dt>
+                <dd>{{ cycle.actualHarvestDate ?? '—' }}</dd>
+              </div>
+              <div class="breakdown__row" data-testid="cycle-revenue">
+                <dt>
+                  {{ t().cycleRevenue }}
+                  @if (!cycle.revenueRecorded) {
+                    <span class="flag" data-testid="flag-revenue" [title]="t().flagRevenueMissing">⚑ {{ t().flagRevenueMissing }}</span>
+                  }
+                </dt>
+                <dd>{{ money(cycle.revenue) }}</dd>
+              </div>
+              <div class="breakdown__row" data-testid="cycle-fingerling">
+                <dt>
+                  {{ t().cycleFingerling }}
+                  @if (!cycle.fingerlingCostRecorded) {
+                    <span class="flag" data-testid="flag-fingerling" [title]="t().flagFingerlingMissing">⚑ {{ t().flagFingerlingMissing }}</span>
+                  }
+                </dt>
+                <dd>{{ money(cycle.fingerlingCost) }}</dd>
+              </div>
+              <div class="breakdown__row" data-testid="cycle-operational">
+                <dt>{{ t().cycleOperational }}</dt>
+                <dd>{{ money(cycle.cycleOperationalCost) }}</dd>
+              </div>
+              <div
+                class="breakdown__row breakdown__row--total"
+                [class.money--loss]="isLoss(cycle.cycleNetProfit)"
+                data-testid="cycle-net"
+              >
+                <dt>{{ t().cycleBeforeFeedLabel }}</dt>
+                <dd>
+                  <strong>{{ money(cycle.cycleNetProfit) }}</strong>
+                </dd>
+              </div>
+            </dl>
+            <p class="card__hint" data-testid="cycle-before-feed-note">{{ t().cycleBeforeFeedNote }}</p>
+          }
+        </div>
+      } @else {
+        <p class="guidance" data-testid="cycle-prompt">{{ t().cyclePrompt }}</p>
+      }
+    </section>
+  }
+</section>

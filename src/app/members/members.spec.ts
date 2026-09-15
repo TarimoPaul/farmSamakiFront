@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { Members } from './members';
+import { MEMBERS_I18N } from './members.i18n';
 import { FarmSelectionService } from '../core/services/farm-selection';
 import { LanguageService } from '../core/services/language';
 import { environment } from '../../environments/environment';
@@ -131,16 +132,19 @@ const SIGNED_IN_ADMIN = {
  * `farmId` on the stored user is the farm the BACKEND applied (it is written
  * by /me), which is what the screen reads - see the note on Members.
  */
-function setup(user: unknown = SIGNED_IN_ADMIN) {
+function setup(
+  user: unknown = SIGNED_IN_ADMIN,
+  permissions: string[] = ['manage_users', 'view_dashboard'],
+) {
   if (user) {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
-  localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(['manage_users', 'view_dashboard']));
+  localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
 
   TestBed.configureTestingModule({
     providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
   });
-  // The real Router - the screen renders inside AppShell, whose nav uses
+  // The real Router - the screen's own links use
   // routerLink. Only navigateByUrl is stubbed, and only so these tests can
   // assert that nothing here ever redirects.
   const navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
@@ -260,10 +264,10 @@ describe('Members screen', () => {
 
       ctx.fixture.detectChanges();
       ctx.httpMock.expectOne(ROLES_URL).flush(ROLES_RESPONSE);
-      // AppShell's own farm switcher, not this screen: it lists farms for
-      // whoever may choose one. Answered here so `verify` below is really
-      // asserting that MEMBERS asked for nothing.
-      ctx.httpMock.expectOne(`${environment.apiUrl}/farms`).flush({ success: true, data: [] });
+      // `GET /farms` used to be answered here too: the screen rendered its own
+      // <app-shell>, and the shell's farm switcher fetches the list for anyone
+      // who may choose one. The shell is a layout route now and is not part of
+      // this component, so nothing asks - which is what `verify` below checks.
       await ctx.fixture.whenStable();
       ctx.fixture.detectChanges();
 
@@ -595,7 +599,8 @@ describe('Members screen', () => {
       const items = Array.from(rows(ctx.fixture)[0].querySelectorAll('.sheet button')).map((b) =>
         (b.textContent ?? '').trim(),
       );
-      expect(items).toEqual(['Edit details', 'Change role', 'Remove from farm']);
+      // "Their farms" stays: it changes nothing about you, it only shows.
+      expect(items).toEqual(['Edit details', 'Change role', 'Their farms', 'Remove from farm']);
 
       ctx.httpMock.verify();
     });
@@ -644,5 +649,327 @@ describe('Members screen', () => {
 
       ctx.httpMock.verify();
     });
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * HAKUNA KALENDA: `UserSummary` haina muhuri wa muda hata mmoja - kitambulisho,
+ * jina, simu, hali, farmId, nafasi na basi.
+ *
+ * Kadi ya NAFASI ZA KUTOA inaonyesha namba MBILI kwa makusudi: zinazoweza
+ * kutolewa, na zilizozimwa. Backend hutuma nafasi zilizozimwa pia (skrini ya
+ * Nafasi ndiyo pekee inayoweza kuziwasha), na skrini hii inazichuja kwa sababu
+ * backend hukataa kuunganisha nafasi iliyozimwa na uanachama. Tofauti kati ya
+ * namba hizo mbili ni ukweli kuhusu usanidi, si ajali.
+ */
+/**
+ * One person, several farms.
+ *
+ * Before this, "add" on this screen could only make a NEW account, and nothing
+ * could reach somebody already on another farm: creating them again is
+ * refused as a registered phone. Two ways in now, matching the backend's two
+ * tiers - any admin adds an existing person to THIS farm by phone, and a
+ * company-wide admin (`manage_farms`) can give a person any other farm.
+ */
+describe('Members - one person on several farms', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  const WORKER = MEMBERS_BEFORE.data[1];
+  const OUTSIDER = {
+    id: 'b7e5d3c1-0a9f-4e8d-8c7b-6a5f4e3d2c10',
+    name: 'Mtu wa Shamba B',
+    phone: '0788200999',
+    status: 'ACTIVE',
+    farmId: null,
+    role: null,
+  };
+  const FARMS_URL = `${environment.apiUrl}/farms`;
+  const membershipsUrl = (id: string) => `${USERS_URL}/${id}/memberships`;
+
+  async function openAddExisting(ctx: ReturnType<typeof setup>) {
+    TestBed.inject(LanguageService).setLang('en');
+    await load(ctx);
+    ctx.component.openAdd();
+    ctx.fixture.detectChanges();
+    click(ctx.fixture, 'Existing person');
+    ctx.fixture.detectChanges();
+  }
+
+  it('finds an existing person by phone and puts them on this farm - no new account', async () => {
+    const ctx = setup();
+    await openAddExisting(ctx);
+
+    ctx.component.existingForm.controls.phone.setValue(' 0788200999 ');
+    click(ctx.fixture, 'Find');
+    ctx.httpMock.expectOne(`${USERS_URL}/lookup?phone=0788200999`).flush({
+      success: true,
+      data: OUTSIDER,
+    });
+    ctx.fixture.detectChanges();
+
+    expect(text(ctx.fixture)).toContain('Mtu wa Shamba B');
+
+    ctx.component.existingForm.controls.roleId.setValue(3);
+    ctx.component.submitAdd();
+
+    const assign = ctx.httpMock.expectOne(membershipsUrl(OUTSIDER.id));
+    expect(assign.request.method).toBe('POST');
+    expect(assign.request.body).toEqual({ farmId: FARM_ID, roleId: 3 });
+    assign.flush({ success: true, data: null });
+
+    ctx.httpMock.expectOne(LIST_URL).flush(MEMBERS_BEFORE);
+    await ctx.fixture.whenStable();
+
+    expect(ctx.component.addOpen()).toBe(false);
+    expect(ctx.component.toastMessage()).toBe('Added to this farm.');
+    // The thing this replaces would have POSTed /api/users - it must not.
+    ctx.httpMock.expectNone((req) => req.method === 'POST' && req.url === USERS_URL);
+    ctx.httpMock.verify();
+  });
+
+  it('shows the backend sentence for a number nobody has', async () => {
+    const ctx = setup();
+    await openAddExisting(ctx);
+
+    ctx.component.existingForm.controls.phone.setValue('0799999999');
+    ctx.component.searchExisting();
+    ctx.httpMock
+      .expectOne(`${USERS_URL}/lookup?phone=0799999999`)
+      .flush(
+        {
+          success: false,
+          message: 'Hakuna mtumiaji mwenye namba hii ya simu.',
+          errorCode: 'VALIDATION_ERROR',
+        },
+        { status: 400, statusText: 'Bad Request' },
+      );
+    ctx.fixture.detectChanges();
+
+    expect(ctx.component.foundPerson()).toBeNull();
+    expect(text(ctx.fixture)).toContain('Hakuna mtumiaji mwenye namba hii ya simu.');
+    ctx.httpMock.verify();
+  });
+
+  it('refuses somebody already on the list without asking the backend', async () => {
+    const ctx = setup();
+    await openAddExisting(ctx);
+
+    ctx.component.existingForm.controls.phone.setValue(WORKER.phone);
+    ctx.component.searchExisting();
+    ctx.httpMock
+      .expectOne(`${USERS_URL}/lookup?phone=${WORKER.phone}`)
+      .flush({ success: true, data: { ...WORKER, farmId: null, role: null } });
+
+    ctx.component.existingForm.controls.roleId.setValue(3);
+    ctx.component.submitAdd();
+
+    expect(ctx.component.existingError()).toBe('This person is already on this farm.');
+    ctx.httpMock.expectNone(membershipsUrl(WORKER.id));
+    ctx.httpMock.verify();
+  });
+
+  it('lets a company-wide admin see every farm a person is on and give them another', async () => {
+    const ctx = setup(SIGNED_IN_ADMIN, ['manage_users', 'manage_farms', 'view_dashboard']);
+    TestBed.inject(LanguageService).setLang('en');
+    await load(ctx);
+
+    rowMenu(ctx.fixture, 1, 'Their farms').click();
+    ctx.fixture.detectChanges();
+
+    ctx.httpMock.expectOne(membershipsUrl(WORKER.id)).flush({
+      success: true,
+      data: [{ farmId: FARM_ID, farmName: 'Shamba A', roleId: 3, roleName: 'WORKER' }],
+    });
+    ctx.httpMock.expectOne(FARMS_URL).flush({
+      success: true,
+      data: [
+        { farmId: FARM_ID, name: 'Shamba A', location: null, ownerName: null },
+        { farmId: 23, name: 'Shamba B', location: null, ownerName: null },
+      ],
+    });
+    ctx.fixture.detectChanges();
+
+    // Only the farm they are NOT on is offered.
+    expect(ctx.component.grantableFarms().map((farm) => farm.farmId)).toEqual([23]);
+    expect(text(ctx.fixture)).toContain('(this one)');
+
+    ctx.component.grantForm.setValue({ farmId: 23, roleId: 4 });
+    ctx.component.submitGrant();
+
+    const assign = ctx.httpMock.expectOne(
+      (req) => req.method === 'POST' && req.url === membershipsUrl(WORKER.id),
+    );
+    expect(assign.request.body).toEqual({ farmId: 23, roleId: 4 });
+    assign.flush({ success: true, data: null });
+
+    ctx.httpMock
+      .expectOne((req) => req.method === 'GET' && req.url === membershipsUrl(WORKER.id))
+      .flush({
+        success: true,
+        data: [
+          { farmId: FARM_ID, farmName: 'Shamba A', roleId: 3, roleName: 'WORKER' },
+          { farmId: 23, farmName: 'Shamba B', roleId: 4, roleName: 'VIEWER' },
+        ],
+      });
+    ctx.fixture.detectChanges();
+
+    expect(text(ctx.fixture)).toContain('Shamba B');
+    expect(ctx.component.toastMessage()).toBe('Given a new farm.');
+    expect(ctx.component.grantableFarms()).toEqual([]);
+    ctx.httpMock.verify();
+  });
+
+  it('shows a farm-level admin their own farm only, and offers no farm picker', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('en');
+    await load(ctx);
+
+    rowMenu(ctx.fixture, 1, 'Their farms').click();
+    ctx.fixture.detectChanges();
+
+    ctx.httpMock.expectOne(membershipsUrl(WORKER.id)).flush({
+      success: true,
+      data: [{ farmId: FARM_ID, farmName: 'Shamba A', roleId: 3, roleName: 'WORKER' }],
+    });
+    ctx.fixture.detectChanges();
+
+    // GET /api/farms is manage_farms: not asked, so no request ends in 403.
+    ctx.httpMock.expectNone(FARMS_URL);
+    const element = ctx.fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('#grant-farm')).toBeNull();
+    expect(text(ctx.fixture)).toContain('You see your own farm only');
+    ctx.httpMock.verify();
+  });
+});
+
+describe('Members summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  const rail = (fixture: { nativeElement: unknown }) =>
+    (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+
+  it('counts the farm by account state', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx);
+
+    const by = (label: string) => ctx.component.summary().find((row) => row.label === label)?.value;
+
+    expect(by('Wanachama wote')).toBe('2');
+    expect(by('Yupo hai')).toBe('2');
+    expect(by('Amezuiwa')).toBe('0');
+    expect(by('Bila nafasi')).toBe('0');
+    ctx.httpMock.verify();
+  });
+
+  it('counts a disabled member as still on the farm', async () => {
+    // Kuzuia kunazima kuingia; uanachama haugusiwi - hivyo bado ni mtu wa
+    // shamba hili, si aliyeondoka.
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx, {
+      success: true,
+      data: [MEMBERS_BEFORE.data[0], { ...MEMBERS_BEFORE.data[1], status: 'DISABLED' }],
+    });
+
+    const by = (label: string) => ctx.component.summary().find((row) => row.label === label)?.value;
+    expect(by('Wanachama wote')).toBe('2');
+    expect(by('Yupo hai')).toBe('1');
+    expect(by('Amezuiwa')).toBe('1');
+    ctx.httpMock.verify();
+  });
+
+  it('counts a member with no role, which is the row that matters most', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx, {
+      success: true,
+      data: [MEMBERS_BEFORE.data[0], { ...MEMBERS_BEFORE.data[1], role: null }],
+    });
+
+    expect(ctx.component.summary().find((row) => row.label === 'Bila nafasi')?.value).toBe('1');
+    // Na anahesabiwa kwa jina kwenye mgawanyo, si kuachwa nje kabisa.
+    expect(ctx.component.membersByRole()).toEqual([
+      { role: 'OWNER', count: '1' },
+      { role: 'Hana nafasi bado', count: '1' },
+    ]);
+    ctx.httpMock.verify();
+  });
+
+  it('moves the add button off the page corner and into the intro card', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx);
+
+    expect((ctx.fixture.nativeElement as HTMLElement).querySelector('.page-actions')).toBeNull();
+    const intro = rail(ctx.fixture).querySelector('.side-card--intro')!;
+    expect(intro.querySelector('.intro__actions app-button')?.textContent).toContain(
+      'Mwanachama Mpya',
+    );
+    ctx.httpMock.verify();
+  });
+
+  it('separates the roles it can hand out from the ones it cannot', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    ctx.fixture.detectChanges();
+    // VIEWER imezimwa kwenye skrini ya Nafasi - backend bado inaituma.
+    ctx.httpMock.expectOne(ROLES_URL).flush(ROLES_WITH_DISABLED_VIEWER);
+    ctx.httpMock.expectOne(LIST_URL).flush(MEMBERS_BEFORE);
+    await ctx.fixture.whenStable();
+    ctx.fixture.detectChanges();
+
+    const by = (label: string) =>
+      ctx.component.roleSupply().rows.find((row) => row.label === label)?.value;
+
+    expect(by('Zinazoweza kutolewa')).toBe('3');
+    expect(by('Zilizozimwa (haziwezi)')).toBe('1');
+    expect(ctx.component.roleSupply().failed).toBe(false);
+    expect(ctx.component.roleSupply().empty).toBe(false);
+    ctx.httpMock.verify();
+  });
+
+  it('says the role list did not load, which nothing else on the screen does', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    ctx.fixture.detectChanges();
+    ctx.httpMock.expectOne(ROLES_URL).flush(FORBIDDEN, { status: 403, statusText: 'Forbidden' });
+    ctx.httpMock.expectOne(LIST_URL).flush(MEMBERS_BEFORE);
+    await ctx.fixture.whenStable();
+    ctx.fixture.detectChanges();
+
+    expect(ctx.component.roleSupply().failed).toBe(true);
+    expect(
+      (ctx.fixture.nativeElement as HTMLElement).querySelector('[data-testid="roles-failed"]')
+        ?.textContent,
+    ).toContain('Orodha ya nafasi haikupakia');
+    // Orodha ya wanachama yenyewe imepakia vizuri - hakuna banner juu yake.
+    expect(ctx.component.loadError()).toBeNull();
+  });
+
+  it('renders the rail beside the work', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx);
+
+    expect(rail(ctx.fixture).parentElement?.classList.contains('module-layout')).toBe(true);
+    // Maelezo, muhtasari, kwa nafasi, nafasi za kutoa.
+    expect(rail(ctx.fixture).querySelectorAll('.side-card').length).toBe(4);
+    expect(rail(ctx.fixture).querySelector('app-date-picker-card')).toBeNull();
+    ctx.httpMock.verify();
+  });
+
+  it('carries exactly the same rail keys in both languages', () => {
+    const sw = Object.keys(MEMBERS_I18N.sw).sort();
+    const en = Object.keys(MEMBERS_I18N.en).sort();
+    expect(en).toEqual(sw);
   });
 });

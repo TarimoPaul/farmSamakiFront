@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -15,11 +15,11 @@ import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { PERMISSION } from '../core/models/permissions';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { HasPermission } from '../shared/directives/has-permission';
 import { Button } from '../shared/ui/button/button';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
+import { DatePickerCard, isoDate } from '../shared/ui/date-picker-card/date-picker-card';
 import { FormField } from '../shared/ui/form-field/form-field';
 import { Toast } from '../shared/ui/toast/toast';
 import { FEEDING_I18N } from './feeding.i18n';
@@ -68,11 +68,11 @@ export const LOW_STOCK_THRESHOLD_KG = 10;
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     HasPermission,
     Button,
     DataTable,
     EmptyState,
+    DatePickerCard,
     FormField,
     Toast,
   ],
@@ -109,6 +109,8 @@ export class Feeding {
   readonly cycleAgeMonths = signal<number | null>(null);
   readonly balances = signal<readonly FeedStockBalance[]>([]);
   readonly logs = signal<readonly FeedingLog[]>([]);
+
+  private readonly datePicker = viewChild(DatePickerCard);
 
   readonly loading = signal(true);
   readonly loadError = signal<ApiError | null>(null);
@@ -169,6 +171,65 @@ export class Feeding {
       .map((row) => row.feedType.name)
       .join(', '),
   );
+
+  // ── The summary rail ───────────────────────────────────────────────────
+  //
+  // Counted from `logs()` and `balances()`, both already on the page, so the
+  // rail - date picker included - costs no request. A feeding log carries its
+  // own `logDate`, which is what makes "what was fed on the 7th" a filter
+  // rather than a question for the server.
+
+  readonly selectedDate = signal(isoDate(new Date()));
+  readonly viewingToday = computed(() => this.selectedDate() === isoDate(new Date()));
+
+  readonly dayState = computed<string | null>(() =>
+    this.viewingToday() ? null : `${this.t().dayViewing} ${this.selectedDate()}.`,
+  );
+
+  readonly logsOnDate = computed(() =>
+    this.logs().filter((log) => log.logDate === this.selectedDate()),
+  );
+
+  readonly summary = computed(() => {
+    const t = this.t();
+    const all = this.logs();
+    const onDate = this.logsOnDate();
+    const kg = (rows: readonly FeedingLog[]) =>
+      rows.reduce((sum, log) => sum + log.quantityKg, 0).toFixed(1);
+
+    return [
+      { label: t.railFeedingsAll, value: String(all.length) },
+      { label: t.railFeedingsOnDate, value: String(onDate.length) },
+      { label: t.railKgOnDate, value: kg(onDate) },
+      // The running total, which is what a cycle's feed cost is built on.
+      { label: t.railKgAll, value: kg(all) },
+    ];
+  });
+
+  /**
+   * The stock rail card, and it is GATED exactly like the stock panel below.
+   *
+   * `view_feed_stock` is a permission of its own for a reason: a feeder needs
+   * to know a sack is nearly empty without being able to write purchases. A
+   * rail that showed the balance anyway would hand out the very number the
+   * backend withholds.
+   */
+  readonly stockRows = computed(() =>
+    this.balances().map((balance) => ({
+      name: balance.feedType.name,
+      value: balance.quantityKg.toFixed(1),
+      low: balance.quantityKg <= LOW_STOCK_THRESHOLD_KG,
+    })),
+  );
+
+  selectDate(date: Date): void {
+    this.selectedDate.set(isoDate(date));
+  }
+
+  backToToday(): void {
+    this.selectedDate.set(isoDate(new Date()));
+    this.datePicker()?.resetWeek();
+  }
 
   readonly columns = computed<DataTableColumn<FeedingLog>[]>(() => {
     const t = this.t();

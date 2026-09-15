@@ -31,10 +31,26 @@ export interface Cycle {
    */
   expectedHarvestDate: string | null;
 
+  /**
+   * What the fingerlings cost - optional at stocking. MONEY: null both when
+   * it was never recorded AND when the caller lacks `view_finance`, and the
+   * two are indistinguishable on the wire. Render null as a dash, never 0.
+   */
+  fingerlingCost: number | null;
+
   // ---- Written by closeCycle alone; null while a cycle is running ----
+  // Since V25 every one of these is SUMMED from the harvest events at close,
+  // not typed in. Cycles closed before V25 keep their hand-entered count and
+  // weight, and have mortalityCount/totalRevenue null (no backfill).
   actualHarvestDate: string | null;
+  /** Fish that left ALIVE: SOLD + REMOVED. */
   harvestedCount: number | null;
+  /** Weight of SOLD + REMOVED, kg. */
   totalWeightKg: number | null;
+  /** DIED. Counted in neither harvestedCount nor survival. */
+  mortalityCount: number | null;
+  /** Sum of saleAmount over SOLD. MONEY: null without `view_finance`. */
+  totalRevenue: number | null;
   harvestNotes: string | null;
 
   /**
@@ -92,12 +108,19 @@ export interface CreateCycleInput {
    * VALIDATION_ERROR.
    */
   stockingAgeMonths?: number | null;
+
+  /** Optional; > 0 when given, or VALIDATION_ERROR. NUMERIC(14,2). */
+  fingerlingCost?: number | null;
 }
 
 /**
- * `closeCycle` arguments. NOT an `input` type in the schema - they are six
+ * `closeCycle` arguments. NOT an `input` type in the schema - they are four
  * top-level arguments, which is why this interface is spread across the
  * mutation's variables rather than nested under `input`.
+ *
+ * THERE IS NO COUNT OR WEIGHT HERE since V25: the backend sums them from the
+ * harvest events when the cycle closes. HARVESTED with no SOLD/REMOVED event
+ * is refused (VALIDATION_ERROR) - that cycle is FAILED.
  *
  * `cycleId` is `Int!`, not `ID!` - unlike every id on `CreateCycleInput`. It
  * has to be converted from the string the queries return, the same
@@ -112,11 +135,58 @@ export interface CreateCycleInput {
 export interface CloseCycleInput {
   cycleId: number;
   outcome: CycleOutcome;
-  /** ISO date, yyyy-MM-dd. Cannot precede the cycle's stockingDate. */
+  /** ISO date, yyyy-MM-dd. Not before stocking, nor before the last event. */
   actualHarvestDate: string;
-  /** Above zero for HARVESTED; zero is allowed for FAILED. */
-  harvestedCount: number;
-  /** Same rule as the count, for the same reason. */
-  totalWeightKg: number;
   notes?: string | null;
+}
+
+/**
+ * Why fish left the pond. STRINGS in the schema, not an enum - the same shape
+ * as `UNIT_TYPES` and `CYCLE_OUTCOMES` - so they travel literally.
+ *
+ *  - SOLD:    sold; weight AND sale amount required.
+ *  - DIED:    mortality; weight optional, no sale amount.
+ *  - REMOVED: taken out alive without a sale; weight optional, no sale amount.
+ */
+export const HARVEST_REASONS = ['SOLD', 'DIED', 'REMOVED'] as const;
+export type HarvestReason = (typeof HARVEST_REASONS)[number];
+
+/** One `HarvestEvent` as `harvestEvents` returns it. */
+export interface HarvestEvent {
+  /** `ID!` - a string. `deleteHarvestEvent` takes it as `Int!`, so convert. */
+  harvestEventId: string;
+  /** `Int!` on this type, unlike `Cycle.cycleId`. */
+  cycleId: number;
+  eventDate: string;
+  fishCount: number;
+  /** Null possible for DIED/REMOVED only. */
+  weightKg: number | null;
+  reason: string;
+  /** SOLD only. MONEY: null without `view_finance`, and always null otherwise. */
+  saleAmount: number | null;
+}
+
+/**
+ * `recordHarvestEvent` arguments - top-level, like closeCycle's. `cycleId` is
+ * `Int!`. `saleAmount` must be null for DIED/REMOVED: the backend rejects any
+ * non-zero amount on a fish that was not sold.
+ */
+export interface RecordHarvestEventInput {
+  cycleId: number;
+  /** ISO date. Not before stocking, not in the future. */
+  eventDate: string;
+  fishCount: number;
+  weightKg: number | null;
+  reason: HarvestReason;
+  saleAmount: number | null;
+}
+
+/**
+ * `correctHarvestEvent` arguments. The backend soft-deletes the old event and
+ * records this one in ONE transaction, so the answer carries a NEW id. The
+ * cycle is the old event's - a correction never moves an event.
+ */
+export interface CorrectHarvestEventInput extends Omit<RecordHarvestEventInput, 'cycleId'> {
+  /** `Int!` - converted from the `ID!` string the list returns. */
+  harvestEventId: number;
 }

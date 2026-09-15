@@ -753,3 +753,89 @@ describe('Feeding', () => {
     });
   });
 });
+
+/**
+ * Rail ya muhtasari.
+ *
+ * Mambo mawili yanabanwa: kalenda HAIGHARIMU OMBI (kila kulisha kuna logDate
+ * yake), na kadi ya salio ina lango LILE LILE la paneli ya stoo - `view_feed_stock`
+ * ni ruhusa yake yenyewe, na rail isingeruhusiwa kutoa namba ambayo backend
+ * inaificha.
+ */
+describe('Feeding summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('counts the feedings and the kilograms', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard', 'log_feeding', 'view_feed_stock'], {
+      cycleId: '9',
+    });
+    await load(fixture, httpMock);
+
+    const rows = fixture.componentInstance.summary();
+    const by = (label: string) => rows.find((row) => row.label === label)?.value;
+
+    expect(by('Kulisha kote')).toBe('2');
+    // 12.5 + 1.5 - angalia fixtures.
+    expect(by('Kilo zote')).toBe('14.0');
+    httpMock.verify();
+  });
+
+  it('filters to the selected date without asking the backend', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard', 'log_feeding', 'view_feed_stock'], {
+      cycleId: '9',
+    });
+    await load(fixture, httpMock);
+
+    fixture.componentInstance.selectDate(new Date(2026, 8, 3)); // 2026-09-03
+    fixture.detectChanges();
+
+    const rows = fixture.componentInstance.summary();
+    expect(rows.find((r) => r.label === 'Kwa tarehe hii')?.value).toBe('1');
+    expect(rows.find((r) => r.label === 'Kilo za tarehe hii')?.value).toBe('12.5');
+    httpMock.verify();
+  });
+
+  it('shows the stock card to a view_feed_stock holder', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard', 'log_feeding', 'view_feed_stock'], {
+      cycleId: '9',
+    });
+    await load(fixture, httpMock);
+
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+    expect(rail.textContent).toContain('Salio la stoo');
+    // BALANCE ina aina tatu, mojawapo ikiwa na salio HASI (-6.5): imefidhiwa
+    // kama ilivyo, si kufungwa kwenye sifuri - salio hasi ni ushahidi kwamba
+    // kulishwa kutoka gunia lisilo na manunuzi yaliyorekodiwa.
+    expect(fixture.componentInstance.stockRows().length).toBe(3);
+    expect(fixture.componentInstance.stockRows().find((row) => row.value === '-6.5')).toBeTruthy();
+  });
+
+  it('withholds the stock card from a feeder without the permission', async () => {
+    // Hana `view_feed_stock`: hana paneli ya stoo, na rail nayo haina.
+    const { fixture, httpMock } = setup(['view_dashboard', 'log_feeding'], { cycleId: '9' });
+    await load(fixture, httpMock, { balance: null });
+
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+    // Kichwa cha kadi, si maandishi yote ya rail: hatua ya tatu ya kadi ya
+    // maelezo nayo inataja salio la stoo, na ingelifanya jaribio hili lipite
+    // (au lishindwe) kwa sababu isiyohusika.
+    const headings = [...rail.querySelectorAll('h3')].map((h) => h.textContent?.trim());
+    expect(headings).not.toContain('Salio la stoo');
+    // Maelezo + kalenda + muhtasari, bila ya salio.
+    expect(rail.querySelectorAll('.side-card').length).toBe(3);
+  });
+
+  it('renders the rail beside the work', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard', 'log_feeding', 'view_feed_stock'], {
+      cycleId: '9',
+    });
+    await load(fixture, httpMock);
+
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+    expect(rail.parentElement?.classList.contains('module-layout')).toBe(true);
+    expect(rail.querySelectorAll('.side-card').length).toBe(4);
+  });
+});

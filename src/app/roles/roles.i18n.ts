@@ -97,11 +97,34 @@ export const ROLES_I18N = {
       FEED: 'Chakula',
       USER_MANAGEMENT: 'Usimamizi wa watumiaji',
       WATER: 'Ubora wa maji',
+      // Zilikuwa zikianguka kwenye `groupOther` ("Nyingine") tangu V22/V24
+      // zilipoziseti - zipo kwenye seed, hazikuwahi kuletwa hapa.
+      ASSETS: 'Mali',
+      COSTS: 'Gharama',
     },
 
     save: 'Hifadhi',
     cancel: 'Ghairi',
     close: 'Funga',
+
+    // Rail ya muhtasari. HAKUNA KALENDA: RoleSummary haina muhuri wa muda, na
+    // sera haina historia kwenye waya.
+    introTitle: 'Nafasi na Ruhusa',
+    introBody:
+      'Nafasi ndiyo sera ya usalama yenyewe. Si ya shamba moja - ukibadilisha OWNER, unabadilisha kila mmiliki wa kila shamba.',
+    introStep1: 'Unda nafasi kisha chagua ruhusa zake.',
+    introStep2: 'Kuzima kunazuia kutolewa kwa wapya; wanaoishikilia wanaendelea nayo.',
+    introStep3: 'Kufuta hakukubaliwi wakati bado kuna mtu anayeishikilia.',
+    railTitle: 'Muhtasari wa nafasi',
+    railRolesAll: 'Nafasi zote',
+    railNoPermissions: 'Bila ruhusa yoyote',
+    railReachTitle: 'Ruhusa kwa nafasi',
+    railReachEmpty: 'Hakuna nafasi bado.',
+    railCatalogueTitle: 'Katalogi ya ruhusa',
+    railPermissionsAll: 'Ruhusa zote',
+    railModules: 'Makundi',
+    /** Katalogi ikikosekana, namba zingekuwa sifuri mbili zinazoonekana za kweli. */
+    railCatalogueFailed: 'Katalogi haikupakia, hivyo idadi haijulikani. Kuhariri ruhusa kumezimwa.',
   },
   en: {
     title: 'Roles and Permissions',
@@ -179,10 +202,29 @@ export const ROLES_I18N = {
       FEED: 'Feed',
       USER_MANAGEMENT: 'User management',
       WATER: 'Water quality',
+      ASSETS: 'Assets',
+      COSTS: 'Costs',
     },
 
     save: 'Save',
     cancel: 'Cancel',
     close: 'Close',
+
+    introTitle: 'Roles and Permissions',
+    introBody:
+      'Roles are the security policy itself. They are not per-farm - change OWNER and you change every owner of every farm.',
+    introStep1: 'Create a role, then choose what it may do.',
+    introStep2: 'Disabling stops it being handed out; whoever holds it keeps it.',
+    introStep3: 'Deleting is refused while anybody still holds it.',
+    railTitle: 'Role summary',
+    railRolesAll: 'All roles',
+    railNoPermissions: 'With no permissions',
+    railReachTitle: 'Permissions per role',
+    railReachEmpty: 'No roles yet.',
+    railCatalogueTitle: 'Permission catalogue',
+    railPermissionsAll: 'All permissions',
+    railModules: 'Groups',
+    railCatalogueFailed:
+      'The catalogue did not load, so the counts are unknown. Editing permissions is switched off.',
   },
 } as const;

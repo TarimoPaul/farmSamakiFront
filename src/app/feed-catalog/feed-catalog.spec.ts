@@ -888,7 +888,12 @@ describe('FeedCatalog', () => {
    */
   describe('the route gate', () => {
     const feedCatalogRoute = (): Route => {
-      const route = routes.find((r) => r.path === 'feed-catalog');
+      // Flattened: the screens are CHILDREN of the shell's layout route now, so a
+      // top-level ind would miss them - and missing them would look exactly
+      // like the guard being gone.
+      const route = routes
+        .flatMap((r) => [r, ...(r.children ?? [])])
+        .find((r) => r.path === 'feed-catalog');
       if (!route) {
         throw new Error('feed-catalog is not in the route table');
       }
@@ -953,5 +958,77 @@ describe('FeedCatalog', () => {
       const en = Object.keys(FEED_CATALOG_I18N.en).sort();
       expect(en).toEqual(sw);
     });
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * HAKUNA KALENDA, na hilo ni uamuzi wa data si wa mapambo: `feed_types` haina
+ * farm_id wala muhuri wa muda kwenye query, hivyo "katalogi ilivyokuwa Machi"
+ * haina kitu nyuma yake.
+ *
+ * Kadi ya UMRI UNAOFUNIKWA inahesabu aina ZINAZOTUMIKA pekee. Aina iliyozimwa
+ * haitoki kwenye dropdown yoyote ya kulisha, hivyo kipimo chake si msaada kwa
+ * mtu anayejaribu kujua kama mzunguko wake unaweza kulishwa.
+ */
+describe('Feed catalogue summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('splits the catalogue into in-use and deactivated', async () => {
+    const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
+    await load(fixture, httpMock);
+
+    const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+
+    expect(by('Aina zote')).toBe('3');
+    expect(by('Zinazotumika')).toBe('2');
+    expect(by('Zilizozimwa')).toBe('1');
+    httpMock.verify();
+  });
+
+  it('covers only the ages an active feed reaches', async () => {
+    const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
+    await load(fixture, httpMock);
+
+    // FRY 0-0 na GROWER 2-4 zinatumika; RETIRED 12-24 imezimwa, hivyo haiingii
+    // - vinginevyo rail ingedai kuwa samaki wa miezi 20 wanaweza kulishwa.
+    expect(component.ageCover()).toEqual({ from: '0', to: '4' });
+    httpMock.verify();
+  });
+
+  it('dashes the cover when nothing is registered', async () => {
+    const { fixture, component, httpMock } = setup(CATALOG_MANAGER);
+    await load(fixture, httpMock, EMPTY_CATALOG);
+
+    // Si "0 hadi 0" - hilo lingesomeka kama kipimo halisi kinachofunika
+    // vifaranga, na hakuna chakula chochote kilichosajiliwa.
+    expect(component.ageCover()).toEqual({ from: '\u2014', to: '\u2014' });
+    httpMock.verify();
+  });
+
+  it('renders the rail beside the work, with no date picker', async () => {
+    const { fixture, httpMock } = setup(CATALOG_MANAGER);
+    await load(fixture, httpMock);
+
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+    expect(rail.parentElement?.classList.contains('module-layout')).toBe(true);
+    // Maelezo, muhtasari, umri unaofunikwa.
+    expect(rail.querySelectorAll('.side-card').length).toBe(3);
+    expect(rail.querySelector('app-date-picker-card')).toBeNull();
+  });
+
+  it('carries the rail copy in both languages', async () => {
+    const { fixture, httpMock } = setup(CATALOG_MANAGER, { lang: 'en' });
+    await load(fixture, httpMock);
+
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+    const body = (rail.textContent ?? '').replace(/\s+/g, ' ');
+    expect(body).toContain('All types');
+    expect(body).toContain('Ages covered');
+    httpMock.verify();
   });
 });

@@ -34,7 +34,21 @@ export const PERMISSION = {
    */
   MANAGE_SPECIES: 'manage_species',
   MARK_TASK_DONE: 'mark_task_done',
+  /**
+   * SEE money: fingerlingCost, totalRevenue and each event's saleAmount. The
+   * backend nulls those fields for everyone else, so the UI never has a
+   * number to hide - it has a null to render as a dash rather than as 0.
+   */
   VIEW_FINANCE: 'view_finance',
+  /**
+   * Record and delete harvest events (SOLD/DIED/REMOVED) on an ACTIVE cycle.
+   * Gates the write controls in the harvest-events panel on Production -
+   * reading the events stays `view_dashboard`, and closing stays EDIT_CYCLE.
+   *
+   * Seeded by the backend's V26 migration and granted to OWNER and
+   * FARM_MANAGER only.
+   */
+  RECORD_HARVEST: 'record_harvest',
   /**
    * Record a water-quality reading. Gates the log form on the Water Quality
    * screen - VIEWER holds `view_dashboard` and reads the readings, but has no
@@ -86,6 +100,14 @@ export const PERMISSION = {
    * reader of the register is the person keeping it.
    */
   MANAGE_ASSETS: 'manage_assets',
+  /**
+   * The operational-cost register - READ and write both, cycle picker
+   * included. Gates the Costs screen and its nav entry.
+   *
+   * Seeded by the backend's V24 migration and granted to OWNER and
+   * FARM_MANAGER, the same pair as MANAGE_ASSETS.
+   */
+  MANAGE_COSTS: 'manage_costs',
 } as const;
 
 export type Permission = (typeof PERMISSION)[keyof typeof PERMISSION];

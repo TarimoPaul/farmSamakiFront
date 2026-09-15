@@ -97,6 +97,32 @@ export const FEED_PURCHASES_I18N = {
     // Ununuzi uliobatilishwa hauna kitendo kingine chochote.
     alreadyReversedNotice:
       'Ununuzi huu umebatilishwa, hivyo hauwezi kurekebishwa wala kubatilishwa tena.',
+
+    // Rail ya muhtasari. Kalenda haigharimu ombi: kila ununuzi una purchaseDate
+    // yake, hivyo tarehe ni chujio la taarifa zilizopo skrini tayari.
+    introTitle: 'Manunuzi ya chakula',
+    introBody:
+      'Hapa ndipo kilo zinaingia stoo. Kila ununuzi unaongeza salio la aina husika mara moja.',
+    introStep1: 'Chagua aina ya chakula kutoka katalogi.',
+    introStep2: 'Andika kilo na bei kwa kilo - jumla inahesabiwa yenyewe.',
+    introStep3: 'Ukikosea, tumia Batilisha au Rekebisha - hakuna ununuzi unaofutwa.',
+    railWeekTitle: 'Chagua tarehe',
+    railTitle: 'Muhtasari wa manunuzi',
+    railPurchasesAll: 'Manunuzi yote',
+    railPurchasesOnDate: 'Kwa tarehe hii',
+    railKgOnDate: 'Kilo za tarehe hii',
+    railKgAll: 'Kilo zote',
+    railSpendTitle: 'Matumizi',
+    railSpendOnDate: 'Gharama ya tarehe hii',
+    railSpendAll: 'Gharama zote',
+    /** Bei zilizofichwa zinaachwa nje ya jumla - mstari hueleza hilo. */
+    railSpendHint: 'Bei ambazo huruhusiwi kuziona haziingii kwenye jumla hii.',
+    weekdayLabels: ['Jtat', 'Jnne', 'Jtan', 'Alh', 'Ijm', 'Jmos', 'Jpil'],
+    weekPrevious: 'Wiki iliyopita',
+    weekNext: 'Wiki ijayo',
+    daySelect: 'Onyesha tarehe',
+    dayBackToToday: 'Rudi leo',
+    dayViewing: 'Unaona tarehe',
   },
   en: {
     title: 'Feed Purchases',
@@ -171,5 +197,28 @@ export const FEED_PURCHASES_I18N = {
 
     alreadyReversedNotice:
       'This purchase has been reversed, so it cannot be corrected or reversed again.',
+
+    introTitle: 'Feed purchases',
+    introBody:
+      'This is where kilos enter the store. Every purchase adds to the balance of its feed type straight away.',
+    introStep1: 'Pick a feed type from the catalogue.',
+    introStep2: 'Enter the kilos and the price per kilo - the total is worked out for you.',
+    introStep3: 'Got it wrong? Reverse or correct it - no purchase is ever deleted.',
+    railWeekTitle: 'Pick a date',
+    railTitle: 'Purchase summary',
+    railPurchasesAll: 'All purchases',
+    railPurchasesOnDate: 'On this date',
+    railKgOnDate: 'Kg on this date',
+    railKgAll: 'Kg in total',
+    railSpendTitle: 'Spend',
+    railSpendOnDate: 'Spent on this date',
+    railSpendAll: 'Spent in total',
+    railSpendHint: 'Prices you are not allowed to see are left out of these totals.',
+    weekdayLabels: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+    weekPrevious: 'Previous week',
+    weekNext: 'Next week',
+    daySelect: 'Show date',
+    dayBackToToday: 'Back to today',
+    dayViewing: 'Showing',
   },
 } as const;

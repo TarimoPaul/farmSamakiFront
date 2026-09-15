@@ -92,6 +92,29 @@ export const ASSETS_I18N = {
     errorSizeTooLong: 'Lebo ya ukubwa isizidi herufi 80.',
 
     createdToast: 'Mali imeandikishwa.',
+
+    // Rail ya muhtasari. Kalenda haigharimu ombi: kila mali ina `acquiredDate`
+    // yake, hivyo tarehe ni chujio la taarifa zilizopo skrini tayari.
+    introTitle: 'Daftari la Mali',
+    introBody:
+      'Orodha ya kila kitu kampuni inachomiliki - jenereta, pikipiki, matanki, majengo - na kiko shamba gani.',
+    introStep1: 'Unda aina ya mali (Mashine, Magari, Majengo) kama haipo.',
+    introStep2: 'Andikisha mali: jina, shamba, aina, bei na tarehe ya kupata.',
+    introStep3: 'Jumla ya kila shamba na ya kampuni nzima zinajihesabu zenyewe.',
+    railWeekTitle: 'Chagua tarehe',
+    railTitle: 'Muhtasari wa daftari',
+    railAssetsAll: 'Mali zote',
+    railAssetsOnDate: 'Zilizopatikana tarehe hii',
+    railValueOnDate: 'Thamani ya tarehe hii',
+    railValueAll: 'Thamani yote',
+    railFarmsTitle: 'Thamani kwa shamba',
+    railFarmsEmpty: 'Hakuna mali iliyoandikishwa bado.',
+    weekdayLabels: ['Jtat', 'Jnne', 'Jtan', 'Alh', 'Ijm', 'Jmos', 'Jpil'],
+    weekPrevious: 'Wiki iliyopita',
+    weekNext: 'Wiki ijayo',
+    daySelect: 'Onyesha tarehe',
+    dayBackToToday: 'Rudi leo',
+    dayViewing: 'Unaona tarehe',
   },
   en: {
     title: 'Asset Register',
@@ -121,8 +144,7 @@ export const ASSETS_I18N = {
       'Start by creating an asset category (for example: Machinery, Vehicles, Buildings) below, then register the first asset. Each farm’s total will appear here.',
 
     categoriesTitle: 'Asset categories',
-    categoriesHint:
-      'Categories are system-wide and created by you. Every asset needs exactly one.',
+    categoriesHint: 'Categories are system-wide and created by you. Every asset needs exactly one.',
     categoriesEmpty:
       'No asset categories yet. Create the first one here - the asset form needs it.',
     fieldCategoryName: 'New category name',
@@ -141,7 +163,8 @@ export const ASSETS_I18N = {
     noFarmTitle: 'No farm to register assets on',
     noFarmMessage:
       'Your account is not assigned to a farm yet, and every asset belongs to a farm. Ask an administrator to add you to one.',
-    noFarmMessageRoot: 'Pick a farm in the switcher at the top first - every asset belongs to a farm.',
+    noFarmMessageRoot:
+      'Pick a farm in the switcher at the top first - every asset belongs to a farm.',
 
     formTitle: 'Register an asset',
     formHint:
@@ -170,5 +193,26 @@ export const ASSETS_I18N = {
     errorSizeTooLong: 'The size label must be 80 characters or fewer.',
 
     createdToast: 'Asset registered.',
+
+    introTitle: 'Asset Register',
+    introBody:
+      'Everything the company owns - generators, motorbikes, tanks, buildings - and which farm it sits on.',
+    introStep1: 'Create an asset category (Machinery, Vehicles, Buildings) if there is none.',
+    introStep2: 'Register the asset: name, farm, category, cost and the date it was acquired.',
+    introStep3: 'Each farm total and the company total are worked out for you.',
+    railWeekTitle: 'Pick a date',
+    railTitle: 'Register summary',
+    railAssetsAll: 'All assets',
+    railAssetsOnDate: 'Acquired on this date',
+    railValueOnDate: 'Value on this date',
+    railValueAll: 'Total value',
+    railFarmsTitle: 'Value by farm',
+    railFarmsEmpty: 'No assets registered yet.',
+    weekdayLabels: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+    weekPrevious: 'Previous week',
+    weekNext: 'Next week',
+    daySelect: 'Show date',
+    dayBackToToday: 'Back to today',
+    dayViewing: 'Showing',
   },
 } as const;

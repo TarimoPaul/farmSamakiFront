@@ -579,7 +579,12 @@ describe('Assets', () => {
   /** Against the REAL route table - the wiring is what is being checked. */
   describe('the route gate', () => {
     const assetsRoute = (): Route => {
-      const route = routes.find((r) => r.path === 'assets');
+      // Flattened: the screens are CHILDREN of the shell's layout route now, so a
+      // top-level ind would miss them - and missing them would look exactly
+      // like the guard being gone.
+      const route = routes
+        .flatMap((r) => [r, ...(r.children ?? [])])
+        .find((r) => r.path === 'assets');
       if (!route) {
         throw new Error('assets is not in the route table');
       }
@@ -636,5 +641,95 @@ describe('Assets', () => {
       const en = Object.keys(ASSETS_I18N.en).sort();
       expect(en).toEqual(sw);
     });
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * Kalenda HAIGHARIMU OMBI: kila mali ina `acquiredDate` yake, hivyo tarehe ni
+ * chujio la taarifa zilizopo skrini tayari.
+ *
+ * Kadi ya "Thamani kwa shamba" ndiyo kitu pekee rail inachotoa ambacho jedwali
+ * la kushoto haliwezi: hapo kila jumla ya shamba iko mwishoni mwa jedwali lake,
+ * hivyo kulinganisha mashamba mawili ni kupita mali zote zilizo katikati.
+ */
+describe('Assets summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('counts the register and totals its value', async () => {
+    const { fixture, component, httpMock } = setup(ASSET_KEEPER);
+    await load(fixture, httpMock);
+
+    const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+
+    expect(by('Mali zote')).toBe('3');
+    // 1,250,000.10 + 3,400,000.20 + 800,000.25 - angalia fixtures.
+    expect(by('Thamani yote')).toBe(money(5450000.55));
+    httpMock.verify();
+  });
+
+  it('filters to the selected date without asking the backend', async () => {
+    const { fixture, component, httpMock } = setup(ASSET_KEEPER);
+    await load(fixture, httpMock);
+
+    component.selectDate(new Date(2026, 2, 1)); // 2026-03-01, jenereta
+    fixture.detectChanges();
+
+    const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+    expect(by('Zilizopatikana tarehe hii')).toBe('1');
+    expect(by('Thamani ya tarehe hii')).toBe(money(1250000.1));
+    // Hakuna ombi jipya - hiyo ndiyo hoja ya kuchuja kwenye skrini.
+    httpMock.verify();
+  });
+
+  it('ranks the farms by value, biggest first', async () => {
+    const { fixture, component, httpMock } = setup(ASSET_KEEPER);
+    await load(fixture, httpMock);
+
+    // Mbeya (jenereta + pikipiki) juu ya Iringa (tanki) - si kwa alfabeti,
+    // ambapo Iringa ingetangulia.
+    expect(component.valueByFarm().map((row) => row.name)).toEqual([
+      'Shamba la Mbeya',
+      'Shamba la Iringa',
+    ]);
+    expect(component.valueByFarm()[0].value).toBe(money(4650000.3));
+
+    // Dodoma ni shamba la mtumiaji lakini halina mali: haliingii kwenye kadi,
+    // kwa sababu jumla ya sifuri si taarifa - ni kutokuwepo kwenye daftari.
+    expect(component.valueByFarm().some((row) => row.name === 'Shamba la Dodoma')).toBe(false);
+    httpMock.verify();
+  });
+
+  it('says so rather than showing an empty list when nothing is registered', async () => {
+    const { fixture, component, httpMock } = setup(ASSET_KEEPER);
+    await load(fixture, httpMock, EMPTY_REGISTER);
+
+    expect(component.valueByFarm().length).toBe(0);
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+    expect(rail.textContent).toContain('Hakuna mali iliyoandikishwa bado.');
+    // Jumla ya daftari tupu ni 0.00 iliyoandikwa, si NaN wala nafasi wazi.
+    expect(component.summary().find((row) => row.label === 'Thamani yote')?.value).toBe(money(0));
+    httpMock.verify();
+  });
+
+  it('renders the rail beside the work', async () => {
+    const { fixture, httpMock } = setup(ASSET_KEEPER);
+    await load(fixture, httpMock);
+
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+    expect(rail.parentElement?.classList.contains('module-layout')).toBe(true);
+    // Maelezo, kalenda, muhtasari, thamani kwa shamba.
+    expect(rail.querySelectorAll('.side-card').length).toBe(4);
+    expect(rail.querySelector('app-date-picker-card')).toBeTruthy();
+  });
+
+  it('carries exactly the same rail keys in both languages', () => {
+    const sw = Object.keys(ASSETS_I18N.sw).sort();
+    const en = Object.keys(ASSETS_I18N.en).sort();
+    expect(en).toEqual(sw);
   });
 });

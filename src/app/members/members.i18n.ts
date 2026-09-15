@@ -70,6 +70,35 @@ export const MEMBERS_I18N = {
       'Akaunti imetengenezwa, lakini bado haijawekwa kwenye shamba hili. Chagua nafasi kisha bonyeza Hifadhi tena kumalizia - hakuna akaunti mpya itakayotengenezwa.',
     add: 'Ongeza',
 
+    // ------------------------------------- mtu mpya, au mtu aliyepo tayari
+    addModeNew: 'Mtu mpya',
+    addModeExisting: 'Mtu aliyepo',
+    existingIntro:
+      'Kwa mtu mwenye akaunti tayari - labda yuko kwenye shamba jingine. Tafuta kwa namba yake ya simu, kisha mpe nafasi kwenye shamba hili. Hakuna akaunti mpya inayotengenezwa.',
+    search: 'Tafuta',
+    errorFindFirst: 'Tafuta mtu kwanza kwa namba yake ya simu.',
+    errorAlreadyHere: 'Mtu huyu tayari yuko kwenye shamba hili.',
+    existingAddedToast: 'Ameongezwa kwenye shamba hili.',
+
+    // ------------------------------------------------- mashamba ya mtu
+    farms: 'Mashamba yake',
+    farmsTitle: 'Mashamba ya',
+    farmsIntroCompany:
+      'Mashamba yote aliyo mwanachama wake. Ukimpa shamba jingine, ataweza kuhamia huko kwa kichagua-shamba juu.',
+    farmsIntroFarm:
+      'Unaona shamba lako tu - huwezi kufikia mashamba mengine. Kumwongeza mtu wa shamba jingine hapa, tumia "Mwanachama Mpya" kisha "Mtu aliyepo".',
+    farmHere: '(hili)',
+    farmsEmpty: 'Hayupo kwenye shamba lolote unaloweza kuliona.',
+    farmsLoadFailed: 'Mashamba yake hayakupatikana. Funga kisha ujaribu tena.',
+    grantTitle: 'Mpe shamba jingine',
+    fieldFarm: 'Shamba',
+    farmPlaceholder: 'Chagua shamba...',
+    grantSubmit: 'Mpe shamba',
+    grantNoneLeft: 'Tayari yuko kwenye kila shamba lililopo.',
+    farmsUnavailable: 'Orodha ya mashamba haikupatikana. Jaribu tena.',
+    errorFarmRequired: 'Chagua shamba.',
+    grantedToast: 'Amepewa shamba jipya.',
+
     // ------------------------------------------------- kuhariri utambulisho
     edit: 'Hariri taarifa',
     editTitle: 'Hariri taarifa za',
@@ -97,6 +126,25 @@ export const MEMBERS_I18N = {
       'atatolewa kwenye shamba hili na kupoteza uwezo wa kuona data yake. Akaunti yake yenyewe haitafutwa.',
     removeConfirm: 'Ndiyo, mtoe',
     removedToast: 'Mtumiaji ametolewa kwenye shamba.',
+
+    // Rail ya muhtasari. HAKUNA KALENDA: UserSummary haina muhuri wa muda.
+    introTitle: 'Wanachama',
+    introBody:
+      'Watu wa shamba hili na wanachoruhusiwa kufanya. Nafasi ndiyo inayotoa ruhusa - si akaunti yenyewe.',
+    introStep1: 'Ongeza mtu, au mpokee kutoka kwenye Idhini.',
+    introStep2: 'Mpe nafasi - bila nafasi ataingia bila kuwa na cha kufanya.',
+    introStep3: 'Kumzuia kunazima kuingia; kumtoa kunaondoa uanachama wa shamba.',
+    railTitle: 'Muhtasari wa wanachama',
+    railMembersAll: 'Wanachama wote',
+    railNoRole: 'Bila nafasi',
+    railByRoleTitle: 'Wanachama kwa nafasi',
+    railByRoleEmpty: 'Shamba hili halina mwanachama bado.',
+    railRolesTitle: 'Nafasi za kutoa',
+    railRolesUsable: 'Zinazoweza kutolewa',
+    railRolesDisabled: 'Zilizozimwa (haziwezi)',
+    /** Nafasi zilizozimwa hazikubaliwi na backend - angalia `roles` kwenye component. */
+    railRolesFailed: 'Orodha ya nafasi haikupakia. Fomu ya kubadilisha nafasi itakuwa tupu.',
+    railRolesEmpty: 'Hakuna nafasi inayoweza kutolewa. Unda au uwashe nafasi kwenye Nafasi.',
   },
   en: {
     title: 'Farm Members',
@@ -156,6 +204,33 @@ export const MEMBERS_I18N = {
       'The account was created, but it is not on this farm yet. Choose a role and press Save again to finish - no second account will be created.',
     add: 'Add',
 
+    addModeNew: 'New person',
+    addModeExisting: 'Existing person',
+    existingIntro:
+      'For someone who already has an account - perhaps on another farm. Find them by phone number, then give them a role on this farm. No new account is created.',
+    search: 'Find',
+    errorFindFirst: 'Find the person by their phone number first.',
+    errorAlreadyHere: 'This person is already on this farm.',
+    existingAddedToast: 'Added to this farm.',
+
+    farms: 'Their farms',
+    farmsTitle: 'Farms of',
+    farmsIntroCompany:
+      'Every farm they are a member of. Give them another and they can move to it with the farm switcher above.',
+    farmsIntroFarm:
+      'You see your own farm only - other farms are out of your reach. To add someone from another farm here, use "New Member" then "Existing person".',
+    farmHere: '(this one)',
+    farmsEmpty: 'They are not on any farm you can see.',
+    farmsLoadFailed: 'Their farms could not be loaded. Close and try again.',
+    grantTitle: 'Give them another farm',
+    fieldFarm: 'Farm',
+    farmPlaceholder: 'Choose a farm...',
+    grantSubmit: 'Give farm',
+    grantNoneLeft: 'They are already on every farm there is.',
+    farmsUnavailable: 'The list of farms could not be loaded. Try again.',
+    errorFarmRequired: 'Choose a farm.',
+    grantedToast: 'Given a new farm.',
+
     edit: 'Edit details',
     editTitle: 'Edit the details of',
     editIntro:
@@ -180,5 +255,22 @@ export const MEMBERS_I18N = {
       'will be taken off this farm and will no longer see its data. Their account itself is not deleted.',
     removeConfirm: 'Yes, remove',
     removedToast: 'Removed from the farm.',
+
+    introTitle: 'Members',
+    introBody:
+      'The people on this farm and what they may do. Permission comes from the role, not from the account.',
+    introStep1: 'Add someone, or receive them from Approvals.',
+    introStep2: 'Give them a role - without one they can sign in and do nothing.',
+    introStep3: 'Disabling stops the login; removing ends the farm membership.',
+    railTitle: 'Member summary',
+    railMembersAll: 'All members',
+    railNoRole: 'Without a role',
+    railByRoleTitle: 'Members by role',
+    railByRoleEmpty: 'This farm has no members yet.',
+    railRolesTitle: 'Roles to hand out',
+    railRolesUsable: 'Can be given',
+    railRolesDisabled: 'Disabled (cannot)',
+    railRolesFailed: 'The role list did not load. The change-role form will be empty.',
+    railRolesEmpty: 'No role can be given. Create or enable one on the Roles screen.',
   },
 } as const;

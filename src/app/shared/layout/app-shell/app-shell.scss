@@ -8,6 +8,14 @@
   --sidebar-width: 240px;
   --sidebar-overhang: 120px;
 
+  // Collapsed: the SAME two tokens, halved. Everything that positions the
+  // sidebar and pads the canvas already reads them, so the whole layout
+  // follows from this one pair - no second set of rules for the rail.
+  &--rail {
+    --sidebar-width: 76px;
+    --sidebar-overhang: 38px;
+  }
+
   height: 100dvh;
   display: flex;
   // The page BEHIND everything - behind the sidebar and behind the canvas -
@@ -17,9 +25,13 @@
   background: var(--surface);
   padding: 0 0 0 var(--sidebar-overhang);
   overflow: hidden;
+  transition: padding 200ms ease;
 
+  // A phone has no width to spend on a white margin around the canvas: the
+  // page itself takes the canvas grey, so nothing shows behind it.
   @media (max-width: 860px) {
     padding: 0;
+    background: var(--surface-alt);
   }
 }
 
@@ -27,9 +39,9 @@
   position: relative;
   flex: 1;
   display: grid;
-  // One column by default. A screen that projects an [slot=aside] column
-  // (the dashboard's summary rail) asks for the second one explicitly -
-  // otherwise every other screen would pay for a 300px track it never fills.
+  // One column, always. The second track existed for the dashboard's summary
+  // rail, which the dashboard now lays out itself - the shell has no business
+  // knowing that one screen out of fourteen wants a right-hand column.
   grid-template-columns: 1fr;
   gap: 1.25rem;
   height: 100%;
@@ -42,26 +54,21 @@
   // the lighter surface in both themes.
   background: var(--surface-alt);
   border-radius: 24px;
+  transition: padding 200ms ease;
   // The shadow is back: the canvas and the page behind it are different
   // colours again, so it has a real edge to lift.
   box-shadow: 0 30px 60px -30px rgba(15, 35, 60, 0.25);
 
-  // The aside itself is hidden at this width by the screen that owns it -
-  // projected content keeps ITS component's styles, not the shell's.
-  &--with-aside {
-    grid-template-columns: 1fr 300px;
-
-    @media (max-width: 1280px) {
-      grid-template-columns: 1fr;
-    }
-  }
-
+  // The sidebar leaves the flow entirely here - it becomes the off-canvas
+  // drawer (see the drawer block at the foot of this file), so the canvas gets
+  // its overhang padding back and uses the full width.
+  // ...and the canvas runs edge to edge. The rounded, shadowed sheet is a
+  // desktop idea - on a 390px screen its corners and 1.5rem of padding cost
+  // an eighth of the width and read as a frame around nothing.
   @media (max-width: 860px) {
-    padding: 1.5rem;
-
-    .sidebar {
-      display: none;
-    }
+    padding: 0.75rem;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 
@@ -79,18 +86,87 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  // The notch's colour, named once: every piece of the shape - the row, the
+  // two fillets - has to be the SAME colour as the canvas, or the join shows.
+  --nav-notch: var(--surface-alt);
+  // ONE radius for the whole shape: the row's own left corners AND the two
+  // fillets that curve the rail away on the right. They were 12px and 24px
+  // before, which read as two different designs meeting in the middle of a
+  // single row. Anything that rounds part of this shape reads this token.
+  --nav-radius: 24px;
+  // The depth of that sinking. A blue-grey, not black - the same family the
+  // canvas's own shadow is mixed from, so the notch is lit like everything
+  // else on the shell. Re-stated for dark mode further down, where a light
+  // shadow over a dark surface has to be far weaker to read at all.
+  --nav-notch-shade: rgba(15, 35, 60, 0.28);
+
   padding: 1.5rem 1.1rem;
   border-radius: 22px;
-  overflow-y: auto;
+  // NOT `overflow-y: auto` any more - that computes overflow-x to `auto` too,
+  // and the rows now bleed into the horizontal padding. The scroll belongs to
+  // the nav alone (see .sidebar__nav), which also keeps the brand and the
+  // footer pinned while a long nav scrolls between them.
+  overflow: hidden;
   color: #fff;
   background: linear-gradient(165deg, var(--sidebar-from) 0%, var(--sidebar-to) 100%);
-  box-shadow: 0 24px 48px -16px rgba(15, 35, 60, 0.4);
+  // Thrown LEFT, and far enough that none of it lands on the canvas.
+  //
+  // Measured from a screenshot, the previous value still tinted the canvas
+  // beside the rail to #E4E9EC where the canvas itself is #EDF1F3 - so the
+  // notch, painted the honest canvas colour, met a darker strip and the join
+  // showed. The numbers now keep the blur inside the rail: the shadow box is
+  // inset 20px and moved 18px left, so its right edge is 38px clear of the
+  // sidebar's, and 32px of blur reaches only half that back.
+  box-shadow: -18px 16px 32px -20px rgba(15, 35, 60, 0.45);
+  transition:
+    width 200ms ease,
+    left 200ms ease,
+    padding 200ms ease;
+}
+
+// Dark mode. The canvas is DARKER than the rail there, so the notch already
+// reads as a recess on its own; a shadow as strong as the light theme's would
+// only smear it into the rail. Black rather than the blue-grey, and weak.
+:host-context(:root[data-theme='dark']) .sidebar {
+  --nav-notch-shade: rgba(0, 0, 0, 0.35);
 }
 
 .sidebar__brand {
   display: flex;
   align-items: center;
   gap: 0.7rem;
+}
+
+// The rail/labels switch. Sits at the end of the brand row when there is a
+// row to sit in, and under the badge once there is not.
+.sidebar__toggle,
+.sidebar__close {
+  flex: none;
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
+  }
 }
 
 .sidebar__brand-icon {
@@ -112,6 +188,8 @@
 .sidebar__brand-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sidebar__brand-name {
@@ -130,9 +208,72 @@
   flex-direction: column;
   gap: 0.35rem;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  // Deliberately no visible scrollbar: it would run down the exact edge the
+  // notch has to meet, cutting the row off from the canvas it is joining.
+  // The nav still scrolls by wheel, touch and keyboard.
+  scrollbar-width: none;
+
+  // ...and in its place, a fade at whichever edge has entries beyond it.
+  //
+  // A MASK rather than a gradient overlay, for two reasons. The rail is a
+  // gradient, so an overlay would have to guess the colour behind it at that
+  // exact height and would be slightly wrong. And an overlay fading to
+  // `transparent` fades through rgba(0,0,0,0) - black - which on a dark rail
+  // shows as a smudge. A mask changes alpha only: the entries thin out and the
+  // rail itself shows through, whatever colour it happens to be there.
+  --nav-fade: 28px;
+  --nav-fade-top: 0px;
+  --nav-fade-bottom: 0px;
+
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--nav-fade-top),
+    #000 calc(100% - var(--nav-fade-bottom)),
+    transparent 100%
+  );
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  // With both at 0 the stops collapse and the mask is fully opaque, so the
+  // list is untouched until there really is something past the edge.
+  &--more-above {
+    --nav-fade-top: var(--nav-fade);
+  }
+
+  &--more-below {
+    --nav-fade-bottom: var(--nav-fade);
+  }
+}
+
+// -- Groups ---------------------------------------------------------------
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  // The gap between GROUPS, on top of the nav's own row gap - it is what
+  // makes the grouping visible at all, so it is wider than the rows.
+  & + & {
+    margin-top: 1.1rem;
+  }
+}
+
+.nav-group__heading {
+  margin: 0 0 0.2rem 0.8rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -152,23 +293,143 @@
     flex: none;
   }
 
-  &--active {
-    background: rgba(255, 255, 255, 0.95);
-    color: var(--brand-strong);
-  }
-
   &--disabled {
     opacity: 0.55;
   }
 }
 
+// ── The notch ────────────────────────────────────────────────────────────
+// The canvas reaching into the rail. The row itself is the flat part; the two
+// pseudo-elements are the fillets that curve the rail away above and below it,
+// which is what stops it reading as a rectangle someone pasted on.
+//
+// A concave corner cannot be drawn with border-radius, which only ever cuts a
+// corner AWAY. So each fillet is a square of the canvas colour with its own
+// OUTER corner rounded off - what is left behind is the quarter-disc of rail,
+// and the curve is the rail's, bending back.
+//
+// ALL of it is gated on there being a canvas to join. Below 860px the sidebar
+// is a drawer floating over the screen, and a notch cut into its edge would
+// open onto nothing - so the whole effect is declared here and never has to
+// be undone further down.
+@media (min-width: 861px) {
+  // The bleed, and it is the NAV that carries it, not the row.
+  //
+  // The nav scrolls (16 entries), and `overflow-y: auto` makes overflow-x
+  // `auto` too - so a row hanging past the nav's edge would simply be clipped
+  // there, a pixel short of the join the whole effect depends on. Widening
+  // the nav by exactly the sidebar's right padding puts its edge ON the
+  // sidebar's edge, and the rows, being stretched flex children, arrive there
+  // with it. That edge sits over the canvas (the sidebar straddles it, see
+  // .sidebar), so a row in the canvas's colour runs into the canvas seamlessly.
+  .sidebar__nav {
+    margin-right: -1.1rem;
+  }
+
+  .nav-item {
+    padding-right: 1.9rem;
+    // Rounded on the left only - the right side is not an edge any more - and
+    // by the SAME token the fillets use, so both ends of the row are drawn
+    // with one curvature. The browser clamps it to half the row's height, so
+    // the left end settles into a pill rather than overshooting.
+    border-radius: var(--nav-radius) 0 0 var(--nav-radius);
+  }
+
+  // The rail bleeds by its own (smaller) padding. The row's right padding is
+  // its left padding PLUS that bleed, which puts the icon back on the rail's
+  // centre line - `justify-content: center` centres within the CONTENT box,
+  // and the content box is what the bleed pushed off-centre.
+  .dash-page--rail {
+    .sidebar__nav {
+      margin-right: -0.75rem;
+    }
+
+    .nav-item {
+      padding: 0.7rem calc(0.7rem + 0.75rem) 0.7rem 0.7rem;
+    }
+  }
+
+  .nav-item--active,
+  a.nav-item:hover {
+    background: var(--nav-notch);
+    color: var(--on-surface);
+    // Inset, so the canvas reads as having sunk INTO the rail rather than
+    // been laid on top of it.
+    //
+    // From the LEFT edge, not the top. The shape is three boxes - this row
+    // and the two fillets - and a shadow on the top edge stops dead where the
+    // fillet begins: the row goes slightly darker while the fillet stays flat
+    // canvas, so the curve shows up as a patch of its own colour. The fillets
+    // sit at the RIGHT edge, so a shadow thrown from the left never reaches
+    // them and all three pieces stay exactly one colour where they meet.
+    box-shadow: inset 3px 0 7px -3px var(--nav-notch-shade);
+
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      width: var(--nav-radius);
+      height: var(--nav-radius);
+      pointer-events: none;
+    }
+
+    // Above the row, and mirrored below it: a square of canvas colour with a
+    // disc of RAIL punched out of its outer corner.
+    //
+    // `border-radius` cannot draw this. Its arc would be centred on the row's
+    // own corner, which meets the row's straight edge at an angle - the join
+    // shows as a small ear sticking out of the row rather than a curve. The
+    // gradient's circle is centred on the fillet's OUTER corner instead, so
+    // the arc leaves the row's edge and the sidebar's edge tangentially, and
+    // the rail reads as bending away from the canvas.
+    &::before {
+      top: calc(-1 * var(--nav-radius));
+      background: radial-gradient(
+        circle var(--nav-radius) at 0 0,
+        transparent 0,
+        transparent calc(var(--nav-radius) - 0.5px),
+        var(--nav-notch) var(--nav-radius)
+      );
+    }
+
+    &::after {
+      bottom: calc(-1 * var(--nav-radius));
+      background: radial-gradient(
+        circle var(--nav-radius) at 0 100%,
+        transparent 0,
+        transparent calc(var(--nav-radius) - 0.5px),
+        var(--nav-notch) var(--nav-radius)
+      );
+    }
+  }
+}
+
+// Active outranks hover: the screen you are ON is named in the brand colour,
+// the one you are merely pointing at is not.
+//
+// --brand-dark, NOT --brand-strong. The row used to be near-white in both
+// themes, so --brand-strong (#c84008, fixed across themes) read fine on it.
+// The notch is the CANVAS now, which in dark mode is #162027 - and #c84008 on
+// that is about 2.2:1, unreadable. --brand-dark is the token that flips with
+// the theme (#a03008 light, #ff8a5c dark), so it stays legible on both.
+.nav-item--active {
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+
+.nav-item__label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 a.nav-item {
   cursor: pointer;
-
-  &:hover:not(.nav-item--active) {
-    background: rgba(255, 255, 255, 0.14);
-    color: #fff;
-  }
+  transition:
+    background 140ms ease,
+    color 140ms ease;
 
   &:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.9);
@@ -176,6 +437,7 @@ a.nav-item {
   }
 }
 
+// A link to /profile, so the anchor's own colour and underline are undone.
 .sidebar__footer {
   display: flex;
   align-items: flex-start;
@@ -183,6 +445,19 @@ a.nav-item {
   padding: 0.9rem;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.14);
+  color: inherit;
+  text-decoration: none;
+  transition: background 140ms ease;
+
+  &:hover,
+  &--active {
+    background: rgba(255, 255, 255, 0.24);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
+  }
 }
 
 .sidebar__footer-icon {
@@ -207,10 +482,248 @@ a.nav-item {
   font-weight: 700;
 }
 
+// min-width lets the name and role ellipsise instead of widening the rail.
+.sidebar__footer-text-wrap {
+  min-width: 0;
+}
+
+.sidebar__footer-name,
 .sidebar__footer-text {
-  margin: 0.15rem 0 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sidebar__footer-name {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sidebar__footer-text {
+  margin: 0.1rem 0 0;
   font-size: 0.72rem;
   color: rgba(255, 255, 255, 0.75);
+}
+
+// ── Rail: the collapsed sidebar ──────────────────────────────────────────
+// Only the things that cannot be derived from --sidebar-width live here:
+// what centres, and what stops being drawn. The geometry came from the two
+// tokens at the top of the file.
+//
+// DESKTOP ONLY. The rail is a way to keep a sidebar on screen with less width;
+// below 861px there is no sidebar on screen to keep, only the drawer. These
+// rules used to apply there too - and the state starts COLLAPSED below 1180px
+// (SidebarService), so EVERY phone opened a drawer with centred rows, group
+// headings shrunk to 1px rules and a squeezed footer, while the drawer block
+// tried to undo it rule by rule and lost on specificity. Gating the rail here
+// means there is nothing to undo.
+@media (min-width: 861px) {
+  .dash-page--rail {
+    .sidebar {
+      padding: 1.5rem 0.75rem;
+      // Centres the brand badge, the toggle and the footer icon - all of
+      // which are narrower than the rail.
+      align-items: center;
+    }
+
+    // ...but NOT the nav, which must still span the rail edge to edge.
+    //
+    // `align-items: center` above makes every flex child shrink to its own
+    // content width instead of stretching, and a nav that is only as wide as
+    // its widest row cannot reach the sidebar's edge - the bleed then just
+    // shifts a narrow box sideways rather than widening it, and the notch
+    // stops a dozen pixels short of the canvas it is supposed to join.
+    .sidebar__nav {
+      align-self: stretch;
+    }
+
+    // Badge on top, toggle underneath - the row has no width left for both.
+    .sidebar__brand {
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .sidebar__brand-text {
+      display: none;
+    }
+
+    .sidebar__toggle {
+      margin-left: 0;
+    }
+
+    .nav-item {
+      justify-content: center;
+      padding: 0.7rem;
+    }
+
+    // No room for a word at 76px. The heading becomes the RULE it was drawing
+    // anyway - the groups stay separated, they just stop being named. It is
+    // emptied rather than hidden so the gap above each group is unchanged
+    // between the two widths.
+    .nav-group__heading {
+      margin: 0.35rem 0.6rem 0.55rem;
+      height: 1px;
+      overflow: hidden;
+      text-indent: -999px;
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    // Clipped, NOT removed: the entry keeps its accessible name, so a screen
+    // reader still announces "Uzalishaji" where the eye sees only an icon.
+    .nav-item__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .sidebar__footer {
+      justify-content: center;
+      padding: 0.7rem;
+    }
+
+    .sidebar__footer-text-wrap {
+      display: none;
+    }
+  }
+}
+
+// ── Drawer: the sidebar on a phone ───────────────────────────────────────
+// Below 860px the sidebar is off-canvas rather than absent. It always shows
+// LABELS there, whatever the desktop rail preference is: the screen is small,
+// but a thumb has no hover and no tooltip, so icons alone would be a guess.
+.dash-scrim {
+  display: none;
+  border: none;
+  padding: 0;
+}
+
+.dash-menu {
+  display: none;
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--on-surface);
+  cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// The drawer's own way out. Hidden on a desktop, where the toggle beside it
+// does the collapsing and there is no drawer to close.
+.sidebar__close {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .dash-menu {
+    display: flex;
+  }
+
+  .dash-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    background: rgba(8, 18, 26, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    cursor: pointer;
+    transition: opacity 200ms ease;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    // Wider than the desktop rail on purpose - see the note above.
+    width: min(280px, 82vw);
+    z-index: 4;
+    // The notch and the home indicator on a phone: the brand and the footer
+    // must not sit under either.
+    padding: max(1.25rem, env(safe-area-inset-top)) 1rem max(1.1rem, env(safe-area-inset-bottom));
+    gap: 1.1rem;
+    border-radius: 0 22px 22px 0;
+    // Thrown RIGHT, onto the screen it covers - the desktop shadow falls left.
+    box-shadow: 18px 0 40px -24px rgba(0, 0, 0, 0.55);
+    transform: translateX(-102%);
+    // HIDDEN when shut, not just moved. Off-canvas by transform alone, every
+    // link in it stayed in the tab order and in the accessibility tree: a
+    // keyboard user tabbed through a nav they could not see. The visibility
+    // flips only AFTER the slide-out finishes, so the motion is not cut short.
+    visibility: hidden;
+    transition:
+      transform 220ms ease,
+      visibility 0s linear 220ms;
+  }
+
+  .sidebar .sidebar__toggle {
+    // Nothing to collapse to on a phone: the drawer is open or it is gone.
+    display: none;
+  }
+
+  .sidebar .sidebar__close {
+    display: flex;
+    margin-left: auto;
+  }
+
+  // No notch in the drawer. There is no canvas on the far side of this edge
+  // to join - the drawer floats over the screen - so the row is a plain,
+  // full-width pill. The notch never reaches this far: it is declared inside
+  // `@media (min-width: 861px)`, and so is the rail.
+  .sidebar .nav-item {
+    min-height: 44px;
+  }
+
+  // `.sidebar` in front for the weight: the plain `.nav-item--active` rule
+  // comes later in this file and set the text to --brand-dark, which in dark
+  // mode is #ff8a5c - on this near-white pill, about 2.3:1. --brand-strong is
+  // the one orange fixed across themes for text on a light ground.
+  .sidebar .nav-item--active {
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--brand-strong);
+  }
+
+  .sidebar a.nav-item:hover:not(.nav-item--active) {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+  }
+
+  .dash-page--drawer {
+    .dash-scrim {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .sidebar {
+      transform: none;
+      visibility: visible;
+      transition: transform 220ms ease;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-page,
+  .dash-shell,
+  .sidebar,
+  .dash-scrim {
+    transition: none;
+  }
 }
 
 // ── Main column ──────────────────────────────────────────────────────────
@@ -222,61 +735,100 @@ a.nav-item {
   gap: 1.75rem;
   height: 100%;
   min-width: 0;
-  overflow-y: auto;
+  min-height: 0;
 }
 
+// The topbar stays put; the SCREEN scrolls beneath it.
+//
+// It used to scroll away with the content, because .dash-main was the scroll
+// container and the topbar its first child. `position: sticky` would have
+// needed a background and a z-index to cover what slides under it - and Daily
+// Tasks already pins its group headings at `top: 0` of that same container,
+// which would then have slid under the topbar. Moving the scroll one level
+// down (.dash-content) avoids both: nothing is layered, and `top: 0` inside a
+// screen still means the top of what the user can see.
+//
+// A CARD, like every other block on the canvas: white on the grey, one border,
+// the same 16px corners the screens' cards use. Without it the controls
+// floated loose on the canvas and read as part of whatever screen was below.
 .dash-topbar {
+  flex: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
-}
-
-// The farm switcher. Only ROOT sees it, so it sits quietly beside the user
-// block rather than taking a place in the nav.
-.dash-farm {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin-left: auto;
-}
-
-.dash-farm__label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-}
-
-.dash-farm__select {
-  max-width: 220px;
-  padding: 0.4rem 0.6rem;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 16px;
   background: var(--surface);
-  color: var(--on-surface);
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
 
-  &:focus-visible {
-    outline: 2px solid var(--brand);
-    outline-offset: 1px;
+  // Seven controls on one 350px row: every rem of gap is worth fighting for.
+  @media (max-width: 480px) {
+    gap: 0.375rem;
+    padding: 0.45rem;
   }
 }
 
-.dash-search {
-  flex: 1 1 auto;
+// The routed screen. The old .dash-main's column and gap, unchanged, so every
+// screen lays out as it did - the Dashboard's grid is `flex: 1; min-height: 0`
+// against this box.
+.dash-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
   min-width: 0;
-  max-width: 320px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 860px) {
+  .dash-main {
+    gap: 0.75rem;
+  }
+
+  // The projected <router-outlet> is an empty flex item, so the column's gap
+  // was paid twice between the topbar and the screen - 3.5rem on a phone,
+  // most of a tile's height. Taken out of the flow here, on the phone only:
+  // desktop spacing was signed off as it is.
+  .dash-content ::ng-deep > router-outlet {
+    display: none;
+  }
+}
+
+// Everything right of the search, pushed to the end as one group.
+.dash-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: 12px;
-  background: var(--surface);
+  gap: 0.6rem;
+  min-width: 0;
+  margin-left: auto;
+
+  @media (max-width: 480px) {
+    gap: 0.375rem;
+  }
+}
+
+// ── Topbar controls ──────────────────────────────────────────────────────
+// ONE height (--control-h), ONE radius (--radius), ONE hover (the border
+// takes the brand) and ONE focus ring. They used to be 30, 36 and 38px tall
+// with 10 and 12px corners, each with its own idea of hover.
+
+// The farm switcher. Only ROOT sees it, so it sits quietly beside the account
+// rather than taking a place in the nav.
+.dash-farm {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: var(--control-h);
+  padding: 0 0.35rem 0 0.7rem;
   border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
   color: var(--muted);
+  cursor: pointer;
 
   svg {
     width: 16px;
@@ -284,96 +836,84 @@ a.nav-item {
     flex: none;
   }
 
-  input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    background: transparent;
-    outline: none;
-    font-size: 0.85rem;
-    color: var(--on-surface);
-    font-family: var(--font-sans);
+  &:hover {
+    border-color: var(--brand);
+  }
 
-    &::placeholder {
-      color: var(--muted);
-    }
+  &:focus-within {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
   }
 }
 
-.dash-user {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  flex: 0 1 auto;
+.dash-farm__select {
   min-width: 0;
-}
-
-.dash-user__avatar {
-  flex: none;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--brand-soft);
-  color: var(--brand-dark);
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
-.dash-user__info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.25;
-}
-
-.dash-user__name,
-.dash-user__role {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.dash-user__name {
-  font-size: 0.85rem;
-  font-weight: 700;
+  max-width: 200px;
+  height: 100%;
+  padding: 0 0.2rem;
+  border: none;
+  outline: none;
+  background: transparent;
   color: var(--on-surface);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
 }
 
-.dash-user__role {
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
+// A phone: the chip becomes an icon button, and the select is laid INVISIBLY
+// over it - a tap lands on the real <select>, so the phone's own picker opens
+// with every farm in it. Squeezed to 110px it showed half a name and pushed
+// log out off the card.
 @media (max-width: 480px) {
-  .dash-user__info {
-    display: none;
+  .dash-farm {
+    position: relative;
+    width: var(--control-h);
+    padding: 0;
+    justify-content: center;
+    color: var(--on-surface);
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  .dash-farm__select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    opacity: 0;
   }
 }
 
 .dash-logout {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: var(--control-h);
+  height: var(--control-h);
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface);
-  color: var(--muted);
+  color: var(--on-surface);
   cursor: pointer;
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
   }
 
   &:hover {
-    color: var(--brand-dark);
+    color: var(--brand);
     border-color: var(--brand);
   }
-}
 
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+}

@@ -1,0 +1,249 @@
+@use '../shared/ui/side-card' as *;
+@use '../shared/ui/module-rail' as *;
+@use '../shared/styles/screen' as *;
+
+.costs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+
+  // Breathing room for the scrollbar. THIS element is the one that scrolls,
+  // so its bar is drawn on its own right edge - and without the padding the
+  // rail's cards end flush against it, close enough to read as one edge.
+  padding-right: 0.6rem;
+}
+
+.costs__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.card__hint {
+  margin: 0.25rem 0 0;
+  max-width: 70ch;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* One farm's slice of the register, separated by a rule like Assets. */
+.farm-group {
+  padding: 0.5rem 0.25rem 0.75rem;
+
+  & + & {
+    border-top: 1px solid var(--border);
+  }
+}
+
+.farm-group__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.farm-group__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--on-surface);
+}
+
+.farm-group__count {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* The cycle-vs-farm split: one line per subtotal, then the farm total. */
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0.5rem 0.75rem 0 auto;
+  max-width: 28rem;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+
+  dt,
+  dd {
+    margin: 0;
+  }
+
+  dd {
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
+.breakdown__row--farm dt {
+  font-style: italic;
+}
+
+.breakdown__row--total {
+  margin-top: 0.2rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--border);
+  color: var(--on-surface);
+
+  strong {
+    color: var(--on-surface);
+  }
+}
+
+.grand-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+  color: var(--on-surface);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+
+  strong {
+    font-size: 1.05rem;
+  }
+}
+
+.categories__empty,
+.guidance {
+  margin: 0 0.25rem 0.75rem;
+  max-width: 70ch;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.categories__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0.25rem 0.9rem;
+  padding: 0;
+  list-style: none;
+}
+
+.categories__chip {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: var(--on-surface);
+}
+
+.category-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0 0.25rem 0.25rem;
+
+  app-form-field {
+    flex: 1 1 220px;
+  }
+}
+
+.cost-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 0.25rem 0.25rem;
+}
+
+.cost-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.cost-form__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.cost-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.attribution {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.attribution__legend {
+  grid-column: 1 / -1;
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.attribution__required {
+  color: var(--danger, #c0392b);
+}
+
+.attribution__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+
+  &:has(input:checked) {
+    border-color: var(--brand);
+    background: color-mix(in srgb, var(--brand) 7%, transparent);
+  }
+
+  input {
+    margin-top: 0.2rem;
+  }
+}
+
+.attribution__label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.attribution__hint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.attribution__error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--danger, #c0392b);
+}

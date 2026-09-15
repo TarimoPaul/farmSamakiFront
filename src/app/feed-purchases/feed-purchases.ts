@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -9,12 +9,12 @@ import { FeedPurchase, FeedType } from '../core/models/feed';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { ActionMenu } from '../shared/ui/action-menu/action-menu';
 import { Button } from '../shared/ui/button/button';
 import { ConfirmDialog } from '../shared/ui/confirm-dialog/confirm-dialog';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
+import { DatePickerCard, isoDate } from '../shared/ui/date-picker-card/date-picker-card';
 import { FormField } from '../shared/ui/form-field/form-field';
 import { Modal } from '../shared/ui/modal/modal';
 import { Toast } from '../shared/ui/toast/toast';
@@ -88,12 +88,12 @@ const UNKNOWN_FAILURE = new ApiError({
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     ActionMenu,
     Button,
     ConfirmDialog,
     DataTable,
     EmptyState,
+    DatePickerCard,
     FormField,
     Modal,
     Toast,
@@ -111,6 +111,8 @@ export class FeedPurchases implements OnInit {
 
   readonly purchases = signal<readonly FeedPurchase[]>([]);
   readonly feedTypes = signal<readonly FeedType[]>([]);
+  private readonly datePicker = viewChild(DatePickerCard);
+
   readonly loading = signal(true);
   readonly loadError = signal<ApiError | null>(null);
   readonly loadErrorMessage = computed(() => this.messageFor(this.loadError()));
@@ -128,6 +130,72 @@ export class FeedPurchases implements OnInit {
    * correcting happens in a modal. Sharing the controls means one set of
    * validation rules that cannot drift apart.
    */
+  // ── The summary rail ───────────────────────────────────────────────────
+  //
+  // Counted from `purchases()`, already on the page, so the rail - date picker
+  // included - costs no request. A purchase carries its own `purchaseDate`,
+  // which is what makes "what was bought on the 7th" a filter.
+
+  readonly selectedDate = signal(isoDate(new Date()));
+  readonly viewingToday = computed(() => this.selectedDate() === isoDate(new Date()));
+
+  readonly dayState = computed<string | null>(() =>
+    this.viewingToday() ? null : `${this.t().dayViewing} ${this.selectedDate()}.`,
+  );
+
+  readonly purchasesOnDate = computed(() =>
+    this.purchases().filter((purchase) => purchase.purchaseDate === this.selectedDate()),
+  );
+
+  readonly summary = computed(() => {
+    const t = this.t();
+    const all = this.purchases();
+    const onDate = this.purchasesOnDate();
+    const kg = (rows: readonly FeedPurchase[]) =>
+      rows.reduce((sum, row) => sum + row.quantityKg, 0).toFixed(1);
+
+    return [
+      { label: t.railPurchasesAll, value: String(all.length) },
+      { label: t.railPurchasesOnDate, value: String(onDate.length) },
+      { label: t.railKgOnDate, value: kg(onDate) },
+      { label: t.railKgAll, value: kg(all) },
+    ];
+  });
+
+  /**
+   * What the feed cost - and it is NULL-AWARE rather than permission-aware.
+   *
+   * The backend sends `totalCost: null` to a caller without `view_feed_cost`
+   * (V18), so the honest total is the sum of the rows that HAVE a number. A
+   * reader without the code therefore gets a dash here, from the same nulls
+   * the table dashes out - the screen never has to ask what the caller may
+   * see, because the answer is already in the data.
+   */
+  readonly spend = computed(() => {
+    const t = this.t();
+    const rows = this.purchases();
+    const priced = rows.filter((row) => row.totalCost !== null);
+    if (priced.length === 0) {
+      return { all: t.costHidden, onDate: t.costHidden };
+    }
+    const sum = (subset: readonly FeedPurchase[]) =>
+      subset
+        .filter((row) => row.totalCost !== null)
+        .reduce((total, row) => total + (row.totalCost ?? 0), 0)
+        .toFixed(2);
+
+    return { all: sum(rows), onDate: sum(this.purchasesOnDate()) };
+  });
+
+  selectDate(date: Date): void {
+    this.selectedDate.set(isoDate(date));
+  }
+
+  backToToday(): void {
+    this.selectedDate.set(isoDate(new Date()));
+    this.datePicker()?.resetWeek();
+  }
+
   readonly editTarget = signal<FeedPurchase | null>(null);
 
   /**

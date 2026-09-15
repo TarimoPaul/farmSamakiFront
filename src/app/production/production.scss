@@ -1,4 +1,7 @@
 @use '../shared/styles/screen' as *;
+// The dashboard's summary cards, shared rather than copied - see the partial.
+@use '../shared/ui/side-card' as *;
+@use '../shared/ui/module-rail' as *;
 
 .production {
   display: flex;
@@ -6,6 +9,10 @@
   gap: 1.25rem;
   min-width: 0;
   overflow-y: auto;
+  // Breathing room for the scrollbar. THIS element is the one that scrolls,
+  // so its bar is drawn on its own right edge - and without the padding the
+  // rail's cards end flush against it, close enough to read as one edge.
+  padding-right: 0.6rem;
 }
 
 .production__head {
@@ -141,6 +148,113 @@
   line-height: 1.55;
   color: var(--on-surface);
   max-width: 70ch;
+}
+
+/* The harvest-events panel: title and "record" button share the head. */
+.events__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* The running tally - the same numbers closeCycle will sum. */
+.events__tally {
+  margin: 0 0 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem 1.25rem;
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--brand) 7%, transparent);
+}
+
+/* All stocked fish accounted for (a reminder), or more than were stocked (a
+   warning). Neither is an error: recording stays open either way. */
+.events__stock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  color: var(--on-surface);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-width: 70ch;
+}
+
+.events__stock p {
+  margin: 0;
+}
+
+.events__stock--exceeded {
+  border-left: 3px solid var(--notice);
+  background: color-mix(in srgb, var(--notice) 14%, transparent);
+}
+
+.events__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.events__preview .events__tally {
+  margin: 0;
+}
+
+/* SOLD / DIED / REMOVED as radios, each with the line saying what it asks for. */
+.choice-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.choice-group__legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.choice-group__required {
+  margin-left: 0.15rem;
+  color: var(--error);
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 7%, transparent);
+}
+
+.choice__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.choice__hint {
+  grid-column: 2;
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 
 .harvest__notes-label {

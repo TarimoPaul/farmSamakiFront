@@ -12,7 +12,6 @@ import { UserSummary } from '../core/models/auth';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { PERMISSION } from '../core/models/permissions';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { HasPermission } from '../shared/directives/has-permission';
 import { Button } from '../shared/ui/button/button';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
@@ -81,7 +80,7 @@ type Outcome =
  * Hence three gates, all reading the same permission set:
  *
  *  - the ROUTE and the NAV entry need `approve_users` (permissionGuard /
- *    AppShell's NAV_ITEMS);
+ *    AppShell's NAV_GROUPS);
  *  - the ASSIGN controls need `manage_users` (*appHasPermission). A caller
  *    with `approve_users` alone gets a plain "Idhinisha" and a line telling
  *    them the person still needs a farm;
@@ -101,7 +100,6 @@ type Outcome =
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     HasPermission,
     Button,
     DataTable,
@@ -224,6 +222,55 @@ export class Approvals implements OnInit {
   });
 
   readonly userKey = (user: UserSummary): string => user.id;
+
+  // ── The summary rail ───────────────────────────────────────────────────
+  //
+  // Counted from what is already on the page: the queue, and the two pickers.
+  //
+  // NO DATE PICKER, and it is the same gap the position column works around:
+  // `UserSummary` carries no timestamp at all, so there is no date to filter
+  // by. The backend orders the queue by `created_at`; it does not send it.
+
+  /**
+   * The queue, as two facts: how many are waiting, and who has waited longest.
+   *
+   * The oldest is NAMED rather than counted, because that is the one row an
+   * admin is meant to act on first - and the list is already in that order
+   * (`findByStatusOrderByCreatedAtAsc`), so it is position 1, not a guess.
+   */
+  readonly summary = computed(() => {
+    const t = this.t();
+    const rows = this.pending();
+
+    return [
+      { label: t.railPendingAll, value: String(rows.length) },
+      { label: t.railOldest, value: rows[0]?.name ?? t.railQueueEmpty },
+    ];
+  });
+
+  /**
+   * What the assign modal will actually offer - and the reason this card
+   * exists is that loadPickers() FAILS SILENTLY by design.
+   *
+   * A refused or broken `GET /api/roles` leaves the dropdown empty and puts no
+   * banner over a pending list that loaded perfectly well. That is the right
+   * call for the list, but it means the admin finds out only after opening the
+   * modal on somebody. Counting the pickers here says it before they start.
+   */
+  readonly pickerState = computed(() => {
+    const t = this.t();
+    const farm = this.canPickFarm() ? t.railFarmAny : (this.ownFarmName() ?? t.railFarmNone);
+
+    return {
+      rows: [
+        { label: t.railFarmLabel, value: farm },
+        { label: t.railRolesLabel, value: String(this.roles().length) },
+      ],
+      // Not "still loading": an empty picker AFTER the reads have settled is
+      // the state worth warning about.
+      noRoles: !this.pickersLoading() && this.roles().length === 0,
+    };
+  });
 
   ngOnInit(): void {
     this.loadPending();

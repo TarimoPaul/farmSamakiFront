@@ -1,3 +1,6 @@
+@use '../shared/ui/stat-tile' as *;
+@use '../shared/ui/side-card' as *;
+
 .dash-status {
   margin: 0;
   padding: 1.5rem;
@@ -53,163 +56,6 @@
   &:hover {
     filter: brightness(0.95);
   }
-}
-
-// ── Stat tiles ───────────────────────────────────────────────────────────
-// Ported from the reference infographic (ScreenShoot/til1.png). Every
-// proportion below is measured off that artwork, not guessed - its card is
-// 272x91px, so the ratios are stated against those numbers.
-//
-// COLOUR RULE FOR THIS BLOCK: nothing here introduces a colour. The
-// reference gives each of its four rows a different hue; we have one accent,
-// so all four tiles share the ramp already defined in src/styles.scss -
-// --brand-strong where white text sits on orange (the tab), --brand for the
-// cap (a graphic, nothing is read on it), and the slate neutrals everywhere
-// else. Adding a second hue would break the palette taken from color11.png.
-.stat-grid {
-  display: grid;
-  // Column count is chosen to hold the reference tile.s 3:1 proportion, not
-  // to fill the row: on a wide screen two across stretched each tile to 7:1
-  // (measured on the running app) and the tab stretched with it into a slab.
-  grid-template-columns: repeat(4, 1fr);
-
-  @media (max-width: 1600px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  // Row gap is the larger of the two: the tab overhangs the top of its tile
-  // by 0.85rem and must not touch the tile above it.
-  gap: 1.9rem 1.15rem;
-
-  @media (max-width: 700px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.tile {
-  position: relative;
-  // Top padding clears the tab (2.15rem tall, pulled 0.85rem above the tile)
-  // plus its pendant; right padding clears the cap standing on that edge.
-  padding: 2.5rem 2.4rem 1.15rem 1.25rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  // Measured from the artwork: the shadow sits directly UNDER the card with
-  // no sideways offset (the strip to the right of the card is untouched
-  // background), darkest at the edge and gone within ~35px. The border is
-  // ours, not the reference's - on a white canvas, and again on the dark
-  // theme's slate, a shadow alone does not hold the tile's edge.
-  box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-
-  &:hover {
-    border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
-    box-shadow: 0 14px 24px -14px rgba(15, 35, 60, 0.55);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-  }
-}
-
-// The tab: straddles the top edge. It carries the LABEL now, not the number -
-// which is why it is wide again (the reference's own tab is 51% of the card
-// and holds text too). The number moved down into the body, where it has the
-// room to be the biggest thing on the tile.
-.tile__tab {
-  position: absolute;
-  top: -0.85rem;
-  left: 1.15rem;
-  z-index: 1;
-  // Wide enough for the longest label ("Mizunguko Inayoendelea" in Swahili)
-  // without wrapping, and capped so it never reaches the cap on the right.
-  width: 66%;
-  max-width: calc(100% - 3.6rem);
-  height: 2.15rem;
-  display: flex;
-  align-items: center;
-  padding: 0 0.95rem;
-  border-radius: 12px;
-  // A pale chip rather than a solid block: four saturated tabs across the top
-  // of the screen read as an alarm. Same two tokens, swapped roles -
-  // --brand-soft carries --brand-dark at 6.0:1 in light, 4.9:1 in dark.
-  background: var(--brand-soft);
-  color: var(--brand-dark);
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 1.2;
-  // A long label is cut rather than allowed to break the tab's height.
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-// The pendant hanging below the tab. In the artwork it hangs where it points
-// at the divider inside the card, so this one is placed on the divider too -
-// 4.65rem from the tile's left edge (1.25rem of padding + the 3.4rem icon
-// zone), measured back from the tab's own left edge at 1.15rem.
-.tile__tab::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 3.5rem;
-  width: 2.1rem;
-  height: 0.9rem;
-  margin-left: -1.05rem;
-  background: inherit;
-  border-radius: 0 0 1.05rem 1.05rem;
-}
-
-// The cap: a narrow slab standing on the right edge, 22/272 of the card's
-// width in the reference, overhanging it by 2px top and bottom. This one is
-// pure graphic - no text on it - so it takes the vivid --brand rather than
-// the darker --brand-strong the tab needs.
-.tile__cap {
-  position: absolute;
-  top: -1px;
-  right: -1px;
-  width: 1.35rem;
-  height: calc(100% + 2px);
-  border-radius: 0 16px 16px 0;
-  background: var(--brand);
-}
-
-.tile__body {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  min-width: 0;
-}
-
-// Icon zone, closed by the hairline divider the reference draws between the
-// icon and the text. Its width sets where the pendant above points.
-.tile__icon {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 3.4rem;
-  padding-right: 0.9rem;
-  border-right: 1px solid var(--border);
-  color: var(--brand-strong);
-
-  svg {
-    width: 22px;
-    height: 22px;
-  }
-}
-
-// The number, now the biggest thing on the tile. Slate rather than orange:
-// the tile already spends its accent on the tab, the icon and the cap, and
-// the count is data, not decoration.
-.tile__value {
-  min-width: 0;
-  font-size: 1.9rem;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  color: var(--on-surface);
-  // Digits keep their column when a count ticks over.
-  font-variant-numeric: tabular-nums;
 }
 
 // ── Chart / table sections ─────────────────────────────────────────
@@ -313,6 +159,85 @@ td {
   border-bottom: 1px solid var(--border);
 }
 
+// A phone: five columns do not fit 350px, and a sideways-scrolling table hides
+// the status - the one column somebody opened the dashboard to read. So each
+// row becomes a small card: unit and status on top, species and the two dates
+// below, each under its own label from `data-label`.
+@media (max-width: 640px) {
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+  }
+
+  // Visually hidden, not removed: the cells carry their names now, but the
+  // header is still there for anything reading the table as a table.
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  table {
+    margin-top: 0.5rem;
+  }
+
+  tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.55rem 0.75rem;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--border);
+
+    &:last-child {
+      border-bottom: 0;
+      padding-bottom: 0.2rem;
+    }
+  }
+
+  td {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    font-size: 0.82rem;
+
+    &::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: 0.1rem;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    // The unit IS the row's name: large, and needs no label saying so.
+    &:nth-child(1) {
+      font-size: 0.95rem;
+      font-weight: 800;
+
+      &::before {
+        display: none;
+      }
+    }
+
+    // Status beside it, on the first line, where it is seen first.
+    &:nth-child(5) {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+
+      &::before {
+        display: none;
+      }
+    }
+  }
+}
+
 .pill {
   display: inline-block;
   padding: 0.25rem 0.65rem;
@@ -342,97 +267,103 @@ td {
 }
 
 // ── Right column ─────────────────────────────────────────────────────────
-// Same borderless canvas as .dash-main - no divider, no distinct background.
-.dash-side {
+// The screen's own two-column grid. It was the shell's until the shell became
+// a layout route - see the note at the top of dashboard.html.
+.dash-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  // The row is CAPPED at the space available, never grown by its contents.
+  //
+  // Without this the row is content-sized, so the taller of the two columns
+  // sets the height of the whole screen - and the summary rail is the taller
+  // one often enough that the page grew a scrollbar it never used to have.
+  // The rail scrolls itself instead (see .dash-side), exactly as it did when
+  // it was the shell's own second track.
+  grid-template-rows: minmax(0, 1fr);
+  gap: 1.25rem;
+
+  @media (max-width: 1280px) {
+    grid-template-columns: 1fr;
+  }
+
+  // A phone or tablet: the rail comes back BELOW the main column (see
+  // .dash-side), so the rows are sized by their content again and the page
+  // scrolls - capping the row here would clip the rail off the bottom.
+  @media (max-width: 860px) {
+    flex: none;
+    grid-template-rows: auto;
+    gap: 1rem;
+  }
+}
+
+// Tighter rhythm on a phone, where 1.75rem between blocks is most of a line
+// of cards.
+@media (max-width: 860px) {
+  .dash-layout__main {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-card,
+  .table-card {
+    padding: 0.9rem 1rem 1rem;
+  }
+
+  .bar-chart {
+    gap: 1rem;
+    height: 140px;
+    padding: 0;
+  }
+}
+
+// Everything that is not the summary rail, stacked the way the shell used to
+// stack it.
+.dash-layout__main {
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
-  height: 100%;
+  min-width: 0;
+}
+
+// Same borderless canvas as .dash-layout__main - no divider, no distinct
+// background.
+.dash-side {
+  display: flex;
+  flex-direction: column;
+  // 1rem, against the 1.75rem the main column uses.
+  //
+  // That rhythm is for the main column's big blocks - a chart, a table - which
+  // are separate subjects and need the air. The rail is a stack of small
+  // related read-outs, and at 1.75rem the four gaps alone spent 112px.
+  //
+  // The value has been walked down: 0.9rem read as one ruled block, 1.25rem
+  // was comfortable but tall. This is the compromise - the cards still read as
+  // five separate read-outs, and the gaps now cost 64px instead of 112px.
+  gap: 1rem;
+  // Scrolls ITSELF when it runs long, rather than making the screen scroll.
+  // `min-height: 0` is what allows that: a grid item refuses to shrink below
+  // its content without it, and the overflow would go back to the page.
+  min-height: 0;
   overflow-y: auto;
 
-  // Dropped on narrow screens, where AppShell collapses its grid to one
-  // column. The rule lives here, not in the shell: this element is projected
-  // INTO the shell, so it carries this component's style scope, not the
-  // shell's.
+  // Dropped on a laptop, where the grid above collapses to one column.
   @media (max-width: 1280px) {
     display: none;
   }
-}
 
-.side-card {
-  padding: 1rem 1.1rem 1.15rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
-
-  h3 {
-    margin: 0 0 0.8rem;
-    font-size: 0.85rem;
-    font-weight: 800;
-    color: var(--on-surface);
+  // ...but NOT on a phone or tablet. The rail holds the date picker - the one
+  // control that changes every number on this screen - so hiding it there
+  // took the feature away rather than the clutter. It returns under the main
+  // column, its cards two across where the width allows and one where not.
+  @media (max-width: 860px) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    align-items: start;
+    overflow: visible;
   }
-}
-
-.side-stat {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0;
-  font-size: 0.82rem;
-  color: var(--muted);
-
-  strong {
-    color: var(--on-surface);
-    font-size: 0.9rem;
-  }
-
-  & + & {
-    border-top: 1px solid var(--border);
-  }
-}
-
-.mini-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.mini-bars__row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.mini-bars__label {
-  flex: none;
-  width: 76px;
-  font-size: 0.72rem;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.mini-bars__track {
-  flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--border);
-  overflow: hidden;
-}
-
-.mini-bars__fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--brand);
-}
-
-.mini-bars__count {
-  flex: none;
-  width: 18px;
-  text-align: right;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--on-surface);
 }
 
 .mini-cal {
@@ -441,6 +372,47 @@ td {
   gap: 0.3rem;
 }
 
+// The card's own header row, so the week arrows sit beside the title rather
+// than above the days where they would read as part of the week.
+.mini-cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mini-cal__nav {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.mini-cal__arrow {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--brand-dark);
+    border-color: var(--brand);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+}
+
+// A BUTTON now, not a div - the days are the control that changes the whole
+// screen, so they have to be reachable by keyboard and announce their state.
 .mini-cal__day {
   flex: 1;
   display: flex;
@@ -448,7 +420,23 @@ td {
   align-items: center;
   gap: 0.3rem;
   padding: 0.5rem 0.2rem;
+  border: 1px solid transparent;
   border-radius: 10px;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+
+  // The date being SHOWN. Distinct from --today, which only says which day it
+  // is: on a past date both are on screen at once and they must not look the
+  // same, or the strip stops saying which numbers are on the page.
+  &--selected {
+    border-color: var(--brand);
+  }
 
   // The same pale chip the tile tabs use, so the one orange square in the
   // rail stops competing with the numbers around it.
@@ -477,15 +465,19 @@ td {
   text-align: center;
 }
 
+// The tallest card in the rail by some way, so it is where trimming buys the
+// most - but it is also the one thing on the rail anybody looks AT rather than
+// reads, so it cannot go far. 102px against the original 108; the stroke is
+// unchanged at 8px (102 - 86), so it did not get thinner, only slightly smaller.
 .ring {
   --percent: 0;
-  width: 108px;
-  height: 108px;
+  width: 102px;
+  height: 102px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0.25rem 0 0.75rem;
+  margin: 0.2rem 0 0.65rem;
   background: conic-gradient(var(--brand) calc(var(--percent) * 1%), var(--border) 0);
 }
 
@@ -495,9 +487,9 @@ td {
 }
 
 .ring__value {
-  // 9px of stroke instead of 13: the ring reads as a gauge, not a disc.
-  width: 90px;
-  height: 90px;
+  // 8px of stroke: the ring reads as a gauge, not a disc.
+  width: 86px;
+  height: 86px;
   border-radius: 50%;
   background: var(--surface);
   display: flex;
@@ -513,4 +505,24 @@ td {
   font-size: 0.75rem;
   color: var(--muted);
   line-height: 1.4;
+}
+
+// The line under the strip, shown only away from today.
+.mini-cal__state {
+  margin: 0.7rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.mini-cal__today {
+  margin-left: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--brand-dark);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
 }

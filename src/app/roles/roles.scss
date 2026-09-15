@@ -1,3 +1,5 @@
+@use '../shared/ui/side-card' as *;
+@use '../shared/ui/module-rail' as *;
 @use '../shared/styles/screen' as *;
 
 .roles {
@@ -6,6 +8,11 @@
   gap: 1.25rem;
   min-width: 0;
   overflow-y: auto;
+
+  // Breathing room for the scrollbar. THIS element is the one that scrolls,
+  // so its bar is drawn on its own right edge - and without the padding the
+  // rail's cards end flush against it, close enough to read as one edge.
+  padding-right: 0.6rem;
 }
 
 .roles__head {

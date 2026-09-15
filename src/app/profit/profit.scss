@@ -1,0 +1,257 @@
+@use '../shared/styles/screen' as *;
+
+.profit {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  overflow-y: auto;
+  // Same scrollbar breathing room as Costs.
+  padding-right: 0.6rem;
+}
+
+.profit__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.card__hint {
+  margin: 0.25rem 0 0;
+  max-width: 70ch;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.guidance {
+  margin: 0 0.25rem 0.75rem;
+  max-width: 70ch;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.filter-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  gap: 1rem;
+  padding: 0 0.25rem 0.25rem;
+}
+
+.filter-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.report-for {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.notice {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--on-surface);
+}
+
+.notice--warn {
+  border-color: color-mix(in srgb, var(--warning, #d98e04) 55%, transparent);
+  background: color-mix(in srgb, var(--warning, #d98e04) 10%, transparent);
+}
+
+/* Revenue · costs · net. */
+.headline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat__label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.stat__value {
+  font-size: 1.35rem;
+  color: var(--on-surface);
+}
+
+.stat__badge {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.stat--profit {
+  border-color: color-mix(in srgb, var(--success, #1e8e3e) 50%, transparent);
+
+  .stat__badge,
+  .stat__value {
+    color: var(--success, #1e8e3e);
+  }
+}
+
+.stat--loss {
+  border-color: color-mix(in srgb, var(--danger, #c0392b) 60%, transparent);
+  background: color-mix(in srgb, var(--danger, #c0392b) 8%, transparent);
+
+  .stat__badge,
+  .stat__value {
+    color: var(--danger, #c0392b);
+  }
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.25rem 0.5rem 0;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+
+  dt,
+  dd {
+    margin: 0;
+  }
+
+  dd {
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
+.breakdown__row--source {
+  margin-top: 0.45rem;
+  color: var(--on-surface);
+  font-weight: 700;
+}
+
+.breakdown__row--sub {
+  padding-left: 1rem;
+}
+
+.breakdown__row--category {
+  padding-left: 2rem;
+  font-style: italic;
+}
+
+.breakdown__note {
+  margin: 0 0 0 1rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.breakdown__row--total {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+  color: var(--on-surface);
+}
+
+.capital__value {
+  display: block;
+  margin: 0.25rem 0.25rem 0.5rem;
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-surface);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.cycle-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: 0.55rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .num {
+    text-align: right;
+  }
+}
+
+.flag {
+  margin-left: 0.3rem;
+  color: var(--warning, #d98e04);
+  font-style: normal;
+  cursor: help;
+}
+
+.money--loss,
+.money--loss strong {
+  color: var(--danger, #c0392b);
+}
+
+.cycle-form {
+  max-width: 28rem;
+  padding: 0 0.25rem 0.5rem;
+}
+
+.cycle-detail__label {
+  margin: 0.25rem 0.5rem 0.4rem;
+  font-size: 0.95rem;
+  color: var(--on-surface);
+}

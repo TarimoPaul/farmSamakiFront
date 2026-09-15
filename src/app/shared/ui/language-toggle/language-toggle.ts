@@ -18,16 +18,22 @@ type Lang = 'sw' | 'en';
   styles: `
     .lang-toggle {
       display: inline-flex;
-      align-items: center;
+      align-items: stretch;
       gap: 2px;
-      padding: 2px;
+      height: var(--control-h, 36px);
+      padding: 3px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--surface);
       cursor: pointer;
     }
+    .lang-toggle:hover {
+      border-color: var(--brand);
+    }
     .lang-toggle__opt {
-      padding: .3rem .55rem;
+      display: flex;
+      align-items: center;
+      padding: 0 .55rem;
       border-radius: calc(var(--radius) - 4px);
       font-size: .72rem;
       font-weight: 700;
@@ -41,6 +47,12 @@ type Lang = 'sw' | 'en';
     .lang-toggle:focus-visible {
       outline: 2px solid var(--brand);
       outline-offset: 2px;
+    }
+    /* Narrower on a phone, where the topbar has no width to spare. */
+    @media (max-width: 480px) {
+      .lang-toggle__opt {
+        padding: 0 .4rem;
+      }
     }
   `,
 })

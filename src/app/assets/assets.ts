@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -9,12 +9,12 @@ import { Asset, AssetCategory, AssetFarm } from '../core/models/asset';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { Button } from '../shared/ui/button/button';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
 import { FormField } from '../shared/ui/form-field/form-field';
 import { Toast } from '../shared/ui/toast/toast';
+import { DatePickerCard, isoDate } from '../shared/ui/date-picker-card/date-picker-card';
 import { ASSETS_I18N } from './assets.i18n';
 
 const UNKNOWN_FAILURE = new ApiError({
@@ -75,9 +75,9 @@ export interface FarmGroup {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     Button,
     DataTable,
+    DatePickerCard,
     EmptyState,
     FormField,
     Toast,
@@ -189,6 +189,77 @@ export class Assets implements OnInit {
   });
 
   readonly assetKey = (asset: Asset): string => asset.assetId;
+
+  // ── The summary rail ───────────────────────────────────────────────────
+  //
+  // Counted from `assets()`, already on the page, so the rail - date picker
+  // included - costs no request. An asset carries its own `acquiredDate`,
+  // which is what makes "what was bought on the 7th" a filter rather than a
+  // second query.
+
+  private readonly datePicker = viewChild(DatePickerCard);
+
+  /**
+   * The date the rail is answering for.
+   *
+   * Starts on the FARM'S today, not the laptop's, because that is the day the
+   * register is written in: `acquiredDate` is compared against it by both this
+   * screen and AssetService. The strip below marks the browser's today, so in
+   * the hour the two zones disagree the highlight and the selection sit on
+   * different cells - which is honest, since the register's day is the farm's.
+   */
+  readonly selectedDate = signal(this.today);
+  readonly viewingToday = computed(() => this.selectedDate() === this.today);
+
+  readonly dayState = computed<string | null>(() =>
+    this.viewingToday() ? null : `${this.t().dayViewing} ${this.selectedDate()}.`,
+  );
+
+  readonly assetsOnDate = computed(() =>
+    this.assets().filter((asset) => asset.acquiredDate === this.selectedDate()),
+  );
+
+  readonly summary = computed(() => {
+    const t = this.t();
+    const onDate = this.assetsOnDate();
+    const cents = (rows: readonly Asset[]) =>
+      this.money(rows.reduce((sum, asset) => sum + toCents(asset.cost), 0));
+
+    return [
+      { label: t.railAssetsAll, value: String(this.assets().length) },
+      { label: t.railAssetsOnDate, value: String(onDate.length) },
+      { label: t.railValueOnDate, value: cents(onDate) },
+      { label: t.railValueAll, value: this.money(this.grandTotalCents()) },
+    ];
+  });
+
+  /**
+   * Value per farm, BIGGEST FIRST - the one thing the tables on the left
+   * cannot show. There, each farm's total sits at the foot of its own table,
+   * so comparing two farms means scrolling past every asset between them.
+   *
+   * The order is the rail's own, not `groups()`': that list is alphabetical,
+   * because a table you are reading down is looked up by name, while a list
+   * you are comparing is read by size.
+   */
+  readonly valueByFarm = computed(() =>
+    [...this.groups()]
+      .sort((a, b) => b.totalCents - a.totalCents)
+      .map((group) => ({
+        farmId: group.farmId,
+        name: group.farmName,
+        value: this.money(group.totalCents),
+      })),
+  );
+
+  selectDate(date: Date): void {
+    this.selectedDate.set(isoDate(date));
+  }
+
+  backToToday(): void {
+    this.selectedDate.set(this.today);
+    this.datePicker()?.resetWeek();
+  }
 
   readonly nameMaxLength = NAME_MAX_LENGTH;
   readonly sizeLabelMaxLength = SIZE_LABEL_MAX_LENGTH;

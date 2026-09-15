@@ -849,7 +849,12 @@ describe('FeedPurchases', () => {
    */
   describe('the route gate', () => {
     const purchasesRoute = (): Route => {
-      const route = routes.find((r) => r.path === 'feed-purchases');
+      // Flattened: the screens are CHILDREN of the shell's layout route now, so a
+      // top-level ind would miss them - and missing them would look exactly
+      // like the guard being gone.
+      const route = routes
+        .flatMap((r) => [r, ...(r.children ?? [])])
+        .find((r) => r.path === 'feed-purchases');
       if (!route) {
         throw new Error('feed-purchases is not in the route table');
       }
@@ -908,5 +913,83 @@ describe('FeedPurchases', () => {
       const en = Object.keys(FEED_PURCHASES_I18N.en).sort();
       expect(en).toEqual(sw);
     });
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * Jambo la msingi hapa ni GHARAMA: rail haiulizi kama msomaji ana
+ * `view_feed_cost`. Backend hutuma `totalCost: null` kwa asiye nayo (V18),
+ * hivyo jumla inajengwa kutoka safu zenye namba pekee - na msomaji asiyeonyeshwa
+ * bei anapata mstari ule ule ambao jedwali linampa. Kalenda nayo haigharimu
+ * ombi: kila ununuzi una `purchaseDate` yake.
+ */
+describe('Feed purchases summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('counts the purchases and the kilograms', async () => {
+    const { fixture, component, httpMock } = setup(BUYER);
+    await load(fixture, httpMock);
+
+    const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+
+    expect(by('Manunuzi yote')).toBe('2');
+    // 50 + 25 - angalia fixtures.
+    expect(by('Kilo zote')).toBe('75.0');
+    httpMock.verify();
+  });
+
+  it('filters to the selected date without asking the backend', async () => {
+    const { fixture, component, httpMock } = setup(BUYER);
+    await load(fixture, httpMock);
+
+    component.selectDate(new Date(2026, 8, 2)); // 2026-09-02
+    fixture.detectChanges();
+
+    const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+    expect(by('Kwa tarehe hii')).toBe('1');
+    expect(by('Kilo za tarehe hii')).toBe('50.0');
+    // Hakuna ombi jipya - hiyo ndiyo hoja ya kuchuja kwenye skrini.
+    httpMock.verify();
+  });
+
+  it('totals what the reader was actually shown', async () => {
+    const { fixture, component, httpMock } = setup(BUYER);
+    await load(fixture, httpMock);
+
+    // 60000 + 37500.
+    expect(component.spend().all).toBe('97500.00');
+    // Leo si 2026-09-02 wala 09-01, hivyo hakuna ununuzi wa leo.
+    expect(component.spend().onDate).toBe('0.00');
+    httpMock.verify();
+  });
+
+  it('dashes the spend when every price was masked', async () => {
+    // Hana `view_feed_cost`: backend inatuma null, na rail haijaribu kuzikisia
+    // kama sifuri - sifuri lingekuwa dai kuhusu ununuzi, si ukweli.
+    const { fixture, component, httpMock } = setup(BUYER_NO_COST);
+    await load(fixture, httpMock, { purchases: MASKED_PURCHASES });
+
+    expect(component.spend().all).toBe('\u2014');
+    expect(component.spend().onDate).toBe('\u2014');
+    // Kilo bado zinaonekana: kujua magunia yamefika ni kazi ya shambani.
+    const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+    expect(by('Kilo zote')).toBe('50.0');
+    httpMock.verify();
+  });
+
+  it('renders the rail beside the work', async () => {
+    const { fixture, httpMock } = setup(BUYER);
+    await load(fixture, httpMock);
+
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+    expect(rail.parentElement?.classList.contains('module-layout')).toBe(true);
+    // Maelezo, kalenda, muhtasari, gharama.
+    expect(rail.querySelectorAll('.side-card').length).toBe(4);
+    expect(rail.querySelector('app-date-picker-card')).toBeTruthy();
   });
 });

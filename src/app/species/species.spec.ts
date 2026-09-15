@@ -500,7 +500,12 @@ describe('SpeciesScreen', () => {
    */
   describe('the route gate', () => {
     const speciesRoute = (): Route => {
-      const route = routes.find((r) => r.path === 'species');
+      // Flattened: the screens are CHILDREN of the shell's layout route now, so a
+      // top-level ind would miss them - and missing them would look exactly
+      // like the guard being gone.
+      const route = routes
+        .flatMap((r) => [r, ...(r.children ?? [])])
+        .find((r) => r.path === 'species');
       if (!route) {
         throw new Error('species is not in the route table');
       }
@@ -561,5 +566,73 @@ describe('SpeciesScreen', () => {
       const en = Object.keys(SPECIES_I18N.en).sort();
       expect(en).toEqual(sw);
     });
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * HAKUNA kalenda hapa, na kutokuwepo kwake ndiyo jambo lenyewe: katalogi hii
+ * haina farm_id wala tarehe yoyote kwenye query, hivyo "ilikuwaje Machi"
+ * halina jibu. Kiteuzi cha tarehe kingekuwa kitufe kisichobadilisha kitu.
+ */
+describe('Species summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('counts the catalogue and averages what the cycles depend on', async () => {
+    const { fixture, httpMock } = setup(SPECIES_MANAGER);
+    await load(fixture, httpMock, CATALOG);
+
+    const rows = fixture.componentInstance.summary();
+    const by = (label: string) => rows.find((row) => row.label === label)?.value;
+
+    // Sato 6 miezi / 0.45 kg, Kambale 6.5 / 1.25 - angalia fixtures. Nusu-mwezi
+    // ni thamani halali (NUMERIC(4,1)), kwa hiyo wastani si namba kamili.
+    expect(by('Aina zote')).toBe('2');
+    expect(by('Wastani wa miezi ya kukua')).toBe('6.3');
+    // 0.85 inaonyeshwa kama 0.8: toFixed inazungusha kwa kutumia thamani halisi
+    // ya binary, na 0.85 huhifadhiwa kama 0.8499... Ni wastani, si hesabu ya
+    // fedha, hivyo tofauti ya sehemu ya kumi haibadilishi maana yake.
+    expect(by('Wastani wa uzito (kg)')).toBe('0.8');
+
+    // Hakuna ombi zaidi ya lile la katalogi yenyewe.
+    httpMock.verify();
+  });
+
+  it('names the quickest species rather than the first row', async () => {
+    const { fixture, httpMock } = setup(SPECIES_MANAGER);
+    await load(fixture, httpMock, CATALOG);
+
+    expect(fixture.componentInstance.quickest()?.name).toBe('Sato');
+  });
+
+  it('shows dashes, not zeros, for an empty catalogue', async () => {
+    const { fixture, httpMock } = setup(SPECIES_MANAGER);
+    await load(fixture, httpMock, EMPTY_CATALOG);
+
+    // Wastani wa hakuna kitu si sifuri - ni "hakuna cha kuwastani".
+    const rows = fixture.componentInstance.summary();
+    expect(rows.find((row) => row.label === 'Aina zote')?.value).toBe('0');
+    expect(rows.find((row) => row.label === 'Wastani wa miezi ya kukua')?.value).toBe('—');
+    // Na kadi ya "inayokua haraka" haipo kabisa.
+    expect(fixture.componentInstance.quickest()).toBeNull();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.module-rail .side-card').length,
+    ).toBe(2);
+  });
+
+  it('renders the rail beside the work, not above it', async () => {
+    const { fixture, httpMock } = setup(SPECIES_MANAGER);
+    await load(fixture, httpMock, CATALOG);
+
+    const element = fixture.nativeElement as HTMLElement;
+    const rail = element.querySelector('.module-rail');
+    expect(rail).not.toBeNull();
+    expect(rail!.parentElement?.classList.contains('module-layout')).toBe(true);
+    // Maelezo + muhtasari + inayokua haraka.
+    expect(rail!.querySelectorAll('.side-card').length).toBe(3);
   });
 });

@@ -1,0 +1,86 @@
+// Kadi za rail - lugha MOJA ya kadi ndogo za muhtasari kwenye app nzima.
+//
+// Zilikuwa ndani ya dashboard.scss pekee. Zimehamishwa hapa wakati skrini za
+// module zilipoanza kuwa na rail yao ya muhtasari: nakala ya pili ingemaanisha
+// vyanzo viwili vya ukweli kwa umbo lile lile.
+//
+// Inatumiwa na dashboard.scss na production.scss (angalia _auth-shared.scss
+// kwa mtindo huu wa partial ya pamoja).
+// Tightened with the gap above, and for the same reason. The horizontal
+// padding is left alone: it is what keeps the label and its number off the
+// card's edge, and the rail is only 300px wide to begin with.
+.side-card {
+  padding: 0.95rem 1.1rem 1.05rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
+
+  h3 {
+    margin: 0 0 0.72rem;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--on-surface);
+  }
+}
+
+.side-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+
+  strong {
+    color: var(--on-surface);
+    font-size: 0.9rem;
+  }
+
+  & + & {
+    border-top: 1px solid var(--border);
+  }
+}
+
+.mini-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.mini-bars__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mini-bars__label {
+  flex: none;
+  width: 76px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.mini-bars__track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.mini-bars__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand);
+}
+
+.mini-bars__count {
+  flex: none;
+  width: 18px;
+  text-align: right;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}

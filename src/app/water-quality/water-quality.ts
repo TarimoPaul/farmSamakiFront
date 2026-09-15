@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -13,11 +13,11 @@ import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { PERMISSION } from '../core/models/permissions';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { HasPermission } from '../shared/directives/has-permission';
 import { Button } from '../shared/ui/button/button';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
+import { DatePickerCard, isoDate } from '../shared/ui/date-picker-card/date-picker-card';
 import { FormField } from '../shared/ui/form-field/form-field';
 import { Toast } from '../shared/ui/toast/toast';
 import { WATER_QUALITY_I18N } from './water-quality.i18n';
@@ -53,11 +53,11 @@ const UNKNOWN_FAILURE = new ApiError({
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     HasPermission,
     Button,
     DataTable,
     EmptyState,
+    DatePickerCard,
     FormField,
     Toast,
   ],
@@ -85,6 +85,8 @@ export class WaterQuality {
    */
   readonly cycle = signal<Cycle | null>(null);
   readonly readings = signal<readonly WaterQualityLog[]>([]);
+  private readonly datePicker = viewChild(DatePickerCard);
+
   readonly loading = signal(true);
   readonly loadError = signal<ApiError | null>(null);
   readonly loadErrorMessage = computed(() => this.messageFor(this.loadError()));
@@ -100,6 +102,74 @@ export class WaterQuality {
     ammonia: [''],
     notes: [''],
   });
+
+  // ── The summary rail ───────────────────────────────────────────────────
+  //
+  // Every number here is counted from `readings()`, which the screen already
+  // holds, so NOTHING on this rail costs a request - the date picker included.
+  // That is possible because a reading carries its own `logDate`: "what was
+  // measured on the 7th" is a filter, not a question for the server.
+
+  readonly selectedDate = signal(isoDate(new Date()));
+  readonly viewingToday = computed(() => this.selectedDate() === isoDate(new Date()));
+
+  /** The line under the calendar. Null on today, which is what hides it. */
+  readonly dayState = computed<string | null>(() =>
+    this.viewingToday() ? null : `${this.t().dayViewing} ${this.selectedDate()}.`,
+  );
+
+  /** The readings taken on the selected date - the rail's whole subject. */
+  readonly readingsOnDate = computed(() =>
+    this.readings().filter((reading) => reading.logDate === this.selectedDate()),
+  );
+
+  readonly summary = computed(() => {
+    const t = this.t();
+    const all = this.readings();
+    // The list arrives newest first (see WaterQualityService), so the latest
+    // is the head rather than a max() over the dates.
+    const latest = all[0] ?? null;
+
+    return [
+      { label: t.railTotal, value: String(all.length) },
+      { label: t.railOnDate, value: String(this.readingsOnDate().length) },
+      { label: t.railLatest, value: latest ? latest.logDate : t.dash },
+    ];
+  });
+
+  /**
+   * The four measures, averaged over the selected date.
+   *
+   * A NULL reading is left OUT of its own average rather than counted as
+   * zero: the form lets any of the four be skipped, and a skipped pH is not
+   * a pH of 0 - it would drag the average to a number nobody measured.
+   */
+  readonly measuresOnDate = computed(() => {
+    const t = this.t();
+    const rows = this.readingsOnDate();
+    const mean = (pick: (row: WaterQualityLog) => number | null) => {
+      const values = rows.map(pick).filter((value): value is number => value !== null);
+      return values.length === 0
+        ? t.dash
+        : (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
+    };
+
+    return [
+      { label: t.railPh, value: mean((row) => row.ph) },
+      { label: t.railTemperature, value: mean((row) => row.temperature) },
+      { label: t.railOxygen, value: mean((row) => row.oxygen) },
+      { label: t.railAmmonia, value: mean((row) => row.ammonia) },
+    ];
+  });
+
+  selectDate(date: Date): void {
+    this.selectedDate.set(isoDate(date));
+  }
+
+  backToToday(): void {
+    this.selectedDate.set(isoDate(new Date()));
+    this.datePicker()?.resetWeek();
+  }
 
   readonly columns = computed<DataTableColumn<WaterQualityLog>[]>(() => {
     const t = this.t();

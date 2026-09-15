@@ -11,7 +11,6 @@ import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { PERMISSION } from '../core/models/permissions';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { HasPermission } from '../shared/directives/has-permission';
 import { ActionMenu } from '../shared/ui/action-menu/action-menu';
 import { Button } from '../shared/ui/button/button';
@@ -39,7 +38,7 @@ const UNKNOWN_FAILURE = new ApiError({
  * Three different gates, all reading the same permission set:
  *
  *  - the ROUTE needs `manage_farms` (permissionGuard, in app.routes.ts);
- *  - the NAV entry needs `manage_farms` (AppShell's NAV_ITEMS);
+ *  - the NAV entry needs `manage_farms` (AppShell's NAV_GROUPS);
  *  - the MEMBERS panel needs `manage_users` (*appHasPermission), because
  *    `GET /api/users?farmId=` is a different capability from listing farms.
  *    A `manage_farms`-only admin sees the farms and no members panel at all.
@@ -53,7 +52,6 @@ const UNKNOWN_FAILURE = new ApiError({
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     HasPermission,
     ActionMenu,
     Button,
@@ -165,6 +163,70 @@ export class Farms implements OnInit {
 
   readonly farmKey = (farm: Farm): number => farm.farmId;
   readonly memberKey = (member: UserSummary): string => member.id;
+
+  // ── The summary rail ───────────────────────────────────────────────────
+  //
+  // Counted from `farms()` and `members()`, both already on the page, so the
+  // rail costs no request of its own.
+  //
+  // NO DATE PICKER. A farm has a name, a location and an owner, and not one
+  // timestamp on the wire - so "the farms as they stood in March" has nothing
+  // behind it, the same reason Species and the Feed Catalogue have none.
+
+  /**
+   * OWNERSHIP IS THE NUMBER THAT MATTERS HERE, which is why it is counted
+   * rather than the rows alone. `ownerName` is null until somebody is given
+   * the OWNER role on the farm - creating a farm does not make anyone its
+   * owner - so an ownerless farm is a real gap in the setup, not missing data.
+   */
+  readonly summary = computed(() => {
+    const t = this.t();
+    const farms = this.farms();
+    const owned = farms.filter((farm) => !!farm.ownerName).length;
+
+    return [
+      { label: t.railFarmsAll, value: String(farms.length) },
+      { label: t.railFarmsOwned, value: String(owned) },
+      { label: t.railFarmsUnowned, value: String(farms.length - owned) },
+      {
+        label: t.railFarmsNoLocation,
+        value: String(farms.filter((farm) => !farm.location).length),
+      },
+    ];
+  });
+
+  /** The selected farm's own three facts, or null while nothing is selected. */
+  readonly selectedDetail = computed(() => {
+    const farm = this.selectedFarm();
+    if (!farm) {
+      return null;
+    }
+    const t = this.t();
+    return [
+      { label: t.colOwner, value: farm.ownerName ?? t.noOwner },
+      { label: t.colLocation, value: farm.location || t.noLocation },
+    ];
+  });
+
+  /**
+   * The selected farm's people, by role.
+   *
+   * GATED exactly like the members panel on the left, and for the same
+   * reason: `GET /api/users?farmId=` is `manage_users`, a different capability
+   * from listing farms, and `members()` is empty without it - so an ungated
+   * card here would read as "this farm has nobody on it" to an admin who was
+   * simply never allowed to ask.
+   */
+  readonly membersByRole = computed(() => {
+    const byRole = new Map<string, number>();
+    for (const member of this.members()) {
+      const role = member.role ?? this.t().noRole;
+      byRole.set(role, (byRole.get(role) ?? 0) + 1);
+    }
+    return [...byRole.entries()]
+      .sort(([, a], [, b]) => b - a)
+      .map(([role, count]) => ({ role, count: String(count) }));
+  });
 
   ngOnInit(): void {
     this.loadFarms();

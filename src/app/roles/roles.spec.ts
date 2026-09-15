@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { Roles } from './roles';
+import { ROLES_I18N } from './roles.i18n';
 import { AuthService } from '../core/services/auth';
 import { LanguageService } from '../core/services/language';
 import { environment } from '../../environments/environment';
@@ -121,7 +122,7 @@ function setup() {
   TestBed.configureTestingModule({
     providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
   });
-  // The real Router - the screen renders inside AppShell, whose nav uses
+  // The real Router - the screen's own links use
   // routerLink. Only navigateByUrl is stubbed, so the tests can assert both
   // that nothing redirects and that losing manage_users does.
   const navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
@@ -798,5 +799,153 @@ describe('Roles screen', () => {
 
       ctx.httpMock.verify();
     });
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * HAKUNA KALENDA: `RoleSummary` haina muhuri wa muda, na sera haina historia
+ * kwenye waya - "OWNER aliweza kufanya nini Machi" si swali API hii inaweza
+ * kulijibu.
+ *
+ * Kadi ya KATALOGI inaripoti PENGO badala ya sifuri mbili pale katalogi
+ * inaposhindwa kupakia. Sifuri zingeonekana kama hesabu za kweli za katalogi
+ * tupu, wakati ukweli ni kwamba ombi lilishindwa - na hiyo ndiyo tofauti
+ * inayofanya kuhariri ruhusa kuzimwa.
+ */
+describe('Roles summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  const rail = (fixture: { nativeElement: unknown }) =>
+    (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+
+  it('counts the policy: all, active, disabled, and the empty bundles', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx);
+
+    const by = (label: string) => ctx.component.summary().find((row) => row.label === label)?.value;
+
+    expect(by('Nafasi zote')).toBe('2');
+    expect(by('Hai')).toBe('2');
+    expect(by('Imezimwa')).toBe('0');
+    expect(by('Bila ruhusa yoyote')).toBe('0');
+    ctx.httpMock.verify();
+  });
+
+  it('counts a disabled role, which is still a role', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx, { rolesBody: ROLES_WITH_DISABLED_VIEWER });
+
+    const by = (label: string) => ctx.component.summary().find((row) => row.label === label)?.value;
+    expect(by('Hai')).toBe('1');
+    expect(by('Imezimwa')).toBe('1');
+    ctx.httpMock.verify();
+  });
+
+  it('counts a role that grants nothing, which is legal but rarely finished', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx, {
+      rolesBody: {
+        success: true,
+        data: [ROLES_RESPONSE.data[0], { ...ROLES_RESPONSE.data[1], permissions: [] }],
+      },
+    });
+
+    expect(ctx.component.summary().find((row) => row.label === 'Bila ruhusa yoyote')?.value).toBe(
+      '1',
+    );
+    ctx.httpMock.verify();
+  });
+
+  it('ranks the roles by how much they grant, widest first', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx);
+
+    expect(ctx.component.rolesByReach()).toEqual([
+      { roleId: 1, name: 'OWNER', count: '2' },
+      { roleId: 4, name: 'VIEWER', count: '1' },
+    ]);
+    ctx.httpMock.verify();
+  });
+
+  it('keeps a disabled role in the ranking, and marks it', async () => {
+    // Bado inatoa kila ruhusa yake kwa anayeishikilia - kuiacha nje ya orodha
+    // kungeficha ruhusa ambazo bado zinatumika.
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx, { rolesBody: ROLES_WITH_DISABLED_VIEWER });
+
+    expect(ctx.component.rolesByReach().map((row) => row.name)).toEqual([
+      'OWNER',
+      'VIEWER (Imezimwa)',
+    ]);
+    ctx.httpMock.verify();
+  });
+
+  it('moves the create button off the page corner and into the intro card', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx);
+
+    expect((ctx.fixture.nativeElement as HTMLElement).querySelector('.page-actions')).toBeNull();
+    const intro = rail(ctx.fixture).querySelector('.side-card--intro')!;
+    expect(intro.querySelector('.intro__actions app-button')?.textContent).toContain('Nafasi Mpya');
+    ctx.httpMock.verify();
+  });
+
+  it('counts the catalogue it writes from', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx);
+
+    const by = (label: string) =>
+      ctx.component.catalogue().rows.find((row) => row.label === label)?.value;
+
+    expect(ctx.component.catalogue().failed).toBe(false);
+    expect(by('Ruhusa zote')).toBe('3');
+    // FARM/REPORTING, FARM/PRODUCTION, UAA/USER_MANAGEMENT.
+    expect(by('Makundi')).toBe('3');
+    ctx.httpMock.verify();
+  });
+
+  it('reports a failed catalogue as a gap, not as two zeros', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx, { permissionsStatus: { status: 500, statusText: 'Server Error' } });
+
+    expect(ctx.component.catalogue().failed).toBe(true);
+    expect(ctx.component.catalogue().rows).toEqual([]);
+    expect(
+      (ctx.fixture.nativeElement as HTMLElement).querySelector('[data-testid="catalogue-failed"]')
+        ?.textContent,
+    ).toContain('Katalogi haikupakia');
+    // Na orodha ya nafasi yenyewe imepakia - rail bado inaihesabu.
+    expect(ctx.component.summary().find((row) => row.label === 'Nafasi zote')?.value).toBe('2');
+  });
+
+  it('renders the rail beside the work', async () => {
+    const ctx = setup();
+    TestBed.inject(LanguageService).setLang('sw');
+    await load(ctx);
+
+    expect(rail(ctx.fixture).parentElement?.classList.contains('module-layout')).toBe(true);
+    // Maelezo, muhtasari, ruhusa kwa nafasi, katalogi.
+    expect(rail(ctx.fixture).querySelectorAll('.side-card').length).toBe(4);
+    expect(rail(ctx.fixture).querySelector('app-date-picker-card')).toBeNull();
+    ctx.httpMock.verify();
+  });
+
+  it('carries exactly the same rail keys in both languages', () => {
+    const sw = Object.keys(ROLES_I18N.sw).sort();
+    const en = Object.keys(ROLES_I18N.en).sort();
+    expect(en).toEqual(sw);
   });
 });

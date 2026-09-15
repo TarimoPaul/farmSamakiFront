@@ -107,8 +107,13 @@ export function apiErrorMessage(error: ApiError, lang: Lang, preferBackendMessag
 export const CYCLE_CLOSE_RULE = {
   /** actualHarvestDate before the cycle's stockingDate: a negative cycle. */
   HARVEST_BEFORE_STOCKING: 'HARVEST_BEFORE_STOCKING',
-  /** Outcome HARVESTED with a zero count or weight: that is a FAILED cycle. */
+  /**
+   * Outcome HARVESTED with no fish out alive: no SOLD/REMOVED event was
+   * recorded, so the summed count is zero. That is a FAILED cycle.
+   */
   HARVESTED_WITH_ZERO: 'HARVESTED_WITH_ZERO',
+  /** actualHarvestDate before the cycle's latest harvest event. */
+  HARVEST_BEFORE_LAST_EVENT: 'HARVEST_BEFORE_LAST_EVENT',
 } as const;
 
 export type CycleCloseRule = (typeof CYCLE_CLOSE_RULE)[keyof typeof CYCLE_CLOSE_RULE];
@@ -119,10 +124,45 @@ const CYCLE_CLOSE_RULE_MESSAGES: Record<CycleCloseRule, Record<Lang, string>> = 
     en: 'The harvest date cannot be before the stocking date.',
   },
   [CYCLE_CLOSE_RULE.HARVESTED_WITH_ZERO]: {
-    sw: "Mavuno ya sifuri si mavuno. Idadi na uzito lazima viwe zaidi ya sifuri, au tumia matokeo 'Umeshindwa'.",
-    en: "A harvest of zero is not a harvest. Count and weight must be above zero, or use the 'Failed' outcome.",
+    sw: "Mavuno ya sifuri si mavuno. Hakuna samaki waliorekodiwa kutoka wakiwa hai (wameuzwa au wametolewa) - rekodi tukio la mavuno, au tumia matokeo 'Umeshindwa'.",
+    en: "A harvest of zero is not a harvest. No fish were recorded leaving alive (sold or removed) - record a harvest event, or use the 'Failed' outcome.",
+  },
+  [CYCLE_CLOSE_RULE.HARVEST_BEFORE_LAST_EVENT]: {
+    sw: 'Tarehe ya mavuno haiwezi kuwa kabla ya tukio la mwisho la mavuno.',
+    en: 'The harvest date cannot be before the last harvest event.',
   },
 };
+
+/**
+ * The ways `recordHarvestEvent` is refused that have no code of their own -
+ * all plain VALIDATION_ERROR, so, as with the close rules, the CALLER names
+ * the rule from what it already knows (the stocking date, today) rather than
+ * reading the backend's prose.
+ */
+export const HARVEST_EVENT_RULE = {
+  /** eventDate before the cycle's stockingDate. */
+  BEFORE_STOCKING: 'BEFORE_STOCKING',
+  /** eventDate after today (farm time). */
+  IN_FUTURE: 'IN_FUTURE',
+} as const;
+
+export type HarvestEventRule = (typeof HARVEST_EVENT_RULE)[keyof typeof HARVEST_EVENT_RULE];
+
+const HARVEST_EVENT_RULE_MESSAGES: Record<HarvestEventRule, Record<Lang, string>> = {
+  [HARVEST_EVENT_RULE.BEFORE_STOCKING]: {
+    sw: 'Tarehe ya tukio haiwezi kuwa kabla ya tarehe ya kupanda.',
+    en: 'The event date cannot be before the stocking date.',
+  },
+  [HARVEST_EVENT_RULE.IN_FUTURE]: {
+    sw: 'Tarehe ya tukio haiwezi kuwa ya baadaye.',
+    en: 'The event date cannot be in the future.',
+  },
+};
+
+/** The line for a named harvest-event rule, in the UI language. */
+export function harvestEventRuleMessage(rule: HarvestEventRule, lang: Lang): string {
+  return HARVEST_EVENT_RULE_MESSAGES[rule][lang];
+}
 
 /** The line for a named close rule, in the UI language. */
 export function cycleCloseRuleMessage(rule: CycleCloseRule, lang: Lang): string {

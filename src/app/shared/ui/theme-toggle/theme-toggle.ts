@@ -1,6 +1,13 @@
-import { Component, input, output } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
+import { LanguageService } from '../../../core/services/language';
 
 type Theme = 'light' | 'dark';
+
+/** Named in the app's language - it used to say Swahili in English mode too. */
+const LABELS = {
+  sw: { toLight: 'Tumia mandhari ya mwanga', toDark: 'Tumia mandhari ya giza' },
+  en: { toLight: 'Switch to light theme', toDark: 'Switch to dark theme' },
+} as const;
 
 @Component({
   selector: 'app-theme-toggle',
@@ -9,7 +16,8 @@ type Theme = 'light' | 'dark';
       type="button"
       class="theme-toggle"
       (click)="toggled.emit()"
-      [attr.aria-label]="theme() === 'dark' ? 'Tumia mwanga (light mode)' : 'Tumia giza (dark mode)'"
+      [attr.aria-label]="label()"
+      [attr.title]="label()"
       [attr.aria-pressed]="theme() === 'dark'"
     >
       @if (theme() === 'dark') {
@@ -32,8 +40,8 @@ type Theme = 'light' | 'dark';
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 2.25rem;
-      height: 2.25rem;
+      width: var(--control-h, 36px);
+      height: var(--control-h, 36px);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--surface);
@@ -57,4 +65,11 @@ type Theme = 'light' | 'dark';
 export class ThemeToggle {
   theme = input<Theme>('light');
   toggled = output<void>();
+
+  private readonly languageService = inject(LanguageService);
+
+  readonly label = computed(() => {
+    const labels = LABELS[this.languageService.lang()];
+    return this.theme() === 'dark' ? labels.toLight : labels.toDark;
+  });
 }

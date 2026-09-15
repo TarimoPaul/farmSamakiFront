@@ -1,225 +1,284 @@
-<app-shell>
-  <section class="farms">
-    <header class="farms__head">
-      <div>
-        <h1 class="page-title">{{ t().title }}</h1>
-        <p class="page-subtitle">{{ t().subtitle }}</p>
-      </div>
-    </header>
+<section class="farms">
+  <header class="farms__head">
+    <div>
+      <h1 class="page-title">{{ t().title }}</h1>
+      <p class="page-subtitle">{{ t().subtitle }}</p>
+    </div>
+  </header>
 
-    <!-- A refused action - in practice the delete refusal, which names how
+  <!-- A refused action - in practice the delete refusal, which names how
          many members are still on the farm. It stays until dismissed. -->
-    @if (actionErrorMessage(); as message) {
-      <div class="panel-error" role="alert" data-testid="action-error">
-        <p>{{ message }}</p>
-        <app-button variant="secondary" (clicked)="dismissActionError()">
-          {{ t().close }}
-        </app-button>
-      </div>
-    }
+  @if (actionErrorMessage(); as message) {
+    <div class="panel-error" role="alert" data-testid="action-error">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="dismissActionError()">
+        {{ t().close }}
+      </app-button>
+    </div>
+  }
 
-    @if (loading()) {
-      <p class="panel-status">{{ t().loading }}</p>
-    } @else if (loadErrorMessage(); as message) {
-      <div class="panel-error" role="alert">
-        <p>{{ message }}</p>
-        <app-button variant="secondary" (clicked)="loadFarms()">{{ t().retry }}</app-button>
-      </div>
-    } @else {
-      <div class="card">
-        <app-data-table
-          [columns]="farmColumns()"
-          [rows]="farms()"
-          [rowKey]="farmKey"
-          [numbered]="true"
-          [numberLabel]="t().colNumber"
-          [selectable]="true"
-          [selectedKey]="selectedFarm()?.farmId ?? null"
-          (rowSelected)="selectFarm($event)"
-          [rowActions]="rowActions"
-          [actionsLabel]="t().actions"
-          [showActionsLabel]="true"
-        >
-          <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
-        </app-data-table>
-      </div>
+  @if (loading()) {
+    <p class="panel-status">{{ t().loading }}</p>
+  } @else if (loadErrorMessage(); as message) {
+    <div class="panel-error" role="alert">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="loadFarms()">{{ t().retry }}</app-button>
+    </div>
+  } @else {
+    <!-- Work on the left, summary rail on the right. Nothing on the rail costs
+         a request: it counts the farms and the members already on the page. -->
+    <div class="module-layout">
+      <div class="module-layout__main">
+        <div class="card">
+          <app-data-table
+            [columns]="farmColumns()"
+            [rows]="farms()"
+            [rowKey]="farmKey"
+            [numbered]="true"
+            [numberLabel]="t().colNumber"
+            [selectable]="true"
+            [selectedKey]="selectedFarm()?.farmId ?? null"
+            (rowSelected)="selectFarm($event)"
+            [rowActions]="rowActions"
+            [actionsLabel]="t().actions"
+            [showActionsLabel]="true"
+          >
+            <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
+          </app-data-table>
+        </div>
 
-      <!-- Renaming is `manage_farms`, the same code that opens this screen,
+        <!-- Renaming is `manage_farms`, the same code that opens this screen,
            so it is always here. DELETING is `delete_farm` - a code of its
            own, because it removes the context every unit, cycle and reading
            hangs from. An admin who organises farms without holding it simply
            has no delete entry. -->
-      <ng-template #rowActions let-farm>
-        <app-action-menu [label]="t().actions">
-          <button type="button" role="menuitem" (click)="openEdit(farm)">{{ t().edit }}</button>
+        <ng-template #rowActions let-farm>
+          <app-action-menu [label]="t().actions">
+            <button type="button" role="menuitem" (click)="openEdit(farm)">{{ t().edit }}</button>
 
-          <ng-container *appHasPermission="PERMISSION.DELETE_FARM">
-            <hr />
-            <button type="button" role="menuitem" class="is-danger" (click)="askDelete(farm)">
-              {{ t().delete }}
-            </button>
-          </ng-container>
-        </app-action-menu>
-      </ng-template>
+            <ng-container *appHasPermission="PERMISSION.DELETE_FARM">
+              <hr />
+              <button type="button" role="menuitem" class="is-danger" (click)="askDelete(farm)">
+                {{ t().delete }}
+              </button>
+            </ng-container>
+          </app-action-menu>
+        </ng-template>
 
-      <!-- Members: a DIFFERENT permission from the one that opens this screen,
+        <!-- Members: a DIFFERENT permission from the one that opens this screen,
            so it is gated separately and simply is not here without it. -->
-      <section class="card" data-panel="members" *appHasPermission="PERMISSION.MANAGE_USERS">
-        <header class="card__head">
-          <h2 class="card__title">
-            @if (selectedFarm(); as farm) {
-              {{ t().membersOf }} {{ farm.name }}
-            } @else {
-              {{ t().membersTitle }}
-            }
-          </h2>
-        </header>
+        <section class="card" data-panel="members" *appHasPermission="PERMISSION.MANAGE_USERS">
+          <header class="card__head">
+            <h2 class="card__title">
+              @if (selectedFarm(); as farm) {
+                {{ t().membersOf }} {{ farm.name }}
+              } @else {
+                {{ t().membersTitle }}
+              }
+            </h2>
+          </header>
 
-        @if (!selectedFarm()) {
-          <p class="panel-status">{{ t().membersHint }}</p>
-        } @else if (membersLoading()) {
-          <p class="panel-status">{{ t().loading }}</p>
-        } @else if (membersErrorMessage(); as message) {
-          <p class="panel-error panel-error--inline" role="alert">{{ message }}</p>
-        } @else {
-          <app-data-table
-            [columns]="memberColumns()"
-            [rows]="members()"
-            [rowKey]="memberKey"
-            [numbered]="true"
-            [numberLabel]="t().colNumber"
-          >
-            <app-empty-state
-              slot="empty"
-              [title]="t().membersEmptyTitle"
-              [message]="t().membersEmptyMessage"
-            />
-          </app-data-table>
-        }
-      </section>
+          @if (!selectedFarm()) {
+            <p class="panel-status">{{ t().membersHint }}</p>
+          } @else if (membersLoading()) {
+            <p class="panel-status">{{ t().loading }}</p>
+          } @else if (membersErrorMessage(); as message) {
+            <p class="panel-error panel-error--inline" role="alert">{{ message }}</p>
+          } @else {
+            <app-data-table
+              [columns]="memberColumns()"
+              [rows]="members()"
+              [rowKey]="memberKey"
+              [numbered]="true"
+              [numberLabel]="t().colNumber"
+            >
+              <app-empty-state
+                slot="empty"
+                [title]="t().membersEmptyTitle"
+                [message]="t().membersEmptyMessage"
+              />
+            </app-data-table>
+          }
+        </section>
+      </div>
+
+      <aside class="module-rail">
+        <!-- The screen's one action lives HERE, in the card that says what the
+             screen is for - not pinned to the page corner, where it floated
+             over whatever happened to be underneath it. -->
+        <div class="side-card side-card--intro">
+          <h3>{{ t().introTitle }}</h3>
+          <p class="intro__body">{{ t().introBody }}</p>
+          <ol class="intro__steps">
+            <li>{{ t().introStep1 }}</li>
+            <li>{{ t().introStep2 }}</li>
+            <li>{{ t().introStep3 }}</li>
+          </ol>
+          <div class="intro__actions">
+            <app-button block (clicked)="openCreate()">{{ t().newFarm }}</app-button>
+          </div>
+        </div>
+
+        <div class="side-card">
+          <h3>{{ t().railTitle }}</h3>
+          @for (row of summary(); track row.label) {
+            <div class="side-stat">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.value }}</strong>
+            </div>
+          }
+        </div>
+
+        <div class="side-card" data-rail="selected">
+          <h3>{{ t().railSelectedTitle }}</h3>
+          @if (selectedDetail(); as rows) {
+            <div class="side-stat">
+              <span>{{ t().colName }}</span>
+              <strong>{{ selectedFarm()!.name }}</strong>
+            </div>
+            @for (row of rows; track row.label) {
+              <div class="side-stat">
+                <span>{{ row.label }}</span>
+                <strong>{{ row.value }}</strong>
+              </div>
+            }
+          } @else {
+            <p class="intro__body">{{ t().railSelectedEmpty }}</p>
+          }
+        </div>
+
+        <!-- GATED exactly like the members panel on the left. `manage_users`
+             is a different capability from listing farms, and members() is
+             empty without it - so an ungated card here would read as "this
+             farm has nobody on it" to an admin who was never allowed to ask. -->
+        <div class="side-card" data-rail="members" *appHasPermission="PERMISSION.MANAGE_USERS">
+          <h3>{{ t().railMembersTitle }}</h3>
+          @if (!selectedFarm()) {
+            <p class="intro__body">{{ t().railSelectedEmpty }}</p>
+          } @else {
+            @for (row of membersByRole(); track row.role) {
+              <div class="side-stat">
+                <span>{{ row.role }}</span>
+                <strong>{{ row.count }}</strong>
+              </div>
+            } @empty {
+              <p class="intro__body">{{ t().railMembersEmpty }}</p>
+            }
+          }
+        </div>
+      </aside>
+    </div>
+  }
+</section>
+
+<app-modal
+  [open]="createOpen()"
+  [title]="t().formTitle"
+  [closeLabel]="t().close"
+  (dismissed)="closeCreate()"
+>
+  <form class="farm-form" [formGroup]="form" (ngSubmit)="submitCreate()">
+    <app-form-field [label]="t().fieldName" for="farm-name" [required]="true" [error]="nameError()">
+      <input
+        id="farm-name"
+        class="text-input"
+        type="text"
+        formControlName="name"
+        autocomplete="off"
+      />
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldLocation" for="farm-location">
+      <input
+        id="farm-location"
+        class="text-input"
+        type="text"
+        formControlName="location"
+        [placeholder]="t().fieldLocationHint"
+        autocomplete="off"
+      />
+    </app-form-field>
+
+    @if (createError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
     }
 
-    <!-- The screen's one action, pinned to the page's bottom-right corner
-         rather than sitting in the header. -->
-    <div class="page-actions">
-      <app-button floating (clicked)="openCreate()">{{ t().newFarm }}</app-button>
-    </div>
-  </section>
+    <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
+    <button type="submit" hidden></button>
+  </form>
 
-  <app-modal
-    [open]="createOpen()"
-    [title]="t().formTitle"
-    [closeLabel]="t().close"
-    (dismissed)="closeCreate()"
-  >
-    <form class="farm-form" [formGroup]="form" (ngSubmit)="submitCreate()">
-      <app-form-field
-        [label]="t().fieldName"
-        for="farm-name"
-        [required]="true"
-        [error]="nameError()"
-      >
-        <input
-          id="farm-name"
-          class="text-input"
-          type="text"
-          formControlName="name"
-          autocomplete="off"
-        />
-      </app-form-field>
+  <div slot="actions">
+    <app-button variant="ghost" [disabled]="saving()" (clicked)="closeCreate()">
+      {{ t().cancel }}
+    </app-button>
+    <app-button [loading]="saving()" (clicked)="submitCreate()">{{ t().save }}</app-button>
+  </div>
+</app-modal>
 
-      <app-form-field [label]="t().fieldLocation" for="farm-location">
-        <input
-          id="farm-location"
-          class="text-input"
-          type="text"
-          formControlName="location"
-          [placeholder]="t().fieldLocationHint"
-          autocomplete="off"
-        />
-      </app-form-field>
+<app-modal
+  [open]="!!editTarget()"
+  [title]="t().editTitle"
+  [closeLabel]="t().close"
+  (dismissed)="closeEdit()"
+>
+  <form class="farm-form" [formGroup]="form" (ngSubmit)="submitEdit()">
+    <p class="farm-form__intro">{{ t().editIntro }}</p>
 
-      @if (createError(); as message) {
-        <p class="form-error" role="alert">{{ message }}</p>
-      }
+    <app-form-field
+      [label]="t().fieldName"
+      for="edit-farm-name"
+      [required]="true"
+      [error]="nameError()"
+    >
+      <input
+        id="edit-farm-name"
+        class="text-input"
+        type="text"
+        formControlName="name"
+        autocomplete="off"
+      />
+    </app-form-field>
 
-      <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
-      <button type="submit" hidden></button>
-    </form>
+    <app-form-field [label]="t().fieldLocation" for="edit-farm-location">
+      <input
+        id="edit-farm-location"
+        class="text-input"
+        type="text"
+        formControlName="location"
+        [placeholder]="t().fieldLocationHint"
+        autocomplete="off"
+      />
+    </app-form-field>
 
-    <div slot="actions">
-      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeCreate()">
-        {{ t().cancel }}
-      </app-button>
-      <app-button [loading]="saving()" (clicked)="submitCreate()">{{ t().save }}</app-button>
-    </div>
-  </app-modal>
+    @if (createError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
 
-  <app-modal
-    [open]="!!editTarget()"
-    [title]="t().editTitle"
-    [closeLabel]="t().close"
-    (dismissed)="closeEdit()"
-  >
-    <form class="farm-form" [formGroup]="form" (ngSubmit)="submitEdit()">
-      <p class="farm-form__intro">{{ t().editIntro }}</p>
+    <button type="submit" hidden></button>
+  </form>
 
-      <app-form-field
-        [label]="t().fieldName"
-        for="edit-farm-name"
-        [required]="true"
-        [error]="nameError()"
-      >
-        <input
-          id="edit-farm-name"
-          class="text-input"
-          type="text"
-          formControlName="name"
-          autocomplete="off"
-        />
-      </app-form-field>
+  <div slot="actions">
+    <app-button variant="ghost" [disabled]="saving()" (clicked)="closeEdit()">
+      {{ t().cancel }}
+    </app-button>
+    <app-button [loading]="saving()" (clicked)="submitEdit()">{{ t().save }}</app-button>
+  </div>
+</app-modal>
 
-      <app-form-field [label]="t().fieldLocation" for="edit-farm-location">
-        <input
-          id="edit-farm-location"
-          class="text-input"
-          type="text"
-          formControlName="location"
-          [placeholder]="t().fieldLocationHint"
-          autocomplete="off"
-        />
-      </app-form-field>
+<app-confirm-dialog
+  [open]="!!deleteTarget()"
+  [title]="t().deleteTitle"
+  [message]="(deleteTarget()?.name ?? '') + ' ' + t().deleteMessage"
+  [confirmLabel]="t().deleteConfirm"
+  [cancelLabel]="t().cancel"
+  [loading]="deleting()"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>
 
-      @if (createError(); as message) {
-        <p class="form-error" role="alert">{{ message }}</p>
-      }
-
-      <button type="submit" hidden></button>
-    </form>
-
-    <div slot="actions">
-      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeEdit()">
-        {{ t().cancel }}
-      </app-button>
-      <app-button [loading]="saving()" (clicked)="submitEdit()">{{ t().save }}</app-button>
-    </div>
-  </app-modal>
-
-  <app-confirm-dialog
-    [open]="!!deleteTarget()"
-    [title]="t().deleteTitle"
-    [message]="(deleteTarget()?.name ?? '') + ' ' + t().deleteMessage"
-    [confirmLabel]="t().deleteConfirm"
-    [cancelLabel]="t().cancel"
-    [loading]="deleting()"
-    (confirmed)="confirmDelete()"
-    (cancelled)="cancelDelete()"
-  />
-
-  <app-toast
-    [open]="!!toastMessage()"
-    variant="success"
-    [message]="toastMessage() ?? ''"
-    (closed)="dismissToast()"
-  />
-</app-shell>
+<app-toast
+  [open]="!!toastMessage()"
+  variant="success"
+  [message]="toastMessage() ?? ''"
+  (closed)="dismissToast()"
+/>

@@ -1,127 +1,165 @@
-<app-shell>
-  <section class="species">
-    <header class="species__head">
-      <div>
-        <h1 class="page-title">{{ t().title }}</h1>
-        <p class="page-subtitle">{{ t().subtitle }}</p>
-      </div>
-    </header>
+<section class="species">
+  <header class="species__head">
+    <div>
+      <h1 class="page-title">{{ t().title }}</h1>
+      <p class="page-subtitle">{{ t().subtitle }}</p>
+    </div>
+  </header>
 
-    @if (loading()) {
-      <p class="panel-status">{{ t().loading }}</p>
-    } @else if (loadErrorMessage(); as message) {
-      <div class="panel-error" role="alert" data-testid="load-error">
-        <p>{{ message }}</p>
-        <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
-      </div>
-    } @else {
-      <section class="card" data-panel="species-list">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().listTitle }}</h2>
-        </header>
+  @if (loading()) {
+    <p class="panel-status">{{ t().loading }}</p>
+  } @else if (loadErrorMessage(); as message) {
+    <div class="panel-error" role="alert" data-testid="load-error">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+    </div>
+  } @else {
+    <div class="module-layout">
+      <div class="module-layout__main">
+        <section class="card" data-panel="species-list">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().listTitle }}</h2>
+          </header>
 
-        <!-- No row actions, and no actions column at all: the backend has
+          <!-- No row actions, and no actions column at all: the backend has
              neither updateSpecies nor deleteSpecies, so there is nothing a
              menu here could offer. See the note on the component. -->
-        <app-data-table
-          [columns]="columns()"
-          [rows]="species()"
-          [rowKey]="speciesKey"
-          [numbered]="true"
-          [numberLabel]="t().colNumber"
-        >
-          <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
-        </app-data-table>
-      </section>
+          <app-data-table
+            [columns]="columns()"
+            [rows]="species()"
+            [rowKey]="speciesKey"
+            [numbered]="true"
+            [numberLabel]="t().colNumber"
+          >
+            <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
+          </app-data-table>
+        </section>
 
-      <!-- No *appHasPermission on the form. The route guard is `manage_species`
+        <!-- No *appHasPermission on the form. The route guard is `manage_species`
            - the code the create needs - so anybody who can be here can submit
            it. Gating again would only hide the form from people the guard has
            already turned away. -->
-      <section class="card" data-panel="create-form">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().formTitle }}</h2>
-          <p class="card__hint">{{ t().formHint }}</p>
-        </header>
+        <section class="card" data-panel="create-form">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().formTitle }}</h2>
+            <p class="card__hint">{{ t().formHint }}</p>
+          </header>
 
-        <form class="species-form" [formGroup]="form" (ngSubmit)="submit()">
-          <app-form-field
-            [label]="t().fieldName"
-            for="species-name"
-            [error]="nameError()"
-            [required]="true"
-          >
-            <input
-              id="species-name"
-              class="text-input"
-              type="text"
-              formControlName="name"
-              [maxlength]="nameMaxLength"
-              [placeholder]="t().fieldNameHint"
-              autocomplete="off"
-            />
-          </app-form-field>
+          <form class="species-form" [formGroup]="form" (ngSubmit)="submit()">
+            <app-form-field
+              [label]="t().fieldName"
+              for="species-name"
+              [error]="nameError()"
+              [required]="true"
+            >
+              <input
+                id="species-name"
+                class="text-input"
+                type="text"
+                formControlName="name"
+                [maxlength]="nameMaxLength"
+                [placeholder]="t().fieldNameHint"
+                autocomplete="off"
+              />
+            </app-form-field>
 
-          <div class="species-form__grid">
-            <!-- step="0.1" matches NUMERIC(4,1) - the column's own
+            <div class="species-form__grid">
+              <!-- step="0.1" matches NUMERIC(4,1) - the column's own
                  granularity. NOT step="1": half-months are real values, and a
                  whole-month step would have the browser's own spinner and
                  validation fighting the thing this field exists to accept. -->
-            <app-form-field
-              [label]="t().fieldGrowthMonths"
-              for="species-growth-months"
-              [error]="growthError()"
-              [required]="true"
-            >
-              <input
-                id="species-growth-months"
-                class="text-input"
-                type="number"
-                step="0.1"
-                min="0"
-                formControlName="growthMonthsAvg"
-              />
-            </app-form-field>
+              <app-form-field
+                [label]="t().fieldGrowthMonths"
+                for="species-growth-months"
+                [error]="growthError()"
+                [required]="true"
+              >
+                <input
+                  id="species-growth-months"
+                  class="text-input"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  formControlName="growthMonthsAvg"
+                />
+              </app-form-field>
 
-            <!-- step="0.01" matches NUMERIC(6,2). -->
-            <app-form-field
-              [label]="t().fieldHarvestWeight"
-              for="species-harvest-weight"
-              [error]="weightError()"
-              [required]="true"
-            >
-              <input
-                id="species-harvest-weight"
-                class="text-input"
-                type="number"
-                step="0.01"
-                min="0"
-                formControlName="avgHarvestWeightKg"
-              />
-            </app-form-field>
-          </div>
+              <!-- step="0.01" matches NUMERIC(6,2). -->
+              <app-form-field
+                [label]="t().fieldHarvestWeight"
+                for="species-harvest-weight"
+                [error]="weightError()"
+                [required]="true"
+              >
+                <input
+                  id="species-harvest-weight"
+                  class="text-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  formControlName="avgHarvestWeightKg"
+                />
+              </app-form-field>
+            </div>
 
-          <p class="species-form__hint">{{ t().growthHint }}</p>
+            <p class="species-form__hint">{{ t().growthHint }}</p>
 
-          @if (formError(); as message) {
-            <p class="form-error" role="alert" data-testid="form-error">{{ message }}</p>
-          }
+            @if (formError(); as message) {
+              <p class="form-error" role="alert" data-testid="form-error">{{ message }}</p>
+            }
 
-          <!-- type="submit" and NO (clicked) handler: the button is inside the
+            <!-- type="submit" and NO (clicked) handler: the button is inside the
                form, so a click goes through ngSubmit exactly as Enter does.
                Wiring both would call submit() twice. -->
-          <div class="species-form__actions">
-            <app-button type="submit" [loading]="saving()">{{ t().submit }}</app-button>
-          </div>
-        </form>
-      </section>
-    }
-  </section>
+            <div class="species-form__actions">
+              <app-button type="submit" [loading]="saving()">{{ t().submit }}</app-button>
+            </div>
+          </form>
+        </section>
+      </div>
 
-  <app-toast
-    [open]="!!toastMessage()"
-    variant="success"
-    [message]="toastMessage() ?? ''"
-    (closed)="dismissToast()"
-  />
-</app-shell>
+      <aside class="module-rail">
+        <!-- What this screen is for. NO buttons: the create form is a panel on
+             the screen itself, so an action here would point at something two
+             inches to the left. -->
+        <div class="side-card side-card--intro">
+          <h3>{{ t().introTitle }}</h3>
+          <p class="intro__body">{{ t().introBody }}</p>
+          <ol class="intro__steps">
+            <li>{{ t().introStep1 }}</li>
+            <li>{{ t().introStep2 }}</li>
+            <li>{{ t().introStep3 }}</li>
+          </ol>
+        </div>
+
+        <div class="side-card">
+          <h3>{{ t().railTitle }}</h3>
+          @for (row of summary(); track row.label) {
+            <div class="side-stat">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.value }}</strong>
+            </div>
+          }
+        </div>
+
+        @if (quickest(); as fastest) {
+          <div class="side-card">
+            <h3>{{ t().railQuickestTitle }}</h3>
+            <div class="side-stat">
+              <span>{{ fastest.name }}</span>
+              <strong>{{ fastest.growthMonthsAvg }}</strong>
+            </div>
+            <p class="intro__body">{{ t().railQuickestHint }}</p>
+          </div>
+        }
+      </aside>
+    </div>
+  }
+</section>
+
+<app-toast
+  [open]="!!toastMessage()"
+  variant="success"
+  [message]="toastMessage() ?? ''"
+  (closed)="dismissToast()"
+/>

@@ -3,15 +3,18 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../core/services/auth';
 import { FarmSelectionService } from '../core/services/farm-selection';
+import { FarmsService } from '../core/services/farms';
 import { RolesService } from '../core/services/roles';
 import { UsersService } from '../core/services/users';
 import { LanguageService } from '../core/services/language';
+import { Farm } from '../core/models/farm';
+import { MembershipView } from '../core/models/membership';
+import { PERMISSION } from '../core/models/permissions';
 import { Role } from '../core/models/role';
 import { UserSummary, UserStatus } from '../core/models/auth';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { ActionMenu } from '../shared/ui/action-menu/action-menu';
 import { Button } from '../shared/ui/button/button';
 import { ConfirmDialog } from '../shared/ui/confirm-dialog/confirm-dialog';
@@ -89,7 +92,6 @@ const PASSWORD_MIN_LENGTH = 6;
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AppShell,
     ActionMenu,
     Button,
     ConfirmDialog,
@@ -107,6 +109,7 @@ export class Members implements OnInit {
   readonly t = computed(() => MEMBERS_I18N[this.languageService.lang()]);
 
   private readonly usersService = inject(UsersService);
+  private readonly farmsService = inject(FarmsService);
   private readonly rolesService = inject(RolesService);
   private readonly authService = inject(AuthService);
   private readonly farmSelection = inject(FarmSelectionService);
@@ -263,6 +266,75 @@ export class Members implements OnInit {
   });
 
   readonly memberKey = (member: UserSummary): string => member.id;
+
+  // ── The summary rail ───────────────────────────────────────────────────
+  //
+  // Counted from `members()` and `roles()`, both already on the page, so the
+  // rail costs no request of its own.
+  //
+  // NO DATE PICKER: `UserSummary` carries no timestamp - id, name, phone,
+  // status, farmId, role and nothing else - so there is no date to filter by.
+  // The same gap the Approvals queue works around with a position column.
+
+  /**
+   * The farm's people by account state.
+   *
+   * A DISABLED member is still on the farm - the membership is untouched, only
+   * the login is off - which is why they are counted here rather than left out
+   * of the list. "Bila nafasi" is the row that matters most: somebody with a
+   * membership and no role can sign in and do nothing.
+   */
+  readonly summary = computed(() => {
+    const t = this.t();
+    const rows = this.members();
+    const byStatus = (status: UserStatus) => rows.filter((row) => row.status === status).length;
+
+    return [
+      { label: t.railMembersAll, value: String(rows.length) },
+      { label: t.statusActive, value: String(byStatus('ACTIVE')) },
+      { label: t.statusDisabled, value: String(byStatus('DISABLED')) },
+      { label: t.railNoRole, value: String(rows.filter((row) => !row.role).length) },
+    ];
+  });
+
+  /** Who holds what, biggest group first. A member with no role is counted by name. */
+  readonly membersByRole = computed(() => {
+    const t = this.t();
+    const byRole = new Map<string, number>();
+    for (const member of this.members()) {
+      const role = member.role ?? t.noRole;
+      byRole.set(role, (byRole.get(role) ?? 0) + 1);
+    }
+    return [...byRole.entries()]
+      .sort(([, a], [, b]) => b - a)
+      .map(([role, count]) => ({ role, count: String(count) }));
+  });
+
+  /**
+   * What the role picker can actually offer - and why it might offer less than
+   * the Roles screen lists.
+   *
+   * `GET /api/roles` returns DISABLED roles too, and this screen filters them
+   * out because the backend refuses to attach one to a membership. The gap
+   * between the two numbers is therefore a real fact about the setup, not an
+   * accident, so both are shown rather than only the usable one.
+   */
+  readonly roleSupply = computed(() => {
+    const t = this.t();
+    const all = this.allRoles().length;
+    const usable = this.roles().length;
+
+    return {
+      rows: [
+        { label: t.railRolesUsable, value: String(usable) },
+        { label: t.railRolesDisabled, value: String(all - usable) },
+      ],
+      failed: this.rolesFailed(),
+      // Distinguished from a failed read: an empty catalogue is a different
+      // problem with a different fix, and each gets its own line.
+      empty: !this.rolesFailed() && usable === 0,
+    };
+  });
 
   /**
    * Reloads whenever the applied farm changes.
@@ -547,7 +619,242 @@ export class Members implements OnInit {
     this.addPasswordError.set(null);
     this.createdUserId.set(null);
     this.actionError.set(null);
+    this.addMode.set('new');
+    this.existingForm.reset({ phone: '', roleId: null });
+    this.foundPerson.set(null);
+    this.existingError.set(null);
     this.addOpen.set(true);
+  }
+
+  // ------------------------------------------- adding somebody who exists
+
+  /**
+   * New account, or an account that is already there.
+   *
+   * Before this there was only "new", and a person already on another farm
+   * could not be put on this one at all: creating them again is refused as a
+   * registered phone, and nothing else on the screen reached them.
+   */
+  readonly addMode = signal<'new' | 'existing'>('new');
+  readonly foundPerson = signal<UserSummary | null>(null);
+  readonly searching = signal(false);
+  readonly existingError = signal<string | null>(null);
+
+  readonly existingForm = this.formBuilder.nonNullable.group({
+    phone: [''],
+    roleId: this.formBuilder.control<number | null>(null),
+  });
+
+  setAddMode(mode: 'new' | 'existing'): void {
+    if (!this.saving()) {
+      this.addMode.set(mode);
+      this.existingError.set(null);
+      this.addError.set(null);
+    }
+  }
+
+  /**
+   * Finds the person. A new search forgets the previous find, so Save can
+   * never act on somebody other than the number now in the box.
+   */
+  searchExisting(): void {
+    if (this.searching()) {
+      return;
+    }
+    const phone = this.existingForm.getRawValue().phone.trim();
+    this.existingError.set(null);
+    this.foundPerson.set(null);
+
+    if (!phone) {
+      this.existingError.set(this.t().errorPhoneRequired);
+      return;
+    }
+
+    this.searching.set(true);
+    this.usersService.lookupByPhone(phone).subscribe({
+      next: (person) => {
+        this.searching.set(false);
+        this.foundPerson.set(person);
+      },
+      error: (err: unknown) => {
+        this.searching.set(false);
+        this.existingError.set(this.inlineMessage(asApiError(err)));
+      },
+    });
+  }
+
+  /**
+   * Puts the found person on THIS farm - the only farm a farm-level admin
+   * may place anyone on, and the one the screen is showing for everyone else.
+   *
+   * "Already here" is refused locally because it is knowable: their id is in
+   * the list on screen. The backend would answer 409 anyway, and that answer
+   * is still shown if the list was stale.
+   */
+  private submitExisting(): void {
+    const farmId = this.activeFarmId();
+    const person = this.foundPerson();
+    const t = this.t();
+    if (farmId === null || this.saving()) {
+      return;
+    }
+
+    this.existingError.set(null);
+    if (!person) {
+      this.existingError.set(t.errorFindFirst);
+      return;
+    }
+    if (this.members().some((member) => member.id === person.id)) {
+      this.existingError.set(t.errorAlreadyHere);
+      return;
+    }
+    const { roleId } = this.existingForm.getRawValue();
+    if (roleId === null) {
+      this.existingError.set(t.errorRoleRequired);
+      return;
+    }
+
+    this.saving.set(true);
+    this.usersService.assignMembership(person.id, { farmId, roleId }).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.addOpen.set(false);
+        this.toastMessage.set(this.t().existingAddedToast);
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.saving.set(false);
+        this.existingError.set(this.inlineMessage(asApiError(err)));
+      },
+    });
+  }
+
+  // ------------------------------------------------ the farms a person is on
+
+  readonly farmsTarget = signal<UserSummary | null>(null);
+  readonly memberships = signal<readonly MembershipView[]>([]);
+  readonly membershipsLoading = signal(false);
+  readonly membershipsFailed = signal(false);
+
+  private readonly allFarms = signal<readonly Farm[]>([]);
+  readonly farmsFailed = signal(false);
+  readonly granting = signal(false);
+  readonly grantError = signal<string | null>(null);
+
+  readonly grantForm = this.formBuilder.group({
+    farmId: this.formBuilder.control<number | null>(null),
+    roleId: this.formBuilder.control<number | null>(null),
+  });
+
+  /**
+   * Whether this admin may place people on ANY farm.
+   *
+   * The backend's two tiers (PermissionChecker.requireSameFarm) are decided by
+   * `manage_farms`, and so is this - the one permission check on a screen that
+   * otherwise leaves rules to the backend, because without it an admin of one
+   * farm would be offered a picker of farms whose every entry ends in 403.
+   */
+  readonly canGrantAnyFarm = computed(() =>
+    this.authService.permissions().includes(PERMISSION.MANAGE_FARMS),
+  );
+
+  /** Farms they are not on yet - the only ones worth offering. */
+  readonly grantableFarms = computed(() => {
+    const held = new Set(this.memberships().map((membership) => membership.farmId));
+    return this.allFarms().filter((farm) => !held.has(farm.farmId));
+  });
+
+  openFarms(member: UserSummary): void {
+    this.actionError.set(null);
+    this.grantError.set(null);
+    this.grantForm.reset({ farmId: null, roleId: null });
+    this.farmsTarget.set(member);
+    this.loadMemberships(member.id);
+
+    // Fetched once, and only by someone who may use it: GET /api/farms is
+    // manage_farms itself.
+    if (this.canGrantAnyFarm() && (this.allFarms().length === 0 || this.farmsFailed())) {
+      this.farmsService.list().subscribe({
+        next: (farms) => {
+          this.allFarms.set(farms);
+          this.farmsFailed.set(false);
+        },
+        error: () => this.farmsFailed.set(true),
+      });
+    }
+  }
+
+  closeFarms(): void {
+    if (!this.granting()) {
+      this.farmsTarget.set(null);
+    }
+  }
+
+  private loadMemberships(userId: string): void {
+    this.membershipsLoading.set(true);
+    this.membershipsFailed.set(false);
+    this.usersService.listMemberships(userId).subscribe({
+      next: (memberships) => {
+        this.memberships.set(memberships);
+        this.membershipsLoading.set(false);
+      },
+      error: () => {
+        this.memberships.set([]);
+        this.membershipsFailed.set(true);
+        this.membershipsLoading.set(false);
+      },
+    });
+  }
+
+  submitGrant(): void {
+    const member = this.farmsTarget();
+    if (!member || this.granting()) {
+      return;
+    }
+    const t = this.t();
+    const { farmId, roleId } = this.grantForm.getRawValue();
+    this.grantError.set(null);
+
+    if (farmId === null) {
+      this.grantError.set(t.errorFarmRequired);
+      return;
+    }
+    if (roleId === null) {
+      this.grantError.set(t.errorRoleRequired);
+      return;
+    }
+
+    this.granting.set(true);
+    this.usersService.assignMembership(member.id, { farmId, roleId }).subscribe({
+      next: () => {
+        this.granting.set(false);
+        this.grantForm.reset({ farmId: null, roleId: null });
+        this.toastMessage.set(this.t().grantedToast);
+        // The modal stays open on the answer: the new farm appearing in the
+        // list IS the confirmation, and a second farm may be next.
+        this.loadMemberships(member.id);
+      },
+      error: (err: unknown) => {
+        this.granting.set(false);
+        this.grantError.set(this.inlineMessage(asApiError(err)));
+      },
+    });
+  }
+
+  /**
+   * A refusal shown inside a modal. The backend's own sentence where it names
+   * the problem better than shared copy could - an unknown number, a person
+   * already on that farm, a disabled role - and the shared copy otherwise, so
+   * FORBIDDEN reads here as it does everywhere else.
+   */
+  private inlineMessage(error: ApiError): string | null {
+    if (error.sessionHandled) {
+      return null;
+    }
+    if (error.errorCode === ERROR_CODE.VALIDATION_ERROR || error.status === CONFLICT_STATUS) {
+      return error.message;
+    }
+    return this.messageFor(error);
   }
 
   closeAdd(): void {
@@ -568,6 +875,10 @@ export class Members implements OnInit {
    * createdUserId.
    */
   submitAdd(): void {
+    if (this.addMode() === 'existing') {
+      this.submitExisting();
+      return;
+    }
     const farmId = this.activeFarmId();
     if (farmId === null || this.saving()) {
       return;

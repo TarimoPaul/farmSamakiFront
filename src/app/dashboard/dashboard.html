@@ -1,22 +1,29 @@
-<app-shell [hasAside]="true">
-  @if (loading()) {
-    <p class="dash-status">{{ t().loading }}</p>
-  } @else if (noFarm()) {
-    <section class="dash-notice">
-      <h2 class="dash-notice__title">
-        {{ canManageFarms() ? t().noFarmAdminTitle : t().noFarmTitle }}
-      </h2>
-      <p class="dash-notice__body">
-        {{ canManageFarms() ? t().noFarmAdminBody : t().noFarmBody }}
-      </p>
-      @if (canManageFarms()) {
-        <a class="dash-notice__action" routerLink="/farms">{{ t().noFarmAction }}</a>
-      }
-    </section>
-  } @else if (errorMessage()) {
-    <p class="dash-status dash-status--error">{{ errorMessage() }}</p>
-  } @else {
-    <!-- Tile anatomy is taken from the reference (ScreenShoot/til1.png),
+<!-- The two-column layout is the DASHBOARD's own now.
+     It used to be the shell's: this screen projected the rail through a
+     `slot="aside"` and the shell grew a second grid track for it. Projection
+     cannot reach through a router-outlet, and the shell is a layout route as
+     of the move that ended the flash on every navigation - so the column that
+     only ever belonged to this one screen lives with it. -->
+<div class="dash-layout">
+  <div class="dash-layout__main">
+    @if (loading()) {
+      <p class="dash-status">{{ t().loading }}</p>
+    } @else if (noFarm()) {
+      <section class="dash-notice">
+        <h2 class="dash-notice__title">
+          {{ canManageFarms() ? t().noFarmAdminTitle : t().noFarmTitle }}
+        </h2>
+        <p class="dash-notice__body">
+          {{ canManageFarms() ? t().noFarmAdminBody : t().noFarmBody }}
+        </p>
+        @if (canManageFarms()) {
+          <a class="dash-notice__action" routerLink="/farms">{{ t().noFarmAction }}</a>
+        }
+      </section>
+    } @else if (errorMessage()) {
+      <p class="dash-status dash-status--error">{{ errorMessage() }}</p>
+    } @else {
+      <!-- Tile anatomy is taken from the reference (ScreenShoot/til1.png),
              measured off its pixels: a landscape card, a coloured TAB that
              straddles the top edge - carrying the label, with the number
              moved down into the body where it has room - a pendant
@@ -25,181 +32,187 @@
              number. The reference gives every row its own hue; we have one
              accent, so all four tiles share it - no colour enters this file
              that is not already a token. -->
-    <section class="stat-grid">
-      <article class="tile">
-        <span class="tile__tab">{{ t().statTotalUnits }}</span>
-        <span class="tile__cap" aria-hidden="true"></span>
-        <div class="tile__body">
-          <span class="tile__icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-              />
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-              <line x1="12" y1="22.08" x2="12" y2="12" />
-            </svg>
-          </span>
-          <span class="tile__value">{{ totalUnits() | number }}</span>
-        </div>
-      </article>
-
-      <article class="tile">
-        <span class="tile__tab">{{ t().statActiveUnits }}</span>
-        <span class="tile__cap" aria-hidden="true"></span>
-        <div class="tile__body">
-          <span class="tile__icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
-            </svg>
-          </span>
-          <span class="tile__value">{{ activeUnits() | number }}</span>
-        </div>
-      </article>
-
-      <article class="tile">
-        <span class="tile__tab">{{ t().statActiveCycles }}</span>
-        <span class="tile__cap" aria-hidden="true"></span>
-        <div class="tile__body">
-          <span class="tile__icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </span>
-          <span class="tile__value">{{ activeCycles().length | number }}</span>
-        </div>
-      </article>
-
-      <article class="tile">
-        <span class="tile__tab">{{ t().statFingerlings }}</span>
-        <span class="tile__cap" aria-hidden="true"></span>
-        <div class="tile__body">
-          <span class="tile__icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M6.5 12c.9-3.3 4.7-5.5 8-5.5 3.3 0 5.7 2.4 6.5 5.5-.8 3.1-3.2 5.5-6.5 5.5-3.3 0-7.1-2.2-8-5.5z"
-              />
-              <path d="M21 12l2.5-2.5v5L21 12z" />
-            </svg>
-          </span>
-          <span class="tile__value">{{ totalFingerlings() | number }}</span>
-        </div>
-      </article>
-    </section>
-
-    <section class="chart-card">
-      <div class="card-heading">
-        <div>
-          <h2>{{ t().chartTitle }}</h2>
-          <p>{{ t().chartSubtitle }}</p>
-        </div>
-      </div>
-
-      <div class="bar-chart">
-        @for (bar of unitsByType(); track bar.type) {
-          <div class="bar-chart__col">
-            <span class="bar-chart__count">{{ bar.count }}</span>
-            <div class="bar-chart__track">
-              <div class="bar-chart__fill" [style.height.%]="bar.percent"></div>
-            </div>
-            <span class="bar-chart__label">{{ bar.type }}</span>
+      <section class="stat-grid">
+        <article class="tile">
+          <span class="tile__tab">{{ t().statTotalUnits }}</span>
+          <span class="tile__cap" aria-hidden="true"></span>
+          <div class="tile__body">
+            <span class="tile__icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+                />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+            </span>
+            <span class="tile__value">{{ shownTotalUnits() | number }}</span>
           </div>
-        }
-      </div>
-    </section>
+        </article>
 
-    <section class="table-card">
-      <div class="card-heading">
-        <div>
-          <h2>{{ t().tableTitle }}</h2>
-          <p>{{ t().tableSubtitle }}</p>
+        <article class="tile">
+          <span class="tile__tab">{{ t().statActiveUnits }}</span>
+          <span class="tile__cap" aria-hidden="true"></span>
+          <div class="tile__body">
+            <span class="tile__icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+            </span>
+            <span class="tile__value">{{ shownActiveUnits() | number }}</span>
+          </div>
+        </article>
+
+        <article class="tile">
+          <span class="tile__tab">{{ t().statActiveCycles }}</span>
+          <span class="tile__cap" aria-hidden="true"></span>
+          <div class="tile__body">
+            <span class="tile__icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+            </span>
+            <span class="tile__value">{{ shownCyclesRunning() | number }}</span>
+          </div>
+        </article>
+
+        <article class="tile">
+          <span class="tile__tab">{{ t().statFingerlings }}</span>
+          <span class="tile__cap" aria-hidden="true"></span>
+          <div class="tile__body">
+            <span class="tile__icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M6.5 12c.9-3.3 4.7-5.5 8-5.5 3.3 0 5.7 2.4 6.5 5.5-.8 3.1-3.2 5.5-6.5 5.5-3.3 0-7.1-2.2-8-5.5z"
+                />
+                <path d="M21 12l2.5-2.5v5L21 12z" />
+              </svg>
+            </span>
+            <span class="tile__value">{{ shownFingerlings() | number }}</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="chart-card">
+        <div class="card-heading">
+          <div>
+            <h2>{{ t().chartTitle }}</h2>
+            <p>{{ t().chartSubtitle }}</p>
+          </div>
         </div>
-      </div>
 
-      @if (activeCycles().length === 0) {
-        <p class="dash-status">{{ t().tableEmpty }}</p>
-      } @else {
-        <table>
-          <thead>
-            <tr>
-              <th>{{ t().colUnit }}</th>
-              <th>{{ t().colSpecies }}</th>
-              <th>{{ t().colStockingDate }}</th>
-              <th>{{ t().colExpectedHarvest }}</th>
-              <th>{{ t().colStatus }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (cycle of activeCycles(); track cycle.cycleId) {
+        <div class="bar-chart">
+          @for (bar of unitsByType(); track bar.type) {
+            <div class="bar-chart__col">
+              <span class="bar-chart__count">{{ bar.count }}</span>
+              <div class="bar-chart__track">
+                <div class="bar-chart__fill" [style.height.%]="bar.percent"></div>
+              </div>
+              <span class="bar-chart__label">{{ bar.type }}</span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div class="card-heading">
+          <div>
+            <h2>{{ t().tableTitle }}</h2>
+            <p>{{ t().tableSubtitle }}</p>
+          </div>
+        </div>
+
+        @if (activeCycles().length === 0) {
+          <p class="dash-status">{{ t().tableEmpty }}</p>
+        } @else {
+          <table>
+            <thead>
               <tr>
-                <td>{{ cycle.unit.code }}</td>
-                <td>{{ cycle.speciesName }}</td>
-                <td>{{ cycle.stockingDate }}</td>
-                <td>{{ cycle.expectedHarvestDate ?? '-' }}</td>
-                <td>
-                  <span class="pill" [ngClass]="statusClass(cycle.status)">{{
-                    statusLabel(cycle.status)
-                  }}</span>
-                </td>
+                <th>{{ t().colUnit }}</th>
+                <th>{{ t().colSpecies }}</th>
+                <th>{{ t().colStockingDate }}</th>
+                <th>{{ t().colExpectedHarvest }}</th>
+                <th>{{ t().colStatus }}</th>
               </tr>
-            }
-          </tbody>
-        </table>
-      }
-    </section>
-  }
+            </thead>
+            <tbody>
+              @for (cycle of activeCycles(); track cycle.cycleId) {
+                <!-- data-label: on a phone each row is stacked into a small
+                     card, and the header row is gone - so every cell names
+                     itself (see the table block in dashboard.scss). -->
+                <tr>
+                  <td [attr.data-label]="t().colUnit">{{ cycle.unit.code }}</td>
+                  <td [attr.data-label]="t().colSpecies">{{ cycle.speciesName }}</td>
+                  <td [attr.data-label]="t().colStockingDate">{{ cycle.stockingDate }}</td>
+                  <td [attr.data-label]="t().colExpectedHarvest">
+                    {{ cycle.expectedHarvestDate ?? '-' }}
+                  </td>
+                  <td [attr.data-label]="t().colStatus">
+                    <span class="pill" [ngClass]="statusClass(cycle.status)">{{
+                      statusLabel(cycle.status)
+                    }}</span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </section>
+    }
+  </div>
 
-  <aside class="dash-side" slot="aside">
+  <aside class="dash-side">
     <div class="side-card">
       <h3>{{ t().sideSummary }}</h3>
       <div class="side-stat">
         <span>{{ t().sideAllUnits }}</span>
-        <strong>{{ totalUnits() }}</strong>
+        <strong>{{ shownTotalUnits() }}</strong>
       </div>
       <div class="side-stat">
         <span>{{ t().sideActiveUnits }}</span>
-        <strong>{{ activeUnits() }}</strong>
+        <strong>{{ shownActiveUnits() }}</strong>
       </div>
       <div class="side-stat">
         <span>{{ t().sideTotalVolume }}</span>
-        <strong>{{ totalVolumeM3() }}</strong>
+        <strong>{{ shownVolumeM3() }}</strong>
       </div>
     </div>
 
     <div class="side-card">
       <h3>{{ t().sideByStatus }}</h3>
       <div class="mini-bars">
-        @for (bar of unitsByStatus(); track bar.status) {
+        @for (bar of shownUnitsByStatus(); track bar.status) {
           <div class="mini-bars__row">
             <span class="mini-bars__label">{{ statusLabel(bar.status) }}</span>
             <div class="mini-bars__track">
@@ -211,22 +224,77 @@
       </div>
     </div>
 
+    <!-- The date picker. Paging the strip does NOT change the numbers - only
+         clicking a day does, which is why the arrows and the days are separate
+         controls rather than one "current week" state. -->
     <div class="side-card">
-      <h3>{{ t().sideThisWeek }}</h3>
+      <div class="mini-cal__head">
+        <h3>{{ t().sideThisWeek }}</h3>
+        <span class="mini-cal__nav">
+          <button
+            type="button"
+            class="mini-cal__arrow"
+            [attr.aria-label]="t().weekPrevious"
+            [attr.title]="t().weekPrevious"
+            (click)="shiftWeek(-1)"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            class="mini-cal__arrow"
+            [attr.aria-label]="t().weekNext"
+            [attr.title]="t().weekNext"
+            (click)="shiftWeek(1)"
+          >
+            ›
+          </button>
+        </span>
+      </div>
+
       <div class="mini-cal">
-        @for (day of weekDates; track day.getTime(); let i = $index) {
-          <div class="mini-cal__day" [class.mini-cal__day--today]="isToday(day)">
+        @for (day of weekDates(); track day.getTime(); let i = $index) {
+          <button
+            type="button"
+            class="mini-cal__day"
+            [class.mini-cal__day--today]="isToday(day)"
+            [class.mini-cal__day--selected]="isSelected(day)"
+            [attr.aria-pressed]="isSelected(day)"
+            [attr.aria-label]="t().daySelect + ' ' + (day | date: 'fullDate')"
+            (click)="selectDate(day)"
+          >
             <span class="mini-cal__weekday">{{ weekdayLabels()[i] }}</span>
             <span class="mini-cal__date">{{ day.getDate() }}</span>
-          </div>
+          </button>
         }
       </div>
+
+      <!-- Shown only away from today, because on today there is nothing to
+           explain: the numbers are the live ones. -->
+      @if (!viewingToday()) {
+        <p class="mini-cal__state">
+          @if (dayLoading()) {
+            {{ t().dayLoading }}
+          } @else if (dayError()) {
+            {{ t().dayFailed }}
+          } @else if (!dayHasHistory()) {
+            <!-- Zeros here would read as "the farm was empty", which is a
+                 different claim from "we have no record". -->
+            {{ t().dayNoHistory }} {{ day()?.historyStartsOn }}.
+          } @else {
+            {{ t().dayViewing }} {{ selectedDate() }}.
+          }
+          <button type="button" class="mini-cal__today" (click)="backToToday()">
+            {{ t().dayBackToToday }}
+          </button>
+        </p>
+      }
     </div>
 
     <div class="side-card side-card--ring">
       <h3>{{ t().sideActiveRing }}</h3>
-      <div class="ring" [style.--percent]="activePercent()">
-        <span class="ring__value">{{ activePercent() }}%</span>
+      <div class="ring" [style.--percent]="shownActivePercent()">
+        <span class="ring__value">{{ shownActivePercent() }}%</span>
       </div>
       <p class="ring__caption">{{ t().sideActiveRingCaption }}</p>
     </div>
@@ -248,10 +316,10 @@
         @if (canManageUsers() && activeFarmId() !== null) {
           <div class="side-stat">
             <span>{{ t().sideTotalMembers }}</span>
-            <strong>{{ totalMembers() ?? '-' }}</strong>
+            <strong>{{ shownMembers() ?? '-' }}</strong>
           </div>
         }
       </div>
     }
   </aside>
-</app-shell>
+</div>

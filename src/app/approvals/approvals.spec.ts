@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { Approvals } from './approvals';
+import { APPROVALS_I18N } from './approvals.i18n';
 import { LanguageService } from '../core/services/language';
 import { environment } from '../../environments/environment';
 
@@ -127,11 +128,7 @@ const text = (fixture: ComponentFixture<Approvals>) =>
   ((fixture.nativeElement as HTMLElement).textContent ?? '').replace(/\s+/g, ' ');
 
 /** Renders the screen with the pending queue (and pickers) already loaded. */
-async function load(
-  permissions: string[],
-  farmId: number | null = 1,
-  pending = PENDING_RESPONSE,
-) {
+async function load(permissions: string[], farmId: number | null = 1, pending = PENDING_RESPONSE) {
   const ctx = setup(permissions, farmId);
   ctx.fixture.detectChanges();
 
@@ -175,12 +172,14 @@ describe('Approvals', () => {
       const { fixture, component, httpMock } = setup(['approve_users']);
       fixture.detectChanges();
 
-      httpMock
-        .expectOne(PENDING_URL)
-        .flush(
-          { success: false, message: 'Huna ruhusa ya kufikia rasilimali hii.', errorCode: 'FORBIDDEN' },
-          { status: 403, statusText: 'Forbidden' },
-        );
+      httpMock.expectOne(PENDING_URL).flush(
+        {
+          success: false,
+          message: 'Huna ruhusa ya kufikia rasilimali hii.',
+          errorCode: 'FORBIDDEN',
+        },
+        { status: 403, statusText: 'Forbidden' },
+      );
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -384,5 +383,145 @@ describe('Approvals', () => {
         expect(component.outcome()?.kind).toBe('approved-not-assigned');
       });
     });
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * HAKUNA KALENDA, na ni pengo lile lile ambalo safu ya nafasi inalizunguka:
+ * `UserSummary` haina muhuri wa muda hata mmoja, hivyo hakuna tarehe ya
+ * kuchuja nayo. Backend hupanga foleni kwa `created_at`; haituma.
+ *
+ * Kadi ya CHAGUO ZA FOMU ipo kwa sababu `loadPickers()` HUSHINDWA KIMYA kwa
+ * makusudi - orodha tupu ya nafasi haitoi banner juu ya orodha iliyopakia
+ * vizuri, hivyo hapa ndipo msimamizi anajua kabla hajafungua fomu.
+ */
+describe('Approvals summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  const rail = (fixture: ComponentFixture<Approvals>) =>
+    (fixture.nativeElement as HTMLElement).querySelector('.module-rail')!;
+
+  it('counts the queue and names whoever has waited longest', async () => {
+    const { fixture, component, httpMock } = await load(['approve_users', 'manage_users']);
+
+    const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+
+    expect(by('Wanaosubiri')).toBe('2');
+    // Wa kwanza kwenye orodha ndiye aliyesubiri zaidi - backend inapanga kwa
+    // created_at, hivyo ni nafasi ya 1, si kubahatisha.
+    expect(by('Amesubiri muda mrefu')).toBe('Pendo Mwanaidi');
+    httpMock.verify();
+  });
+
+  it('says nobody rather than showing a blank when the queue is empty', async () => {
+    const { fixture, component, httpMock } = await load(['approve_users', 'manage_users'], 1, {
+      success: true,
+      data: [],
+    });
+
+    expect(component.summary().find((row) => row.label === 'Amesubiri muda mrefu')?.value).toBe(
+      'Hakuna',
+    );
+    expect(rail(fixture).textContent).toContain('Hakuna');
+    httpMock.verify();
+  });
+
+  it('moves the refresh off the page corner and into the intro card', async () => {
+    const { fixture, httpMock } = await load(['approve_users', 'manage_users']);
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.page-actions')).toBeNull();
+    const intro = rail(fixture).querySelector('.side-card--intro')!;
+    expect(intro.querySelector('.intro__actions app-button')?.textContent).toContain(
+      'Onyesha upya',
+    );
+    httpMock.verify();
+  });
+
+  it('tells a company admin the farm is theirs to choose', async () => {
+    const { fixture, component, httpMock } = await load([
+      'approve_users',
+      'manage_users',
+      'manage_farms',
+    ]);
+
+    const by = (label: string) =>
+      component.pickerState().rows.find((row) => row.label === label)?.value;
+
+    expect(by('Shamba')).toBe('Lolote (unachagua)');
+    expect(by('Nafasi zilizopo')).toBe('2');
+    expect(component.pickerState().noRoles).toBe(false);
+    httpMock.verify();
+  });
+
+  it('names the one farm a farm-level admin can assign into', async () => {
+    // Hana `manage_farms`: hachagui shamba, anapanga kwenye lake mwenyewe.
+    const { fixture, component, httpMock } = await load(['approve_users', 'manage_users'], 1);
+
+    // Jina halijulikani kwa sababu `farms` haipakiwi bila manage_farms - hivyo
+    // ni kitambulisho, na hiyo ni kweli zaidi kuliko kubuni jina.
+    expect(component.pickerState().rows.find((row) => row.label === 'Shamba')?.value).toBe('#1');
+    httpMock.verify();
+  });
+
+  it('says the admin is on no farm at all rather than leaving it blank', async () => {
+    const { fixture, component, httpMock } = await load(['approve_users', 'manage_users'], null);
+
+    expect(component.pickerState().rows.find((row) => row.label === 'Shamba')?.value).toBe(
+      'Hujawekwa kwenye shamba',
+    );
+    httpMock.verify();
+  });
+
+  it('warns when the role list came back empty, which nothing else on the screen does', async () => {
+    const ctx = setup(['approve_users', 'manage_users'], 1);
+    ctx.fixture.detectChanges();
+    ctx.httpMock.expectOne(PENDING_URL).flush(PENDING_RESPONSE);
+    // Kushindwa KIMYA: loadPickers() hakuweki banner - orodha ya kushoto
+    // imepakia vizuri kabisa.
+    ctx.httpMock
+      .expectOne(ROLES_URL)
+      .flush(
+        { success: false, message: 'Huna ruhusa.', errorCode: 'FORBIDDEN' },
+        { status: 403, statusText: 'Forbidden' },
+      );
+    await ctx.fixture.whenStable();
+    ctx.fixture.detectChanges();
+
+    expect(ctx.component.pickerState().noRoles).toBe(true);
+    expect(
+      (ctx.fixture.nativeElement as HTMLElement).querySelector('[data-testid="no-roles"]')
+        ?.textContent,
+    ).toContain('Orodha ya nafasi ni tupu');
+    // Na bado hakuna banner ya makosa juu ya orodha.
+    expect(ctx.component.loadError()).toBeNull();
+  });
+
+  it('withholds the picker card from an approve-only caller', async () => {
+    const { fixture, httpMock } = await load(['approve_users']);
+
+    expect(rail(fixture).querySelector('[data-rail="pickers"]')).toBeNull();
+    // Maelezo + foleni, bila kadi ya fomu asiyoweza kuifungua.
+    expect(rail(fixture).querySelectorAll('.side-card').length).toBe(2);
+    httpMock.verify();
+  });
+
+  it('renders the rail beside the work', async () => {
+    const { fixture, httpMock } = await load(['approve_users', 'manage_users']);
+
+    expect(rail(fixture).parentElement?.classList.contains('module-layout')).toBe(true);
+    expect(rail(fixture).querySelectorAll('.side-card').length).toBe(3);
+    expect(rail(fixture).querySelector('app-date-picker-card')).toBeNull();
+    httpMock.verify();
+  });
+
+  it('carries exactly the same rail keys in both languages', () => {
+    const sw = Object.keys(APPROVALS_I18N.sw).sort();
+    const en = Object.keys(APPROVALS_I18N.en).sort();
+    expect(en).toEqual(sw);
   });
 });

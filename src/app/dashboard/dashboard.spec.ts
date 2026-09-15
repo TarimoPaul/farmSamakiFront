@@ -36,16 +36,16 @@ const NO_FARM_RESPONSE = {
 
 const PERMISSIONS_KEY = 'samakiFarm.permissions';
 
-// The real Router, because the dashboard now renders inside AppShell, whose
-// nav uses routerLink (and therefore ActivatedRoute). Only navigateByUrl is
-// stubbed - that is the one thing these tests assert about.
+// The real Router, because the screen's own links use routerLink (and
+// therefore ActivatedRoute). The shell's nav used to be the reason - back when
+// this screen rendered its own <app-shell> - but the shell is a layout route
+// now and is no part of this component. Only navigateByUrl is stubbed; that is
+// the one thing these tests assert about.
 function setup() {
   TestBed.configureTestingModule({
     providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
   });
-  const navigateByUrl = vi
-    .spyOn(TestBed.inject(Router), 'navigateByUrl')
-    .mockResolvedValue(true);
+  const navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
   const fixture = TestBed.createComponent(Dashboard);
   return {
     router: { navigateByUrl },
@@ -203,7 +203,14 @@ describe('Dashboard error surface', () => {
     httpMock.expectOne(environment.graphqlUrl).flush({
       data: {
         productionUnits: [
-          { unitId: '27', code: 'D4-A', type: 'POND', sizeM3: 10, waterSource: null, status: 'IDLE' },
+          {
+            unitId: '27',
+            code: 'D4-A',
+            type: 'POND',
+            sizeM3: 10,
+            waterSource: null,
+            status: 'IDLE',
+          },
         ],
         cycles: [],
       },
@@ -214,5 +221,199 @@ describe('Dashboard error surface', () => {
     expect(component.errorMessage()).toBeNull();
     expect(component.totalUnits()).toBe(1);
     expect(component.loading()).toBe(false);
+  });
+});
+
+/**
+ * Kalenda inayobofyeka.
+ *
+ * Kanuni mbili zinabanwa hapa, na zote mbili ni za uaminifu wa namba:
+ *
+ *  1. LEO HAIPITII `dashboardOnDate`. Dashibodi tayari imejibu kwa leo; kuuliza
+ *     tena kwa njia ya pili ndiyo jinsi skrini inavyoishia kuonyesha namba
+ *     mbili tofauti za siku moja.
+ *  2. Tarehe isiyo na rekodi HAIONYESHI sifuri. Sifuri hapo ingesomeka
+ *     "shamba lilikuwa tupu", jambo ambalo ni madai tofauti kabisa na
+ *     "hatuna rekodi ya siku hiyo".
+ */
+describe('Dashboard date picker', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  const DASHBOARD_DATA = {
+    data: {
+      productionUnits: [
+        { unitId: '1', code: 'T1', type: 'TANK', sizeM3: 10, waterSource: null, status: 'ACTIVE' },
+        { unitId: '2', code: 'T2', type: 'TANK', sizeM3: 5, waterSource: null, status: 'IDLE' },
+      ],
+      cycles: [],
+    },
+  };
+
+  /** Jibu la `dashboardOnDate` kwa siku yenye rekodi. */
+  function dayResponse(date: string, overrides: Record<string, unknown> = {}) {
+    return {
+      data: {
+        dashboardOnDate: {
+          date,
+          unitsExisting: 7,
+          unitsActive: 4,
+          unitsIdle: 3,
+          totalVolumeM3: 70,
+          cyclesRunning: 4,
+          cyclesStarted: 0,
+          cyclesClosed: 0,
+          fingerlingsRunning: 900,
+          fingerlingsStocked: 0,
+          members: 6,
+          historyStartsOn: '2020-01-01',
+          historyComplete: true,
+          ...overrides,
+        },
+      },
+    };
+  }
+
+  async function loaded() {
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(['view_dashboard']));
+    const ctx = setup();
+    ctx.fixture.detectChanges();
+    ctx.httpMock.expectOne(environment.graphqlUrl).flush(DASHBOARD_DATA);
+    await ctx.fixture.whenStable();
+    ctx.fixture.detectChanges();
+    return ctx;
+  }
+
+  it('shows the live numbers on today, and asks the backend for nothing more', async () => {
+    const ctx = await loaded();
+
+    expect(ctx.component.viewingToday()).toBe(true);
+    expect(ctx.component.shownTotalUnits()).toBe(2);
+    expect(ctx.component.shownActiveUnits()).toBe(1);
+    // The whole point: today is NOT re-asked through dashboardOnDate.
+    ctx.httpMock.verify();
+  });
+
+  it('switches every card to the chosen date', async () => {
+    const ctx = await loaded();
+
+    const past = new Date();
+    past.setDate(past.getDate() - 3);
+    ctx.component.selectDate(past);
+
+    const request = ctx.httpMock.expectOne(environment.graphqlUrl);
+    expect(request.request.body.variables.date).toBe(ctx.component.selectedDate());
+    request.flush(dayResponse(ctx.component.selectedDate()));
+    await ctx.fixture.whenStable();
+    ctx.fixture.detectChanges();
+
+    expect(ctx.component.viewingToday()).toBe(false);
+    // Every card moved together - the live values were 2 and 1.
+    expect(ctx.component.shownTotalUnits()).toBe(7);
+    expect(ctx.component.shownActiveUnits()).toBe(4);
+    expect(ctx.component.shownCyclesRunning()).toBe(4);
+    expect(ctx.component.shownVolumeM3()).toBe(70);
+    expect(ctx.component.shownMembers()).toBe(6);
+    expect(ctx.component.shownActivePercent()).toBe(57);
+  });
+
+  it('shows the fingerlings that were IN the running cycles, not that day intake', async () => {
+    const ctx = await loaded();
+
+    const past = new Date();
+    past.setDate(past.getDate() - 3);
+    ctx.component.selectDate(past);
+    ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+      dayResponse(ctx.component.selectedDate(), {
+        fingerlingsRunning: 900,
+        fingerlingsStocked: 40,
+      }),
+    );
+    await ctx.fixture.whenStable();
+    ctx.fixture.detectChanges();
+
+    // The tile has always meant "fish currently stocked". Swapping in the
+    // day's intake would leave the same label over a different measure.
+    expect(ctx.component.shownFingerlings()).toBe(900);
+  });
+
+  it('says there is no record rather than reporting an empty farm', async () => {
+    const ctx = await loaded();
+
+    const longAgo = new Date();
+    longAgo.setFullYear(longAgo.getFullYear() - 5);
+    ctx.component.selectDate(longAgo);
+    ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+      dayResponse(ctx.component.selectedDate(), {
+        unitsExisting: 0,
+        unitsActive: 0,
+        unitsIdle: 0,
+        totalVolumeM3: 0,
+        cyclesRunning: 0,
+        fingerlingsRunning: 0,
+        members: 0,
+        historyComplete: false,
+      }),
+    );
+    await ctx.fixture.whenStable();
+    ctx.fixture.detectChanges();
+
+    expect(ctx.component.dayHasHistory()).toBe(false);
+    const text = (ctx.fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Hakuna rekodi ya tarehe hii');
+  });
+
+  it('returns to the live numbers, and to this week, on "back to today"', async () => {
+    const ctx = await loaded();
+
+    const past = new Date();
+    past.setDate(past.getDate() - 10);
+    ctx.component.selectDate(past);
+    ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+    await ctx.fixture.whenStable();
+
+    ctx.component.backToToday();
+    ctx.fixture.detectChanges();
+
+    expect(ctx.component.viewingToday()).toBe(true);
+    expect(ctx.component.shownTotalUnits()).toBe(2);
+    expect(ctx.component.weekDates().some((d) => ctx.component.isToday(d))).toBe(true);
+    ctx.httpMock.verify();
+  });
+
+  it('pages the strip without changing the numbers', async () => {
+    const ctx = await loaded();
+    const before = ctx.component.selectedDate();
+
+    ctx.component.shiftWeek(-1);
+    ctx.fixture.detectChanges();
+
+    // Looking for a date is not choosing one: nothing was fetched and the
+    // screen still shows today.
+    expect(ctx.component.selectedDate()).toBe(before);
+    expect(ctx.component.weekDates().some((d) => ctx.component.isToday(d))).toBe(false);
+    ctx.httpMock.verify();
+  });
+
+  it('keeps the date selected when its fetch fails', async () => {
+    const ctx = await loaded();
+
+    const past = new Date();
+    past.setDate(past.getDate() - 2);
+    ctx.component.selectDate(past);
+    const chosen = ctx.component.selectedDate();
+    ctx.httpMock
+      .expectOne(environment.graphqlUrl)
+      .flush({ errors: [{ message: 'nope', extensions: { errorCode: 'FORBIDDEN' } }], data: null });
+    await ctx.fixture.whenStable();
+    ctx.fixture.detectChanges();
+
+    // Dropping back to today would leave the strip highlighting a day the
+    // numbers on screen are not about.
+    expect(ctx.component.selectedDate()).toBe(chosen);
+    expect(ctx.component.dayError()).not.toBeNull();
+    expect(ctx.component.day()).toBeNull();
   });
 });

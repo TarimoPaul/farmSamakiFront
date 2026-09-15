@@ -42,6 +42,20 @@ export const SPECIES_I18N = {
       'Sajili aina ya kwanza hapa chini. Hadi ifanyike, hakuna aina ya kuchagua wakati wa kuanzisha mzunguko.',
 
     listTitle: 'Aina zilizosajiliwa',
+    // Rail ya muhtasari. Hakuna kalenda: katalogi hii haina tarehe wala
+    // farm_id, hivyo "ilikuwaje Machi" halina jibu.
+    introTitle: 'Aina za Samaki',
+    introBody: 'Katalogi ya mfumo mzima: kila shamba linachota hapa wakati wa kuanzisha mzunguko.',
+    introStep1: 'Sajili aina - jina, miezi ya kukua, na uzito wa wastani wa mavuno.',
+    introStep2: 'Miezi ya kukua ndiyo inayokokotoa tarehe ya mavuno ya kila mzunguko.',
+    introStep3: 'Aina haifutwi wala kuhaririwa - iliyokosewa inasajiliwa upya kwa jina sahihi.',
+    railTitle: 'Muhtasari wa katalogi',
+    railTotal: 'Aina zote',
+    railAvgGrowth: 'Wastani wa miezi ya kukua',
+    railAvgWeight: 'Wastani wa uzito (kg)',
+    railQuickestTitle: 'Inayokua haraka zaidi',
+    railQuickestHint: 'Miezi ya kukua - ndiyo inayoamua tarehe ya mavuno.',
+    dash: '—',
 
     formTitle: 'Sajili aina ya samaki',
     formHint: 'Katalogi ni ya mfumo mzima: aina utakayosajili itaonekana kwa kila shamba.',
@@ -83,6 +97,18 @@ export const SPECIES_I18N = {
       'Register the first one below. Until you do, there is nothing to choose from when starting a cycle.',
 
     listTitle: 'Registered species',
+    introTitle: 'Fish Species',
+    introBody: 'A system-wide catalogue: every farm draws from it when starting a cycle.',
+    introStep1: 'Register a species - name, months to grow, average harvest weight.',
+    introStep2: 'The months to grow is what computes every cycle expected harvest date.',
+    introStep3: 'A species is never edited or deleted - a wrong one is registered again correctly.',
+    railTitle: 'Catalogue summary',
+    railTotal: 'All species',
+    railAvgGrowth: 'Average months to grow',
+    railAvgWeight: 'Average weight (kg)',
+    railQuickestTitle: 'Quickest to grow',
+    railQuickestHint: 'Months to grow - what sets the harvest date.',
+    dash: '—',
 
     formTitle: 'Register a species',
     formHint: 'The catalogue is system-wide: what you register here appears on every farm.',

@@ -1,3 +1,5 @@
+@use '../shared/ui/side-card' as *;
+@use '../shared/ui/module-rail' as *;
 @use '../shared/styles/screen' as *;
 
 .members {
@@ -6,6 +8,11 @@
   gap: 1.25rem;
   min-width: 0;
   overflow-y: auto;
+
+  // Breathing room for the scrollbar. THIS element is the one that scrolls,
+  // so its bar is drawn on its own right edge - and without the padding the
+  // rail's cards end flush against it, close enough to read as one edge.
+  padding-right: 0.6rem;
 }
 
 .members__head {
@@ -47,6 +54,101 @@
   color: var(--muted);
   font-size: 0.85rem;
   line-height: 1.55;
+}
+
+/* New account or existing one: two choices, one row, the active one filled. */
+.mode-switch {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  border-radius: var(--radius);
+  background: var(--surface-muted, rgba(0, 0, 0, 0.05));
+}
+
+.mode-switch__option {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--surface, #fff);
+    color: var(--on-surface);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* The phone box and its Find button share a line; they wrap on a phone. */
+.lookup-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  .text-input {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+}
+
+/* Who the search found - read before a role is given to them. */
+.found-person {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius);
+  border-left: 4px solid var(--primary, currentColor);
+  background: var(--surface-muted, rgba(0, 0, 0, 0.04));
+  font-size: 0.9rem;
+
+  span {
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+}
+
+.farm-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.farm-list__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  font-size: 0.9rem;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.farm-list__here {
+  margin-left: 0.35rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.farm-list__empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.farm-grant__title {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
 }
 
 /* The half-finished state - an account created, a membership still owed.

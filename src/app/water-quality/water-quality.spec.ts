@@ -256,7 +256,7 @@ describe('WaterQuality', () => {
   });
 
   describe('recording a reading', () => {
-    it('writes against the cycle\'s UNIT, and re-reads the list afterwards', async () => {
+    it("writes against the cycle's UNIT, and re-reads the list afterwards", async () => {
       const { fixture, component, httpMock } = setup(['view_dashboard', 'log_water_quality'], {
         cycleId: '9',
       });
@@ -347,7 +347,9 @@ describe('WaterQuality', () => {
       component.submit();
 
       const req = gql(httpMock, 'LogWaterQuality');
-      expect((req.request.body as { variables: { input: { oxygen: number } } }).variables.input.oxygen).toBe(0);
+      expect(
+        (req.request.body as { variables: { input: { oxygen: number } } }).variables.input.oxygen,
+      ).toBe(0);
       req.flush({ data: { logWaterQuality: READINGS.data.waterQualityLogs[0] } });
       await fixture.whenStable();
       gql(httpMock, 'WaterQualityLogs').flush(READINGS);
@@ -385,7 +387,7 @@ describe('WaterQuality', () => {
       );
     });
 
-    it('keeps the backend\'s own words for VALIDATION_ERROR - they name the limit', async () => {
+    it("keeps the backend's own words for VALIDATION_ERROR - they name the limit", async () => {
       const { fixture, component, httpMock } = setup(['view_dashboard', 'log_water_quality'], {
         cycleId: '9',
       });
@@ -436,5 +438,91 @@ describe('WaterQuality', () => {
     expect(text(fixture)).toContain('Record a reading');
     expect(text(fixture)).toContain('Recent readings');
     expect(text(fixture)).toContain('Ammonia');
+  });
+});
+
+/**
+ * Rail ya muhtasari.
+ *
+ * Kalenda hapa HAIGHARIMU OMBI: kila kipimo kinabeba `logDate` yake, hivyo
+ * tarehe inachuja kilichopo tayari. Ndiyo tofauti na Production, ambapo
+ * vitengo vililazimu swali kwa backend.
+ */
+describe('Water quality summary rail', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('counts the readings and names the latest', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard'], { cycleId: '9' });
+    await load(fixture, httpMock);
+
+    const rows = fixture.componentInstance.summary();
+    const by = (label: string) => rows.find((row) => row.label === label)?.value;
+
+    expect(by('Vipimo vyote')).toBe('2');
+    // Orodha inakuja mpya kwanza, hivyo ya kwanza ndiyo ya mwisho kupimwa.
+    expect(by('Kipimo cha mwisho')).toBe('2026-09-01');
+    httpMock.verify();
+  });
+
+  it('filters to the selected date without asking the backend', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard'], { cycleId: '9' });
+    await load(fixture, httpMock);
+
+    fixture.componentInstance.selectDate(new Date(2026, 8, 2)); // 2026-09-02
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.readingsOnDate().length).toBe(1);
+    expect(
+      fixture.componentInstance.summary().find((r) => r.label === 'Vya tarehe hii')?.value,
+    ).toBe('1');
+    // Hakuna ombi lolote jipya - hiyo ndiyo hoja nzima.
+    httpMock.verify();
+  });
+
+  it('leaves an unmeasured value OUT of its average rather than counting it as zero', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard'], { cycleId: '9' });
+    await load(fixture, httpMock);
+
+    // 2026-09-02 ina pH pekee; joto, oksijeni na amonia hazikupimwa.
+    fixture.componentInstance.selectDate(new Date(2026, 8, 2));
+    fixture.detectChanges();
+
+    const rows = fixture.componentInstance.measuresOnDate();
+    const by = (label: string) => rows.find((row) => row.label === label)?.value;
+    expect(by('pH')).toBe('6.8');
+    // Si '0.0' - kisichopimwa si sifuri, na sifuri ingeshusha wastani kwenye
+    // namba ambayo hakuna aliyeipima.
+    expect(by('Joto (°C)')).toBe('—');
+    expect(by('Oksijeni (mg/L)')).toBe('—');
+  });
+
+  it('returns to today, and to this week, on "back to today"', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard'], { cycleId: '9' });
+    await load(fixture, httpMock);
+
+    fixture.componentInstance.selectDate(new Date(2026, 8, 2));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.viewingToday()).toBe(false);
+
+    fixture.componentInstance.backToToday();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.viewingToday()).toBe(true);
+    expect(fixture.componentInstance.dayState()).toBeNull();
+  });
+
+  it('renders the four cards beside the work', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard'], { cycleId: '9' });
+    await load(fixture, httpMock);
+
+    const element = fixture.nativeElement as HTMLElement;
+    const rail = element.querySelector('.module-rail');
+    expect(rail).not.toBeNull();
+    expect(rail!.parentElement?.classList.contains('module-layout')).toBe(true);
+    // Maelezo + kalenda + muhtasari + wastani.
+    expect(rail!.querySelectorAll('.side-card').length).toBe(4);
   });
 });

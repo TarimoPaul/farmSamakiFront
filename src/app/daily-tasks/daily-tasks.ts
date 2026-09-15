@@ -8,7 +8,6 @@ import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { PERMISSION } from '../core/models/permissions';
 import { apiErrorMessage } from '../core/i18n/error-messages';
-import { AppShell } from '../shared/layout/app-shell/app-shell';
 import { HasPermission } from '../shared/directives/has-permission';
 import { Button } from '../shared/ui/button/button';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
@@ -69,7 +68,7 @@ interface TaskGroup {
 @Component({
   selector: 'app-daily-tasks',
   standalone: true,
-  imports: [AppShell, HasPermission, Button, EmptyState, StatusBadge, Toast],
+  imports: [HasPermission, Button, EmptyState, StatusBadge, Toast],
   templateUrl: './daily-tasks.html',
   styleUrl: './daily-tasks.scss',
 })

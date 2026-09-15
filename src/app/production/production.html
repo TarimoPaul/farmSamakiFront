@@ -1,425 +1,828 @@
-<app-shell>
-  <section class="production">
-    <header class="production__head">
-      <div>
-        <h1 class="page-title">{{ t().title }}</h1>
-        <p class="page-subtitle">{{ t().subtitle }}</p>
-      </div>
-    </header>
+<section class="production">
+  <header class="production__head">
+    <div>
+      <h1 class="page-title">{{ t().title }}</h1>
+      <p class="page-subtitle">{{ t().subtitle }}</p>
+    </div>
+  </header>
 
-    @if (loading()) {
-      <p class="panel-status">{{ t().loading }}</p>
-    } @else if (loadErrorMessage(); as message) {
-      <div class="panel-error" role="alert">
-        <p>{{ message }}</p>
-        <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
-      </div>
-    } @else {
-      <!-- The selected cycle, stated plainly. It is the one thing on this
+  @if (loading()) {
+    <p class="panel-status">{{ t().loading }}</p>
+  } @else if (loadErrorMessage(); as message) {
+    <div class="panel-error" role="alert">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="fetch()">{{ t().retry }}</app-button>
+    </div>
+  } @else {
+    <!-- Two columns from here down: the work on the left, the summary rail on
+         the right. The rail uses the dashboard's own cards - the styles are
+         shared, not copied (see _side-card.scss) - so the two screens cannot
+         drift apart. It carries no request of its own: every number is counted
+         from the units and cycles this screen already has. -->
+    <div class="module-layout">
+      <div class="module-layout__main">
+        <!-- The selected cycle, stated plainly. It is the one thing on this
            screen the logging screens actually consume. -->
-      <section class="card" data-panel="selection">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().selectedTitle }}</h2>
-        </header>
+        <section class="card" data-panel="selection">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().selectedTitle }}</h2>
+          </header>
 
-        @if (selectedCycle(); as cycle) {
-          <div class="selection">
-            <p class="selection__line">
-              <strong>{{ cycle.unit.code }}</strong>
-              &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
-              {{ cycle.stockingDate }} &middot; {{ outcomeLabel(cycle.status) }}
-              @if (selectedIsReady()) {
-                <app-status-badge variant="pending" [status]="t().readyBadge" />
-              }
-            </p>
-            <div class="selection__actions">
-              <app-button (clicked)="goToWaterQuality()">{{ t().goToWater }}</app-button>
-              <!-- Closing is `edit_cycle`, the SAME permission as starting -
+          @if (selectedCycle(); as cycle) {
+            <div class="selection">
+              <p class="selection__line">
+                <strong>{{ cycle.unit.code }}</strong>
+                &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
+                {{ cycle.stockingDate }} &middot; {{ t().colCycleFingerlings }}:
+                <span data-selected-fingerlings>{{ cycle.fingerlingsCount }}</span>
+                &middot; {{ outcomeLabel(cycle.status) }}
+                @if (selectedIsReady()) {
+                  <app-status-badge variant="pending" [status]="t().readyBadge" />
+                }
+              </p>
+              <div class="selection__actions">
+                <app-button (clicked)="goToWaterQuality()">{{ t().goToWater }}</app-button>
+                <!-- Closing is `edit_cycle`, the SAME permission as starting -
                    the backend adds no new one - and it is offered only while
-                   the cycle is still open. -->
-              @if (selectedIsActive()) {
-                <app-button
-                  variant="secondary"
-                  *appHasPermission="PERMISSION.EDIT_CYCLE"
-                  (clicked)="openCloseForm(cycle)"
-                >
-                  {{ t().closeCycle }}
+                   the cycle is still open. So is correcting the stocked count. -->
+                @if (selectedIsActive()) {
+                  <app-button
+                    variant="secondary"
+                    *appHasPermission="PERMISSION.EDIT_CYCLE"
+                    (clicked)="openCloseForm(cycle)"
+                  >
+                    {{ t().closeCycle }}
+                  </app-button>
+                  <app-button
+                    variant="ghost"
+                    data-correct-fingerlings
+                    *appHasPermission="PERMISSION.EDIT_CYCLE"
+                    (clicked)="openFingerlingsForm()"
+                  >
+                    {{ t().correctFingerlings }}
+                  </app-button>
+                }
+                <app-button variant="ghost" (clicked)="clearSelection()">
+                  {{ t().clearSelection }}
                 </app-button>
-              }
-              <app-button variant="ghost" (clicked)="clearSelection()">
-                {{ t().clearSelection }}
-              </app-button>
+              </div>
             </div>
-          </div>
 
-          <!-- Advice, not an alarm and not an action: the date has come round.
+            <!-- Advice, not an alarm and not an action: the date has come round.
                Nothing here changes the cycle - a person does that below. -->
-          @if (selectedIsReady()) {
-            <p class="selection__ready" data-ready-banner>{{ t().readyBanner }}</p>
-          }
+            @if (selectedIsReady()) {
+              <p class="selection__ready" data-ready-banner>{{ t().readyBanner }}</p>
+            }
 
-          @if (closeActionErrorMessage(); as message) {
-            <div class="panel-error" role="alert" data-close-error>
-              <p>{{ message }}</p>
-              <app-button variant="ghost" (clicked)="dismissCloseActionError()">
-                {{ t().close }}
-              </app-button>
-            </div>
-          }
+            @if (closeActionErrorMessage(); as message) {
+              <div class="panel-error" role="alert" data-close-error>
+                <p>{{ message }}</p>
+                <app-button variant="ghost" (clicked)="dismissCloseActionError()">
+                  {{ t().close }}
+                </app-button>
+              </div>
+            }
 
-          @if (selectedIsClosed()) {
-            <div class="harvest" data-panel="harvest">
-              <h3 class="harvest__title">{{ t().harvestTitle }}</h3>
-              <dl class="harvest__grid">
-                <div class="harvest__item">
-                  <dt>{{ t().harvestOutcome }}</dt>
-                  <dd>{{ outcomeLabel(cycle.status) }}</dd>
-                </div>
-                <div class="harvest__item">
-                  <dt>{{ t().harvestDate }}</dt>
-                  <dd>{{ cycle.actualHarvestDate ?? t().notSet }}</dd>
-                </div>
-                <div class="harvest__item">
-                  <dt>{{ t().harvestCount }}</dt>
-                  <dd>{{ cycle.harvestedCount ?? t().notSet }}</dd>
-                </div>
-                <div class="harvest__item">
-                  <dt>{{ t().harvestWeight }}</dt>
-                  <dd>{{ cycle.totalWeightKg ?? t().notSet }}</dd>
-                </div>
-              </dl>
+            @if (selectedIsClosed()) {
+              <div class="harvest" data-panel="harvest">
+                <h3 class="harvest__title">{{ t().harvestTitle }}</h3>
+                <dl class="harvest__grid">
+                  <div class="harvest__item">
+                    <dt>{{ t().harvestOutcome }}</dt>
+                    <dd>{{ outcomeLabel(cycle.status) }}</dd>
+                  </div>
+                  <div class="harvest__item">
+                    <dt>{{ t().harvestDate }}</dt>
+                    <dd>{{ cycle.actualHarvestDate ?? t().notSet }}</dd>
+                  </div>
+                  <div class="harvest__item">
+                    <dt>{{ t().harvestCount }}</dt>
+                    <dd>{{ cycle.harvestedCount ?? t().notSet }}</dd>
+                  </div>
+                  <div class="harvest__item">
+                    <dt>{{ t().harvestMortality }}</dt>
+                    <!-- Null for cycles closed before V25: there were no events to sum. -->
+                    <dd data-summary-mortality>{{ cycle.mortalityCount ?? t().notSet }}</dd>
+                  </div>
+                  <div class="harvest__item">
+                    <dt>{{ t().harvestWeight }}</dt>
+                    <dd>{{ cycle.totalWeightKg ?? t().notSet }}</dd>
+                  </div>
+                  <!-- Money rows only for view_finance holders; even then a null
+                     (unrecorded cost, pre-V25 revenue) is a dash, never 0. -->
+                  @if (canViewFinance()) {
+                    <div class="harvest__item">
+                      <dt>{{ t().harvestRevenue }}</dt>
+                      <dd data-summary-revenue>{{ money(cycle.totalRevenue) }}</dd>
+                    </div>
+                    <div class="harvest__item">
+                      <dt>{{ t().harvestFingerlingCost }}</dt>
+                      <dd data-summary-fingerling-cost>{{ money(cycle.fingerlingCost) }}</dd>
+                    </div>
+                  }
+                </dl>
 
-              <!-- THE TWO NUMBERS, SIDE BY SIDE AND SEPARATELY LABELLED.
+                <!-- THE TWO NUMBERS, SIDE BY SIDE AND SEPARATELY LABELLED.
                    The estimate is what was planned on stocking day; the
                    actual is what the harvest produced. Showing one, or
                    averaging them, would throw away the only comparison this
                    screen can teach anybody anything with. -->
-              <dl class="harvest__survival" data-survival>
+                <dl class="harvest__survival" data-survival>
+                  <div class="harvest__item">
+                    <dt>{{ t().survivalEstimateLabel }}</dt>
+                    <dd data-survival-estimate>
+                      {{ survivalPercent(cycle.survivalRateEstimate) }}
+                    </dd>
+                  </div>
+                  <div class="harvest__item">
+                    <dt>{{ t().survivalActualLabel }}</dt>
+                    <dd data-survival-actual>
+                      {{ survivalPercent(cycle.actualSurvivalRate) ?? t().survivalActualPending }}
+                    </dd>
+                  </div>
+                </dl>
+
+                <p class="harvest__notes">
+                  <span class="harvest__notes-label">{{ t().harvestNotes }}:</span>
+                  {{ cycle.harvestNotes || t().noNotes }}
+                </p>
+              </div>
+            }
+          } @else {
+            <p class="selection__hint">{{ t().selectedNone }}</p>
+          }
+        </section>
+
+        <!-- Harvest events: every fish out of the pond. Read by anyone who can
+           read the cycle; written (record, delete) by record_harvest holders,
+           and only while the cycle is ACTIVE - after close they are history. -->
+        @if (selectedCycle()) {
+          <section class="card" data-panel="harvest-events">
+            <header class="card__head events__head">
+              <div>
+                <h2 class="card__title">{{ t().eventsTitle }}</h2>
+                <p class="card__hint">{{ t().eventsHint }}</p>
+              </div>
+              @if (selectedIsActive() && canRecordHarvest()) {
+                <app-button data-record-event (clicked)="openEventForm()">
+                  {{ t().newEvent }}
+                </app-button>
+              }
+            </header>
+
+            @if (eventsActionErrorMessage(); as message) {
+              <div class="panel-error" role="alert" data-events-action-error>
+                <p>{{ message }}</p>
+                <app-button variant="ghost" (clicked)="dismissEventsActionError()">
+                  {{ t().close }}
+                </app-button>
+              </div>
+            }
+
+            @if (eventsLoading()) {
+              <p class="panel-status">{{ t().eventsLoading }}</p>
+            } @else if (eventsErrorMessage(); as message) {
+              <div class="panel-error" role="alert">
+                <p>{{ message }}</p>
+                <app-button variant="secondary" (clicked)="fetchEvents()">{{
+                  t().retry
+                }}</app-button>
+              </div>
+            } @else {
+              <!-- The running tally, summed exactly as closeCycle will sum it. -->
+              <dl class="events__tally" data-tally>
                 <div class="harvest__item">
-                  <dt>{{ t().survivalEstimateLabel }}</dt>
-                  <dd data-survival-estimate>{{ survivalPercent(cycle.survivalRateEstimate) }}</dd>
+                  <dt>{{ t().tallyAliveOut }}</dt>
+                  <dd data-tally-alive>{{ eventTally().aliveOut }}</dd>
                 </div>
                 <div class="harvest__item">
-                  <dt>{{ t().survivalActualLabel }}</dt>
-                  <dd data-survival-actual>
-                    {{ survivalPercent(cycle.actualSurvivalRate) ?? t().survivalActualPending }}
-                  </dd>
+                  <dt>{{ t().tallyMortality }}</dt>
+                  <dd data-tally-mortality>{{ eventTally().mortality }}</dd>
                 </div>
+                <div class="harvest__item">
+                  <dt>{{ t().tallyWeight }}</dt>
+                  <dd data-tally-weight>{{ eventTally().weightKg }}</dd>
+                </div>
+                @if (canViewFinance()) {
+                  <div class="harvest__item">
+                    <dt>{{ t().tallyRevenue }}</dt>
+                    <dd data-tally-revenue>{{ money(eventTally().revenue) }}</dd>
+                  </div>
+                }
               </dl>
 
-              <p class="harvest__notes">
-                <span class="harvest__notes-label">{{ t().harvestNotes }}:</span>
-                {{ cycle.harvestNotes || t().noNotes }}
-              </p>
+              <!-- Accounted-for vs stocked. A reminder or a warning, never an
+                   action: nothing here closes the cycle or holds back a record. -->
+              @if (stockCheck(); as check) {
+                <div
+                  class="events__stock"
+                  [class.events__stock--exceeded]="check.state === 'exceeded'"
+                  role="status"
+                  [attr.data-stock-reached]="check.state === 'reached' ? '' : null"
+                  [attr.data-stock-exceeded]="check.state === 'exceeded' ? '' : null"
+                >
+                  <p>{{ check.message }}</p>
+                  <!-- The answer to the warning's question, for whoever may give it.
+                       It opens a form; nothing changes until that form is saved. -->
+                  @if (check.state === 'exceeded' && canEditCycle()) {
+                    <app-button
+                      variant="secondary"
+                      data-banner-correct-fingerlings
+                      (clicked)="openFingerlingsForm()"
+                    >
+                      {{ t().correctFingerlings }}
+                    </app-button>
+                  }
+                </div>
+              }
+
+              <app-data-table
+                [columns]="eventColumns()"
+                [rows]="harvestEvents()"
+                [rowKey]="eventKey"
+                [numbered]="true"
+                [numberLabel]="t().colNumber"
+                [rowActions]="canDeleteEvents() ? eventActions : null"
+                [actionsLabel]="t().actions"
+              >
+                <app-empty-state
+                  slot="empty"
+                  [title]="t().eventsEmptyTitle"
+                  [message]="t().eventsEmptyMessage"
+                />
+              </app-data-table>
+
+              <ng-template #eventActions let-event>
+                <app-button variant="ghost" data-edit-event (clicked)="openEditEvent(event)">
+                  {{ t().editEvent }}
+                </app-button>
+                <app-button variant="ghost" data-delete-event (clicked)="askDeleteEvent(event)">
+                  {{ t().deleteEvent }}
+                </app-button>
+              </ng-template>
+
+              @if (!selectedIsActive()) {
+                <p class="field-note" data-events-closed>{{ t().eventsClosedNote }}</p>
+              }
+            }
+          </section>
+        }
+
+        <section class="card" data-panel="cycles">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().cyclesTitle }}</h2>
+            <p class="card__hint">{{ t().cyclesHint }}</p>
+          </header>
+
+          <app-data-table
+            [columns]="cycleColumns()"
+            [rows]="cycles()"
+            [rowKey]="cycleKey"
+            [numbered]="true"
+            [numberLabel]="t().colNumber"
+            [selectable]="true"
+            [selectedKey]="selectedCycle()?.cycleId ?? null"
+            (rowSelected)="selectCycle($event)"
+          >
+            <app-empty-state
+              slot="empty"
+              [title]="t().cyclesEmptyTitle"
+              [message]="t().cyclesEmptyMessage"
+            />
+          </app-data-table>
+        </section>
+
+        <section class="card" data-panel="units">
+          <header class="card__head">
+            <h2 class="card__title">{{ t().unitsTitle }}</h2>
+          </header>
+
+          <app-data-table
+            [columns]="unitColumns()"
+            [rows]="units()"
+            [rowKey]="unitKey"
+            [numbered]="true"
+            [numberLabel]="t().colNumber"
+          >
+            <app-empty-state
+              slot="empty"
+              [title]="t().unitsEmptyTitle"
+              [message]="t().unitsEmptyMessage"
+            />
+          </app-data-table>
+        </section>
+      </div>
+
+      <!-- The rail. Dropped below 1280px, where the tables need every pixel -
+           the same width at which the dashboard drops its own. -->
+      <aside class="module-rail">
+        <!-- FIRST, because it is the card that says where you are and what
+             this screen is for - and it carries the two things you can start
+             here. The buttons used to float over the bottom-right corner,
+             where they sat on top of the rail and belonged to nothing. -->
+        <div class="side-card side-card--intro">
+          <h3>{{ t().introTitle }}</h3>
+          <p class="intro__body">{{ t().introBody }}</p>
+          <ol class="intro__steps">
+            <li>{{ t().introStep1 }}</li>
+            <li>{{ t().introStep2 }}</li>
+            <li>{{ t().introStep3 }}</li>
+            <li>{{ t().introStep4 }}</li>
+          </ol>
+
+          <!-- manage_units and edit_cycle are DIFFERENT capabilities: a worker
+               who may start a cycle need not be the person who builds tanks.
+               Somebody with neither still gets the card - the explanation is
+               the point of it, the buttons are what they can act on. -->
+          <div class="intro__actions">
+            <app-button
+              variant="secondary"
+              block
+              *appHasPermission="PERMISSION.MANAGE_UNITS"
+              (clicked)="openUnitForm()"
+            >
+              {{ t().newUnit }}
+            </app-button>
+            <app-button block *appHasPermission="PERMISSION.EDIT_CYCLE" (clicked)="openCycleForm()">
+              {{ t().newCycle }}
+            </app-button>
+          </div>
+        </div>
+
+        <!-- Pick a date and the three cards below answer for it. Only the unit
+             numbers cost a request - the cycle counts are arithmetic on the
+             dates this screen already holds. See Production.cycleSummary. -->
+        <div class="side-card">
+          <app-date-picker-card
+            [title]="t().railWeekTitle"
+            [weekdayLabels]="t().weekdayLabels"
+            [selected]="selectedDate()"
+            [previousLabel]="t().weekPrevious"
+            [nextLabel]="t().weekNext"
+            [selectLabel]="t().daySelect"
+            [backLabel]="t().dayBackToToday"
+            [state]="dayState()"
+            (picked)="selectDate($event)"
+            (back)="backToToday()"
+          />
+        </div>
+
+        <div class="side-card">
+          <h3>{{ t().railCyclesTitle }}</h3>
+          @for (row of cycleSummary(); track row.label) {
+            <div class="side-stat">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.value }}</strong>
             </div>
           }
-        } @else {
-          <p class="selection__hint">{{ t().selectedNone }}</p>
+        </div>
+
+        <div class="side-card">
+          <h3>{{ t().railUnitsStatusTitle }}</h3>
+          <div class="mini-bars">
+            @for (bar of unitsByStatus(); track bar.key) {
+              <div class="mini-bars__row">
+                <span class="mini-bars__label">{{ unitStatusLabel(bar.key) }}</span>
+                <div class="mini-bars__track">
+                  <div class="mini-bars__fill" [style.width.%]="bar.percent"></div>
+                </div>
+                <span class="mini-bars__count">{{ bar.count }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="side-card">
+          <h3>{{ t().railUnitsTypeTitle }}</h3>
+          <div class="mini-bars">
+            @for (bar of unitsByType(); track bar.key) {
+              <div class="mini-bars__row">
+                <span class="mini-bars__label">{{ bar.key }}</span>
+                <div class="mini-bars__track">
+                  <div class="mini-bars__fill" [style.width.%]="bar.percent"></div>
+                </div>
+                <span class="mini-bars__count">{{ bar.count }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </aside>
+    </div>
+  }
+</section>
+
+<app-modal
+  [open]="unitOpen()"
+  [title]="t().unitFormTitle"
+  [closeLabel]="t().close"
+  (dismissed)="closeUnitForm()"
+>
+  <form class="stack-form" [formGroup]="unitForm" (ngSubmit)="submitUnit()">
+    <app-form-field
+      [label]="t().fieldUnitCode"
+      for="unit-code"
+      [required]="true"
+      [error]="unitCodeError()"
+    >
+      <input
+        id="unit-code"
+        class="text-input"
+        type="text"
+        formControlName="code"
+        [placeholder]="t().fieldUnitCodeHint"
+        autocomplete="off"
+      />
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldUnitType" for="unit-type" [required]="true">
+      <select id="unit-type" class="text-input" formControlName="type">
+        @for (type of unitTypes; track type) {
+          <option [value]="type">{{ type }}</option>
         }
-      </section>
+      </select>
+    </app-form-field>
 
-      <section class="card" data-panel="cycles">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().cyclesTitle }}</h2>
-          <p class="card__hint">{{ t().cyclesHint }}</p>
-        </header>
+    <app-form-field [label]="t().fieldUnitSize" for="unit-size">
+      <input
+        id="unit-size"
+        class="text-input"
+        type="number"
+        step="0.01"
+        formControlName="sizeM3"
+        [placeholder]="t().optional"
+      />
+    </app-form-field>
 
-        <app-data-table
-          [columns]="cycleColumns()"
-          [rows]="cycles()"
-          [rowKey]="cycleKey"
-          [numbered]="true"
-          [numberLabel]="t().colNumber"
-          [selectable]="true"
-          [selectedKey]="selectedCycle()?.cycleId ?? null"
-          (rowSelected)="selectCycle($event)"
-        >
-          <app-empty-state
-            slot="empty"
-            [title]="t().cyclesEmptyTitle"
-            [message]="t().cyclesEmptyMessage"
-          />
-        </app-data-table>
-      </section>
+    <app-form-field [label]="t().fieldUnitSource" for="unit-source">
+      <input
+        id="unit-source"
+        class="text-input"
+        type="text"
+        formControlName="waterSource"
+        [placeholder]="t().optional"
+        autocomplete="off"
+      />
+    </app-form-field>
 
-      <section class="card" data-panel="units">
-        <header class="card__head">
-          <h2 class="card__title">{{ t().unitsTitle }}</h2>
-        </header>
-
-        <app-data-table
-          [columns]="unitColumns()"
-          [rows]="units()"
-          [rowKey]="unitKey"
-          [numbered]="true"
-          [numberLabel]="t().colNumber"
-        >
-          <app-empty-state
-            slot="empty"
-            [title]="t().unitsEmptyTitle"
-            [message]="t().unitsEmptyMessage"
-          />
-        </app-data-table>
-      </section>
+    @if (formError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
     }
 
-    <!-- Both actions in the corner. The cycle is written second so it lands
-         nearest the right edge - it is the screen's main job. -->
-    <div class="page-actions">
-      <!-- manage_units and edit_cycle are DIFFERENT capabilities: a worker
-           who may start a cycle need not be the person who builds tanks. -->
-      <app-button
-        variant="secondary"
-        floating
-        *appHasPermission="PERMISSION.MANAGE_UNITS"
-        (clicked)="openUnitForm()"
-      >
-        {{ t().newUnit }}
-      </app-button>
-      <app-button floating *appHasPermission="PERMISSION.EDIT_CYCLE" (clicked)="openCycleForm()">
-        {{ t().newCycle }}
-      </app-button>
-    </div>
-  </section>
+    <button type="submit" hidden></button>
+  </form>
 
-  <app-modal
-    [open]="unitOpen()"
-    [title]="t().unitFormTitle"
-    [closeLabel]="t().close"
-    (dismissed)="closeUnitForm()"
-  >
-    <form class="stack-form" [formGroup]="unitForm" (ngSubmit)="submitUnit()">
-      <app-form-field
-        [label]="t().fieldUnitCode"
-        for="unit-code"
-        [required]="true"
-        [error]="unitCodeError()"
-      >
+  <div slot="actions">
+    <app-button variant="ghost" [disabled]="saving()" (clicked)="closeUnitForm()">
+      {{ t().cancel }}
+    </app-button>
+    <app-button [loading]="saving()" (clicked)="submitUnit()">{{ t().save }}</app-button>
+  </div>
+</app-modal>
+
+<app-modal
+  [open]="cycleOpen()"
+  [title]="t().cycleFormTitle"
+  [closeLabel]="t().close"
+  (dismissed)="closeCycleForm()"
+>
+  <form class="stack-form" [formGroup]="cycleForm" (ngSubmit)="submitCycle()">
+    @if (units().length === 0) {
+      <p class="form-error" role="alert">{{ t().noUnitsForCycle }}</p>
+    }
+
+    <app-form-field [label]="t().fieldCycleUnit" for="cycle-unit" [required]="true">
+      <select id="cycle-unit" class="text-input" formControlName="unitId">
+        @for (unit of units(); track unit.unitId) {
+          <option [value]="unit.unitId">{{ unit.code }} ({{ unit.type }})</option>
+        }
+      </select>
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldCycleSpecies" for="cycle-species" [required]="true">
+      <select id="cycle-species" class="text-input" formControlName="speciesId">
+        @for (item of species(); track item.speciesId) {
+          <option [value]="item.speciesId">{{ item.name }}</option>
+        }
+      </select>
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldCycleStocked" for="cycle-stocked" [required]="true">
+      <input id="cycle-stocked" class="text-input" type="date" formControlName="stockingDate" />
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldCycleFingerlings" for="cycle-fingerlings" [required]="true">
+      <input
+        id="cycle-fingerlings"
+        class="text-input"
+        type="number"
+        step="1"
+        formControlName="fingerlingsCount"
+      />
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldCycleAge" for="cycle-age">
+      <input
+        id="cycle-age"
+        class="text-input"
+        type="number"
+        step="1"
+        min="0"
+        formControlName="stockingAgeMonths"
+        [placeholder]="t().fieldCycleAgeHint"
+      />
+      <p class="field-note">{{ t().fieldCycleAgeNote }}</p>
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldCycleSurvival" for="cycle-survival">
+      <input
+        id="cycle-survival"
+        class="text-input"
+        type="number"
+        step="0.01"
+        formControlName="survivalRateEstimate"
+        [placeholder]="t().fieldCycleSurvivalHint"
+      />
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldFingerlingCost" for="cycle-fingerling-cost">
+      <input
+        id="cycle-fingerling-cost"
+        class="text-input"
+        type="number"
+        step="0.01"
+        min="0"
+        formControlName="fingerlingCost"
+        [placeholder]="t().fieldFingerlingCostHint"
+      />
+    </app-form-field>
+
+    @if (cycleFieldError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+    @if (formError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+
+    <button type="submit" hidden></button>
+  </form>
+
+  <div slot="actions">
+    <app-button variant="ghost" [disabled]="saving()" (clicked)="closeCycleForm()">
+      {{ t().cancel }}
+    </app-button>
+    <app-button [loading]="saving()" (clicked)="submitCycle()">{{ t().save }}</app-button>
+  </div>
+</app-modal>
+
+<app-modal
+  [open]="!!closeTarget()"
+  [title]="t().closeFormTitle"
+  [closeLabel]="t().close"
+  (dismissed)="closeCloseForm()"
+>
+  <form class="stack-form" [formGroup]="closeForm" (ngSubmit)="submitClose()">
+    @if (closeTarget(); as cycle) {
+      <p class="selection__line">
+        <strong>{{ cycle.unit.code }}</strong>
+        &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
+        {{ cycle.stockingDate }}
+      </p>
+    }
+
+    <app-form-field [label]="t().fieldOutcome" for="close-outcome" [required]="true">
+      <select id="close-outcome" class="text-input" formControlName="outcome">
+        @for (outcome of cycleOutcomes; track outcome) {
+          <option [value]="outcome">{{ outcomeLabel(outcome) }}</option>
+        }
+      </select>
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldHarvestDate" for="close-date" [required]="true">
+      <input id="close-date" class="text-input" type="date" formControlName="actualHarvestDate" />
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldHarvestNotes" for="close-notes">
+      <textarea
+        id="close-notes"
+        class="text-input"
+        rows="3"
+        formControlName="notes"
+        [placeholder]="t().optional"
+      ></textarea>
+    </app-form-field>
+
+    <!-- Said out loud, because its absence from the form is the surprising
+           part: count, weight and survival are computed, never typed. -->
+    <p class="field-note">{{ t().closeHint }}</p>
+
+    <!-- A preview of what closing will sum - the same tally as the events
+           panel. Absent while the events are not this cycle's. -->
+    @if (closeTally(); as tally) {
+      <div class="events__preview" data-close-totals>
+        <p class="harvest__title">{{ t().closeTotalsTitle }}</p>
+        <dl class="events__tally">
+          <div class="harvest__item">
+            <dt>{{ t().tallyAliveOut }}</dt>
+            <dd>{{ tally.aliveOut }}</dd>
+          </div>
+          <div class="harvest__item">
+            <dt>{{ t().tallyMortality }}</dt>
+            <dd>{{ tally.mortality }}</dd>
+          </div>
+          <div class="harvest__item">
+            <dt>{{ t().tallyWeight }}</dt>
+            <dd>{{ tally.weightKg }}</dd>
+          </div>
+        </dl>
+      </div>
+    }
+    @if (closeNoAliveOut()) {
+      <p class="selection__ready" data-close-no-alive>{{ t().closeNoAliveWarning }}</p>
+    }
+
+    @if (closeFieldError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+    @if (closeFormError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+
+    <button type="submit" hidden></button>
+  </form>
+
+  <div slot="actions">
+    <app-button variant="ghost" [disabled]="closing()" (clicked)="closeCloseForm()">
+      {{ t().cancel }}
+    </app-button>
+    <app-button [loading]="closing()" (clicked)="submitClose()">
+      {{ t().closeCycle }}
+    </app-button>
+  </div>
+</app-modal>
+
+<app-modal
+  [open]="eventOpen()"
+  [title]="editTarget() ? t().editEventTitle : t().eventFormTitle"
+  [closeLabel]="t().close"
+  (dismissed)="closeEventForm()"
+>
+  <form class="stack-form" [formGroup]="eventForm" (ngSubmit)="submitEvent()">
+    @if (selectedCycle(); as cycle) {
+      <p class="selection__line">
+        <strong>{{ cycle.unit.code }}</strong>
+        &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
+        {{ cycle.stockingDate }}
+      </p>
+    }
+    @if (editTarget()) {
+      <p class="field-note" data-edit-note>{{ t().editEventNote }}</p>
+    }
+
+    <!-- Radios, not a select, and none pre-chosen: the three reasons ask
+           for different fields and mean different money. -->
+    <fieldset class="choice-group" data-reason-choice>
+      <legend class="choice-group__legend">
+        {{ t().fieldEventReason }}<span class="choice-group__required" aria-hidden="true">*</span>
+      </legend>
+      @for (reason of harvestReasons; track reason) {
+        <label class="choice">
+          <input type="radio" formControlName="reason" [value]="reason" />
+          <span class="choice__label">{{ reasonLabel(reason) }}</span>
+          <span class="choice__hint">{{ reasonHint(reason) }}</span>
+        </label>
+      }
+    </fieldset>
+
+    <app-form-field [label]="t().fieldEventDate" for="event-date" [required]="true">
+      <input
+        id="event-date"
+        class="text-input"
+        type="date"
+        formControlName="eventDate"
+        [min]="selectedCycle()?.stockingDate ?? null"
+        [max]="todayDate"
+      />
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldEventCount" for="event-count" [required]="true">
+      <input
+        id="event-count"
+        class="text-input"
+        type="number"
+        step="1"
+        min="1"
+        formControlName="fishCount"
+      />
+    </app-form-field>
+
+    <app-form-field [label]="t().fieldEventWeight" for="event-weight" [required]="eventIsSold()">
+      <input
+        id="event-weight"
+        class="text-input"
+        type="number"
+        step="0.01"
+        min="0"
+        formControlName="weightKg"
+        [placeholder]="eventIsSold() ? '' : t().optional"
+      />
+    </app-form-field>
+
+    <!-- SOLD only. Not merely disabled for DIED/REMOVED but absent: the
+           backend rejects an amount on a fish that was not sold. -->
+    @if (eventIsSold()) {
+      <app-form-field [label]="t().fieldEventSale" for="event-sale" [required]="true">
         <input
-          id="unit-code"
-          class="text-input"
-          type="text"
-          formControlName="code"
-          [placeholder]="t().fieldUnitCodeHint"
-          autocomplete="off"
-        />
-      </app-form-field>
-
-      <app-form-field [label]="t().fieldUnitType" for="unit-type" [required]="true">
-        <select id="unit-type" class="text-input" formControlName="type">
-          @for (type of unitTypes; track type) {
-            <option [value]="type">{{ type }}</option>
-          }
-        </select>
-      </app-form-field>
-
-      <app-form-field [label]="t().fieldUnitSize" for="unit-size">
-        <input
-          id="unit-size"
+          id="event-sale"
           class="text-input"
           type="number"
           step="0.01"
-          formControlName="sizeM3"
-          [placeholder]="t().optional"
-        />
-      </app-form-field>
-
-      <app-form-field [label]="t().fieldUnitSource" for="unit-source">
-        <input
-          id="unit-source"
-          class="text-input"
-          type="text"
-          formControlName="waterSource"
-          [placeholder]="t().optional"
-          autocomplete="off"
-        />
-      </app-form-field>
-
-      @if (formError(); as message) {
-        <p class="form-error" role="alert">{{ message }}</p>
-      }
-
-      <button type="submit" hidden></button>
-    </form>
-
-    <div slot="actions">
-      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeUnitForm()">
-        {{ t().cancel }}
-      </app-button>
-      <app-button [loading]="saving()" (clicked)="submitUnit()">{{ t().save }}</app-button>
-    </div>
-  </app-modal>
-
-  <app-modal
-    [open]="cycleOpen()"
-    [title]="t().cycleFormTitle"
-    [closeLabel]="t().close"
-    (dismissed)="closeCycleForm()"
-  >
-    <form class="stack-form" [formGroup]="cycleForm" (ngSubmit)="submitCycle()">
-      @if (units().length === 0) {
-        <p class="form-error" role="alert">{{ t().noUnitsForCycle }}</p>
-      }
-
-      <app-form-field [label]="t().fieldCycleUnit" for="cycle-unit" [required]="true">
-        <select id="cycle-unit" class="text-input" formControlName="unitId">
-          @for (unit of units(); track unit.unitId) {
-            <option [value]="unit.unitId">{{ unit.code }} ({{ unit.type }})</option>
-          }
-        </select>
-      </app-form-field>
-
-      <app-form-field [label]="t().fieldCycleSpecies" for="cycle-species" [required]="true">
-        <select id="cycle-species" class="text-input" formControlName="speciesId">
-          @for (item of species(); track item.speciesId) {
-            <option [value]="item.speciesId">{{ item.name }}</option>
-          }
-        </select>
-      </app-form-field>
-
-      <app-form-field [label]="t().fieldCycleStocked" for="cycle-stocked" [required]="true">
-        <input id="cycle-stocked" class="text-input" type="date" formControlName="stockingDate" />
-      </app-form-field>
-
-      <app-form-field [label]="t().fieldCycleFingerlings" for="cycle-fingerlings" [required]="true">
-        <input
-          id="cycle-fingerlings"
-          class="text-input"
-          type="number"
-          step="1"
-          formControlName="fingerlingsCount"
-        />
-      </app-form-field>
-
-      <app-form-field [label]="t().fieldCycleAge" for="cycle-age">
-        <input
-          id="cycle-age"
-          class="text-input"
-          type="number"
-          step="1"
           min="0"
-          formControlName="stockingAgeMonths"
-          [placeholder]="t().fieldCycleAgeHint"
-        />
-        <p class="field-note">{{ t().fieldCycleAgeNote }}</p>
-      </app-form-field>
-
-      <app-form-field [label]="t().fieldCycleSurvival" for="cycle-survival">
-        <input
-          id="cycle-survival"
-          class="text-input"
-          type="number"
-          step="0.01"
-          formControlName="survivalRateEstimate"
-          [placeholder]="t().fieldCycleSurvivalHint"
+          formControlName="saleAmount"
         />
       </app-form-field>
+    }
 
-      @if (cycleFieldError(); as message) {
-        <p class="form-error" role="alert">{{ message }}</p>
-      }
-      @if (formError(); as message) {
-        <p class="form-error" role="alert">{{ message }}</p>
-      }
+    @if (eventFieldError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+    @if (eventFormError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
 
-      <button type="submit" hidden></button>
-    </form>
+    <button type="submit" hidden></button>
+  </form>
 
-    <div slot="actions">
-      <app-button variant="ghost" [disabled]="saving()" (clicked)="closeCycleForm()">
-        {{ t().cancel }}
-      </app-button>
-      <app-button [loading]="saving()" (clicked)="submitCycle()">{{ t().save }}</app-button>
-    </div>
-  </app-modal>
+  <div slot="actions">
+    <app-button variant="ghost" [disabled]="recordingEvent()" (clicked)="closeEventForm()">
+      {{ t().cancel }}
+    </app-button>
+    <app-button [loading]="recordingEvent()" (clicked)="submitEvent()">{{ t().save }}</app-button>
+  </div>
+</app-modal>
 
-  <app-modal
-    [open]="!!closeTarget()"
-    [title]="t().closeFormTitle"
-    [closeLabel]="t().close"
-    (dismissed)="closeCloseForm()"
-  >
-    <form class="stack-form" [formGroup]="closeForm" (ngSubmit)="submitClose()">
-      @if (closeTarget(); as cycle) {
-        <p class="selection__line">
-          <strong>{{ cycle.unit.code }}</strong>
-          &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
-          {{ cycle.stockingDate }}
-        </p>
-      }
+<app-modal
+  [open]="fingerlingsOpen()"
+  [title]="t().correctFingerlingsTitle"
+  [closeLabel]="t().close"
+  (dismissed)="closeFingerlingsForm()"
+>
+  <form class="stack-form" [formGroup]="fingerlingsForm" (ngSubmit)="submitFingerlings()">
+    @if (selectedCycle(); as cycle) {
+      <p class="selection__line">
+        <strong>{{ cycle.unit.code }}</strong>
+        &middot; {{ cycle.speciesName }} &middot; {{ t().colCycleStocked }}:
+        {{ cycle.stockingDate }}
+      </p>
+    }
 
-      <app-form-field [label]="t().fieldOutcome" for="close-outcome" [required]="true">
-        <select id="close-outcome" class="text-input" formControlName="outcome">
-          @for (outcome of cycleOutcomes; track outcome) {
-            <option [value]="outcome">{{ outcomeLabel(outcome) }}</option>
-          }
-        </select>
-      </app-form-field>
+    <app-form-field
+      [label]="t().fieldCycleFingerlings"
+      for="correct-fingerlings"
+      [required]="true"
+      [error]="fingerlingsError()"
+    >
+      <input
+        id="correct-fingerlings"
+        class="text-input"
+        type="number"
+        step="1"
+        min="1"
+        formControlName="fingerlingsCount"
+      />
+      <p class="field-note">{{ t().correctFingerlingsHint }}</p>
+    </app-form-field>
 
-      <app-form-field [label]="t().fieldHarvestDate" for="close-date" [required]="true">
-        <input id="close-date" class="text-input" type="date" formControlName="actualHarvestDate" />
-      </app-form-field>
+    <button type="submit" hidden></button>
+  </form>
 
-      <app-form-field [label]="t().fieldHarvestedCount" for="close-count" [required]="true">
-        <input
-          id="close-count"
-          class="text-input"
-          type="number"
-          step="1"
-          min="0"
-          formControlName="harvestedCount"
-        />
-      </app-form-field>
+  <div slot="actions">
+    <app-button
+      variant="ghost"
+      [disabled]="correctingFingerlings()"
+      (clicked)="closeFingerlingsForm()"
+    >
+      {{ t().cancel }}
+    </app-button>
+    <app-button [loading]="correctingFingerlings()" (clicked)="submitFingerlings()">
+      {{ t().save }}
+    </app-button>
+  </div>
+</app-modal>
 
-      <app-form-field [label]="t().fieldTotalWeight" for="close-weight" [required]="true">
-        <input
-          id="close-weight"
-          class="text-input"
-          type="number"
-          step="0.01"
-          min="0"
-          formControlName="totalWeightKg"
-        />
-      </app-form-field>
+<app-confirm-dialog
+  [open]="!!deleteTarget()"
+  [title]="t().deleteEventTitle"
+  [message]="t().deleteEventMessage"
+  [confirmLabel]="t().deleteEventConfirm"
+  [cancelLabel]="t().cancel"
+  [loading]="deletingEvent()"
+  (confirmed)="confirmDeleteEvent()"
+  (cancelled)="cancelDeleteEvent()"
+/>
 
-      <app-form-field [label]="t().fieldHarvestNotes" for="close-notes">
-        <textarea
-          id="close-notes"
-          class="text-input"
-          rows="3"
-          formControlName="notes"
-          [placeholder]="t().optional"
-        ></textarea>
-      </app-form-field>
-
-      <!-- Said out loud, because its absence from the form is the surprising
-           part: the survival rate is computed, never typed. -->
-      <p class="field-note">{{ t().closeHint }}</p>
-
-      @if (closeFieldError(); as message) {
-        <p class="form-error" role="alert">{{ message }}</p>
-      }
-      @if (closeFormError(); as message) {
-        <p class="form-error" role="alert">{{ message }}</p>
-      }
-
-      <button type="submit" hidden></button>
-    </form>
-
-    <div slot="actions">
-      <app-button variant="ghost" [disabled]="closing()" (clicked)="closeCloseForm()">
-        {{ t().cancel }}
-      </app-button>
-      <app-button [loading]="closing()" (clicked)="submitClose()">
-        {{ t().closeCycle }}
-      </app-button>
-    </div>
-  </app-modal>
-
-  <app-toast
-    [open]="!!toastMessage()"
-    variant="success"
-    [message]="toastMessage() ?? ''"
-    (closed)="dismissToast()"
-  />
-</app-shell>
+<app-toast
+  [open]="!!toastMessage()"
+  variant="success"
+  [message]="toastMessage() ?? ''"
+  (closed)="dismissToast()"
+/>

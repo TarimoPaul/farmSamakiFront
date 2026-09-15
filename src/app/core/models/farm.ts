@@ -12,6 +12,21 @@ export interface Farm {
   ownerName: string | null;
 }
 
+/**
+ * `GET /api/auth/my-farms` - a farm the farm switcher may offer.
+ *
+ * ROOT gets every farm; anyone else gets the farms they are a member of,
+ * which are exactly the ones the backend will apply from `X-Farm-Id`. The
+ * switcher used to read `GET /api/farms`, which needs `manage_farms` - a
+ * member of two farms could never have loaded it.
+ */
+export interface MyFarm {
+  farmId: number;
+  name: string;
+  /** Their role on that farm; null with no role, and always null for ROOT. */
+  role: string | null;
+}
+
 export interface CreateFarmRequest {
   name: string;
   location: string;

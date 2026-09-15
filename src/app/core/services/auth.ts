@@ -415,6 +415,15 @@ export class AuthService {
     }
   }
 
+  /**
+   * Takes a /me answer that arrived some other way - `PUT /api/auth/me`
+   * answers with one - so the stored user, permissions and farm switcher all
+   * move together, exactly as they do after `loadMe()`.
+   */
+  applyMe(me: MeResponse): void {
+    this.storePermissions(me);
+  }
+
   private storePermissions(me: MeResponse): void {
     localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(me.permissions));
     this.permissions.set(me.permissions);

@@ -40,6 +40,23 @@ export const FEED_CATALOG_I18N = {
       'Sajili aina ya kwanza hapa chini. Hadi ifanyike, hakuna chakula cha kuchagua kwenye ukurasa wa Malisho.',
 
     listTitle: 'Aina zilizosajiliwa',
+    // Rail ya muhtasari. Hakuna kalenda: katalogi hii haina farm_id wala
+    // tarehe kwenye query, hivyo "ilikuwaje Machi" halina jibu.
+    introTitle: 'Katalogi ya Chakula',
+    introBody:
+      'Aina za chakula na umri wa samaki zinaofaa - ndiyo inayojaza orodha ya kuchagua kwenye Malisho.',
+    introStep1: 'Sajili aina: jina, na umri wa samaki (miezi) inayofaa.',
+    introStep2: 'Umri ndio unaoamua aina gani itaonekana kwa mzunguko upi.',
+    introStep3: 'Kuzima aina kunaiondoa kwenye orodha ya kuchagua, bila kufuta rekodi zilizopita.',
+    railTitle: 'Muhtasari wa katalogi',
+    railTotal: 'Aina zote',
+    railActive: 'Zinazotumika',
+    railInactive: 'Zilizozimwa',
+    railCoverTitle: 'Umri unaofunikwa',
+    railCoverFrom: 'Kuanzia (miezi)',
+    railCoverTo: 'Hadi (miezi)',
+    railCoverHint: 'Mzunguko wenye samaki nje ya kipimo hiki hauwezi kulishwa.',
+    dash: '—',
 
     formTitle: 'Sajili aina ya chakula',
     formHint: 'Katalogi ni ya mfumo mzima: aina utakayosajili itaonekana kwa kila shamba.',
@@ -124,6 +141,21 @@ export const FEED_CATALOG_I18N = {
       'Register the first one below. Until you do, there is nothing to choose from on the Feeding screen.',
 
     listTitle: 'Registered types',
+    introTitle: 'Feed Catalogue',
+    introBody:
+      'The feed types and the fish ages they suit - this is what fills the dropdown on Feeding.',
+    introStep1: 'Register a type: its name, and the fish age in months it suits.',
+    introStep2: 'That age range is what decides which type appears for which cycle.',
+    introStep3: 'Deactivating a type removes it from the dropdown without deleting past records.',
+    railTitle: 'Catalogue summary',
+    railTotal: 'All types',
+    railActive: 'In use',
+    railInactive: 'Deactivated',
+    railCoverTitle: 'Ages covered',
+    railCoverFrom: 'From (months)',
+    railCoverTo: 'To (months)',
+    railCoverHint: 'A cycle whose fish fall outside this range cannot be fed.',
+    dash: '—',
 
     formTitle: 'Register a feed type',
     formHint: 'The catalogue is system-wide: what you register here appears on every farm.',
