@@ -27,15 +27,13 @@
              measured off its pixels: a landscape card, a coloured TAB that
              straddles the top edge - carrying the label, with the number
              moved down into the body where it has room - a pendant
-             hanging under it, a narrow coloured CAP standing on the right
-             edge, and inside the card an icon, a hairline divider, then the
-             number. The reference gives every row its own hue; we have one
-             accent, so all four tiles share it - no colour enters this file
-             that is not already a token. -->
+             hanging under it, and inside the card an icon, a hairline
+             divider, then the number. The reference's coloured cap on the
+             right edge was dropped: orange is the brand, not decoration. No
+             colour enters this file that is not already a token. -->
       <section class="stat-grid">
         <article class="tile">
           <span class="tile__tab">{{ t().statTotalUnits }}</span>
-          <span class="tile__cap" aria-hidden="true"></span>
           <div class="tile__body">
             <span class="tile__icon">
               <svg
@@ -59,7 +57,6 @@
 
         <article class="tile">
           <span class="tile__tab">{{ t().statActiveUnits }}</span>
-          <span class="tile__cap" aria-hidden="true"></span>
           <div class="tile__body">
             <span class="tile__icon">
               <svg
@@ -80,7 +77,6 @@
 
         <article class="tile">
           <span class="tile__tab">{{ t().statActiveCycles }}</span>
-          <span class="tile__cap" aria-hidden="true"></span>
           <div class="tile__body">
             <span class="tile__icon">
               <svg
@@ -102,7 +98,6 @@
 
         <article class="tile">
           <span class="tile__tab">{{ t().statFingerlings }}</span>
-          <span class="tile__cap" aria-hidden="true"></span>
           <div class="tile__body">
             <span class="tile__icon">
               <svg
@@ -137,7 +132,13 @@
             <div class="bar-chart__col">
               <span class="bar-chart__count">{{ bar.count }}</span>
               <div class="bar-chart__track">
-                <div class="bar-chart__fill" [style.height.%]="bar.percent"></div>
+                <!-- Populated types are --color-active; an EMPTY type keeps its
+                     6px stub but in --color-neutral, so "0" never reads as data. -->
+                <div
+                  class="bar-chart__fill"
+                  [class.bar-chart__fill--zero]="bar.count === 0"
+                  [style.height.%]="bar.percent"
+                ></div>
               </div>
               <span class="bar-chart__label">{{ bar.type }}</span>
             </div>
@@ -179,7 +180,7 @@
                     {{ cycle.expectedHarvestDate ?? '-' }}
                   </td>
                   <td [attr.data-label]="t().colStatus">
-                    <span class="pill" [ngClass]="statusClass(cycle.status)">{{
+                    <span class="pill" [ngClass]="'pill--' + statusTone(cycle.status)">{{
                       statusLabel(cycle.status)
                     }}</span>
                   </td>
@@ -216,7 +217,11 @@
           <div class="mini-bars__row">
             <span class="mini-bars__label">{{ statusLabel(bar.status) }}</span>
             <div class="mini-bars__track">
-              <div class="mini-bars__fill" [style.width.%]="bar.percent"></div>
+              <div
+                class="mini-bars__fill"
+                [ngClass]="'mini-bars__fill--' + statusTone(bar.status)"
+                [style.width.%]="bar.percent"
+              ></div>
             </div>
             <span class="mini-bars__count">{{ bar.count }}</span>
           </div>

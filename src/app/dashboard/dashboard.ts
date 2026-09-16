@@ -89,6 +89,9 @@ function isoDate(date: Date): string {
 const UNIT_TYPES = ['TANK', 'POND', 'BWAWA'] as const;
 const UNIT_STATUSES = ['ACTIVE', 'IDLE', 'MAINTENANCE'] as const;
 
+/** The semantic colour a status takes - `--color-<tone>` in src/styles.scss. */
+export type StatusTone = 'active' | 'done' | 'idle' | 'danger' | 'neutral';
+
 /**
  * For a throw that is not an ApiError at all - a bug in our own mapping, or
  * something rxjs raised. It has no code, so it renders as the generic
@@ -463,16 +466,24 @@ export class Dashboard {
     }
   }
 
-  statusClass(status: string): string {
+  /**
+   * A status's MEANING, as the name of its semantic colour token
+   * (`--color-<tone>` in styles.scss). The one place this screen maps a unit
+   * or cycle status to a colour: the table pills and the status bars both read
+   * it, so they cannot disagree. An unknown status is neutral, not a guess.
+   */
+  statusTone(status: string): StatusTone {
     switch (status) {
       case 'ACTIVE':
-        return 'pill--active';
+        return 'active';
       case 'HARVESTED':
-        return 'pill--done';
+        return 'done';
+      case 'IDLE':
+        return 'idle';
       case 'MAINTENANCE':
-        return 'pill--warn';
+        return 'danger';
       default:
-        return 'pill--idle';
+        return 'neutral';
     }
   }
 

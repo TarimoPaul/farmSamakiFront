@@ -14,10 +14,10 @@
 //
 // COLOUR RULE FOR THIS BLOCK: nothing here introduces a colour. The
 // reference gives each of its four rows a different hue; we have one accent,
-// so all four tiles share the ramp already defined in src/styles.scss -
-// --brand-strong where white text sits on orange (the tab), --brand for the
-// cap (a graphic, nothing is read on it), and the slate neutrals everywhere
-// else. Adding a second hue would break the palette taken from color11.png.
+// so all four tiles share the ramp already defined in src/styles.scss - the
+// pale brand chip on the tab, --brand-strong on the icon, and the slate
+// neutrals everywhere else. (The tab and icon are brand for now; their
+// treatment is a separate task. The reference's orange cap was removed.)
 .stat-grid {
   display: grid;
   // Column count is chosen to hold the reference tile.s 3:1 proportion, not
@@ -117,19 +117,9 @@
   border-radius: 0 0 1.05rem 1.05rem;
 }
 
-// The cap: a narrow slab standing on the right edge, 22/272 of the card's
-// width in the reference, overhanging it by 2px top and bottom. This one is
-// pure graphic - no text on it - so it takes the vivid --brand rather than
-// the darker --brand-strong the tab needs.
-.tile__cap {
-  position: absolute;
-  top: -1px;
-  right: -1px;
-  width: 1.35rem;
-  height: calc(100% + 2px);
-  border-radius: 0 16px 16px 0;
-  background: var(--brand);
-}
+// The reference's orange CAP on the right edge is gone: orange is the brand,
+// and a slab of it on every tile said "brand" four times over nothing. The
+// right padding it needed is left as it was - colour-only change.
 
 .tile__body {
   display: flex;
@@ -175,8 +165,8 @@
 // cover the tile, the pendant would point at nothing, and a 22px cap is an
 // eighth of the card. So the same parts, re-set: the tab becomes a small chip
 // INSIDE the tile (still the label, still the pale brand chip, now allowed to
-// wrap to two lines - "Mizunguko Inayoendelea" does), the pendant goes, the
-// cap thins to an edge, and the icon loses its divider.
+// wrap to two lines - "Mizunguko Inayoendelea" does), the pendant goes, and
+// the icon loses its divider.
 @media (max-width: 700px) {
   .tile {
     display: flex;
@@ -200,10 +190,6 @@
 
   .tile__tab::after {
     display: none;
-  }
-
-  .tile__cap {
-    width: 0.55rem;
   }
 
   .tile__body {

@@ -70,10 +70,14 @@
   overflow: hidden;
 }
 
+// The default stays the brand colour (the same value --brand gave), so every
+// screen that has not said what its bars MEAN renders exactly as before. A
+// screen whose bars are states picks the semantic token per row with its own
+// modifier - see .mini-bars__fill--* in dashboard.scss.
 .mini-bars__fill {
   height: 100%;
   border-radius: 999px;
-  background: var(--brand);
+  background: var(--color-brand);
 }
 
 .mini-bars__count {

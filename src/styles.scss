@@ -34,6 +34,34 @@
   --error-bg: rgba(211, 47, 47, 0.08);
   --notice: #b45309;
   --notice-bg: rgba(180, 83, 9, 0.1);
+
+  // ── Semantic colour tokens ─────────────────────────────────────────────
+  // ONE meaning each. A component that shows a state asks for the state by
+  // name and never pastes a hex; re-colouring a meaning is one line here.
+  //
+  //   --color-brand    brand identity + primary action ONLY - never data
+  //   --color-active   active / healthy / done-as-in-completed / profit
+  //   --color-done     harvested / closed - a finished cycle, NOT "active":
+  //                    the profit report reads it as its own business state
+  //   --color-idle     idle / warning / closed-without-record
+  //   --color-danger   maintenance / failed / loss
+  //   --color-neutral  outstanding / zero / structural
+  //
+  // Tints (a pill's background) are derived, not declared:
+  // color-mix(in srgb, var(--color-x) 15%, transparent).
+  //
+  // brand, idle, danger and neutral ALIAS the tokens that already carried those
+  // colours, so there is still one source per value; the dark block below
+  // re-points them by redefining the originals. active and done are new values
+  // and are set in both blocks. Every text-bearing value clears 4.5:1 on
+  // --surface in its theme.
+  --color-brand: var(--brand);
+  --color-active: #2e7d32;
+  --color-done: #2a5fd6;
+  --color-idle: var(--notice);
+  --color-danger: var(--error);
+  --color-neutral: var(--muted);
+
   // The sidebar is the largest single block of colour in the app. It takes
   // the reference's dark slate rather than the accent, for the same reason
   // the artwork does: a full-height orange slab would shout over every
@@ -76,6 +104,11 @@
   --error-bg: rgba(248, 113, 113, 0.12);
   --notice: #fbbf24;
   --notice-bg: rgba(251, 191, 36, 0.12);
+  // Semantic tokens: brand, idle, danger and neutral follow the aliases above
+  // (--brand, --notice, --error, --muted are redefined in this block). Only the
+  // two with their own values need a dark value here.
+  --color-active: #6ee7a2;
+  --color-done: #8ab4ff;
   --sidebar-from: #1e2a33;
   --sidebar-to: #10181e;
   --scrollbar-thumb: #3c4b56;

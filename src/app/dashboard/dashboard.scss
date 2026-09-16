@@ -11,8 +11,8 @@
   text-align: center;
 
   &--error {
-    color: #c0392b;
-    background: #fdecea;
+    color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 10%, var(--surface));
   }
 }
 
@@ -120,11 +120,18 @@
   overflow: hidden;
 }
 
+// Units that exist are live capacity: --color-active. A type with none keeps
+// its stub so the column is still visibly there, but in --color-neutral -
+// otherwise "0 ponds" was drawn in the same colour as "3 tanks".
 .bar-chart__fill {
   width: 100%;
   min-height: 6px;
   border-radius: 8px;
-  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-dark) 100%);
+  background: var(--color-active);
+
+  &--zero {
+    background: var(--color-neutral);
+  }
 }
 
 .bar-chart__label {
@@ -238,6 +245,9 @@ td {
   }
 }
 
+// One modifier per semantic token - the class name IS the token name, set by
+// Dashboard.statusTone(). Text in the token, background a 15% tint of it, so
+// both themes follow the token with no dark-mode rule of their own.
 .pill {
   display: inline-block;
   padding: 0.25rem 0.65rem;
@@ -245,24 +255,21 @@ td {
   font-size: 0.72rem;
   font-weight: 700;
 
-  &--active {
-    background: #e3f5ec;
-    color: #1a9c63;
+  @each $tone in active, done, idle, danger, neutral {
+    &--#{$tone} {
+      background: color-mix(in srgb, var(--color-#{$tone}) 15%, transparent);
+      color: var(--color-#{$tone});
+    }
   }
+}
 
-  &--done {
-    background: #e6f0ff;
-    color: #2a5fd6;
-  }
-
-  &--warn {
-    background: #fff3e0;
-    color: #c9791a;
-  }
-
-  &--idle {
-    background: var(--surface-alt);
-    color: var(--muted);
+// Units by Status (rail). The partial's default is brand; here each row is a
+// state, so it takes that state's token.
+.mini-bars__fill {
+  @each $tone in active, done, idle, danger, neutral {
+    &--#{$tone} {
+      background: var(--color-#{$tone});
+    }
   }
 }
 
@@ -478,7 +485,8 @@ td {
   align-items: center;
   justify-content: center;
   margin: 0.2rem 0 0.65rem;
-  background: conic-gradient(var(--brand) calc(var(--percent) * 1%), var(--border) 0);
+  // The share of units that are ACTIVE - a state, so --color-active, not brand.
+  background: conic-gradient(var(--color-active) calc(var(--percent) * 1%), var(--border) 0);
 }
 
 .ring::before {
