@@ -6,6 +6,17 @@
     </div>
   </header>
 
+  <!-- A refused row action - in practice SPECIES_IN_USE, which names how many
+         cycles still point at the species. Stays until dismissed. -->
+  @if (actionErrorMessage(); as message) {
+    <div class="panel-error" role="alert" data-testid="action-error">
+      <p>{{ message }}</p>
+      <app-button variant="secondary" (clicked)="dismissActionError()">
+        {{ t().close }}
+      </app-button>
+    </div>
+  }
+
   @if (loading()) {
     <p class="panel-status">{{ t().loading }}</p>
   } @else if (loadErrorMessage(); as message) {
@@ -21,18 +32,30 @@
             <h2 class="card__title">{{ t().listTitle }}</h2>
           </header>
 
-          <!-- No row actions, and no actions column at all: the backend has
-             neither updateSpecies nor deleteSpecies, so there is nothing a
-             menu here could offer. See the note on the component. -->
           <app-data-table
             [columns]="columns()"
             [rows]="species()"
             [rowKey]="speciesKey"
             [numbered]="true"
             [numberLabel]="t().colNumber"
+            [rowActions]="rowActions"
+            [actionsLabel]="t().actions"
+            [showActionsLabel]="true"
           >
             <app-empty-state slot="empty" [title]="t().emptyTitle" [message]="t().emptyMessage" />
           </app-data-table>
+
+          <ng-template #rowActions let-row>
+            <app-action-menu [label]="t().actions">
+              <button type="button" role="menuitem" (click)="openEdit(row)">{{ t().edit }}</button>
+
+              <hr />
+
+              <button type="button" role="menuitem" class="is-danger" (click)="askDelete(row)">
+                {{ t().delete }}
+              </button>
+            </app-action-menu>
+          </ng-template>
         </section>
 
         <!-- No *appHasPermission on the form. The route guard is `manage_species`
@@ -156,6 +179,93 @@
     </div>
   }
 </section>
+
+<!-- Editing reuses the register form's controls - see editTarget. -->
+<app-modal
+  [open]="!!editTarget()"
+  [title]="t().editTitle"
+  [closeLabel]="t().close"
+  (dismissed)="closeEdit()"
+>
+  <form class="species-form" [formGroup]="form" (ngSubmit)="submit()">
+    <p class="species-form__notice">{{ t().editNotice }}</p>
+
+    <app-form-field
+      [label]="t().fieldName"
+      for="edit-species-name"
+      [error]="nameError()"
+      [required]="true"
+    >
+      <input
+        id="edit-species-name"
+        class="text-input"
+        type="text"
+        formControlName="name"
+        [attr.maxlength]="nameMaxLength"
+        autocomplete="off"
+      />
+    </app-form-field>
+
+    <div class="species-form__grid">
+      <app-form-field
+        [label]="t().fieldGrowthMonths"
+        for="edit-species-growth-months"
+        [error]="growthError()"
+        [required]="true"
+      >
+        <input
+          id="edit-species-growth-months"
+          class="text-input"
+          type="number"
+          step="0.1"
+          min="0"
+          formControlName="growthMonthsAvg"
+        />
+      </app-form-field>
+
+      <app-form-field
+        [label]="t().fieldHarvestWeight"
+        for="edit-species-harvest-weight"
+        [error]="weightError()"
+        [required]="true"
+      >
+        <input
+          id="edit-species-harvest-weight"
+          class="text-input"
+          type="number"
+          step="0.01"
+          min="0"
+          formControlName="avgHarvestWeightKg"
+        />
+      </app-form-field>
+    </div>
+
+    @if (formError(); as message) {
+      <p class="form-error" role="alert" data-testid="edit-form-error">{{ message }}</p>
+    }
+
+    <!-- Submits on Enter; the visible buttons live in the modal's action slot. -->
+    <button type="submit" hidden></button>
+  </form>
+
+  <div slot="actions">
+    <app-button variant="ghost" [disabled]="saving()" (clicked)="closeEdit()">
+      {{ t().cancel }}
+    </app-button>
+    <app-button [loading]="saving()" (clicked)="submit()">{{ t().save }}</app-button>
+  </div>
+</app-modal>
+
+<app-confirm-dialog
+  [open]="!!deleteTarget()"
+  [title]="t().deleteTitle"
+  [message]="(deleteTarget()?.name ?? '') + ' ' + t().deleteMessage"
+  [confirmLabel]="t().deleteConfirm"
+  [cancelLabel]="t().cancel"
+  [loading]="deleting()"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>
 
 <app-toast
   [open]="!!toastMessage()"

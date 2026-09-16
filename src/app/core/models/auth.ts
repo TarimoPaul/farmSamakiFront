@@ -11,6 +11,11 @@ export interface UserSummary {
   id: string;
   name: string;
   phone: string;
+  /**
+   * Null when no address is on file - email is optional at signup. Optional
+   * here too because a backend older than this field does not send it.
+   */
+  email?: string | null;
   status: UserStatus;
   /**
    * The farm this account is working in: its membership, or - for ROOT - the

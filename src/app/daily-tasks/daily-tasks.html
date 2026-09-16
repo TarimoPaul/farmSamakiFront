@@ -13,6 +13,9 @@
            to move. -->
     <div class="tasks__date" data-panel="date-bar">
       <label class="tasks__date-label" for="tasks-date">{{ t().dateLabel }}</label>
+      <app-button variant="secondary" [attr.aria-label]="t().prevDay" (clicked)="shiftDay(-1)">
+        &lsaquo;
+      </app-button>
       <input
         id="tasks-date"
         class="text-input tasks__date-input"
@@ -20,6 +23,9 @@
         [value]="date()"
         (change)="onDateChange($event)"
       />
+      <app-button variant="secondary" [attr.aria-label]="t().nextDay" (clicked)="shiftDay(1)">
+        &rsaquo;
+      </app-button>
       @if (date() !== today) {
         <app-button variant="secondary" (clicked)="goToToday()">{{ t().today }}</app-button>
       }
@@ -52,92 +58,192 @@
       </app-empty-state>
     </section>
   } @else {
-    <section class="card" data-panel="tasks">
-      <header class="card__head tasks__card-head">
-        <h2 class="card__title">{{ date() }}</h2>
-        <p class="tasks__progress">
-          {{ t().progressLabel }}: <strong>{{ doneCount() }}</strong> / {{ tasks().length }}
-        </p>
-      </header>
+    <!-- Work on the left, summary rail on the right. Everything on the rail is
+         counted from the sheet already loaded - it costs no request. -->
+    <div class="module-layout">
+      <div class="module-layout__main">
+        <section class="card" data-panel="tasks">
+          <header class="card__head tasks__card-head">
+            <h2 class="card__title" data-testid="sheet-date">{{ displayDate() }}</h2>
+            <p class="tasks__progress">
+              {{ t().progressLabel }}: <strong>{{ doneCount() }}</strong> / {{ tasks().length }}
+              <span class="tasks__percent">({{ progressPercent() }}%)</span>
+            </p>
+          </header>
 
-      <!-- A failed mark, above the list: the row it came from may well have
-             scrolled, and the message is about the sheet either way. -->
-      @if (markError(); as message) {
-        <p class="form-error tasks__error" role="alert" data-testid="mark-error">{{ message }}</p>
-      }
+          <div
+            class="tasks__bar"
+            role="progressbar"
+            [attr.aria-valuenow]="progressPercent()"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-label]="t().progressLabel"
+          >
+            <span class="tasks__bar-fill" [style.width.%]="progressPercent()"></span>
+          </div>
 
-      @for (group of groups(); track group.key) {
-        <!-- The group heading IS the task's identity. Two active cycles
-               produce two identical "Kulisha - Asubuhi" rows, and the only
-               thing that tells them apart is where the fish are - never the
-               cycle number, which nobody holding a bucket knows. -->
-        <section class="task-group">
-          <h3 class="task-group__head" data-testid="group-head">
-            @if (group.unitCode) {
-              {{ t().unitLabel }} {{ group.unitCode }}
-            } @else {
-              {{ t().noUnit }}
+          <div class="tasks__filter" role="group" [attr.aria-label]="t().filterLabel">
+            @for (option of filterOptions(); track option.value) {
+              <button
+                type="button"
+                class="tasks__filter-option"
+                [class.is-active]="filter() === option.value"
+                [attr.aria-pressed]="filter() === option.value"
+                [attr.data-filter]="option.value"
+                (click)="setFilter(option.value)"
+              >
+                {{ option.label }} <span class="tasks__filter-count">{{ option.count }}</span>
+              </button>
             }
-            &middot;
-            {{ group.speciesName ?? t().noSpecies }}
-          </h3>
+          </div>
 
-          <ul class="task-group__list">
-            @for (task of group.tasks; track task.taskId) {
-              <li class="task" [class.task--done]="task.done" data-testid="task-row">
-                <span class="task__tick" aria-hidden="true">{{ task.done ? 'âœ“' : 'â—‹' }}</span>
+          <!-- A failed mark, above the list: the row it came from may well have
+                 scrolled, and the message is about the sheet either way. -->
+          @if (markError(); as message) {
+            <p class="form-error tasks__error" role="alert" data-testid="mark-error">{{ message }}</p>
+          }
 
-                <span class="task__body">
-                  <span class="task__name">
-                    {{ task.taskType }}
-                    <small class="task__time">{{ task.scheduledTime }}</small>
-                  </span>
-
-                  <!-- Who and when, for EVERYONE who can see the screen.
-                         This is the record a VIEWER is entitled to read; it
-                         is not branched on any permission. -->
-                  @if (task.done) {
-                    <small class="task__by" data-testid="task-by">{{ completedLine(task) }}</small>
+          @for (group of visibleGroups(); track group.key) {
+            <!-- The group heading IS the task's identity. Two active cycles
+                   produce two identical "Kulisha - Asubuhi" rows, and the only
+                   thing that tells them apart is where the fish are - never the
+                   cycle number, which nobody holding a bucket knows. -->
+            <section class="task-group">
+              <h3 class="task-group__head" data-testid="group-head">
+                <span>
+                  @if (group.unitCode) {
+                    {{ t().unitLabel }} {{ group.unitCode }}
+                  } @else {
+                    {{ t().noUnit }}
                   }
-
-                  <!-- Null for every row of existing data - see the model -
-                         so it appears only where somebody has actually set
-                         it, rather than printing an empty label. -->
-                  @if (task.assignedRoleName; as role) {
-                    <small class="task__meta">{{ t().assignedLabel }}: {{ role }}</small>
-                  }
-                  @if (task.notes; as notes) {
-                    <small class="task__meta">{{ t().notesLabel }}: {{ notes }}</small>
-                  }
+                  &middot;
+                  {{ group.speciesName ?? t().noSpecies }}
                 </span>
+                <span class="task-group__count" data-testid="group-count">
+                  {{ group.done }} / {{ group.total }}
+                </span>
+              </h3>
 
-                <app-status-badge [status]="statusLabel(task)" [variant]="statusVariant(task)" />
-
-                <!-- The one permission-branched control on the screen. A
-                       VIEWER holds `view_dashboard` and reads everything
-                       above; without `mark_task_done` there is no button at
-                       all, rather than a disabled one they cannot explain. -->
-                @if (!task.done) {
-                  <span
-                    class="task__action"
-                    *appHasPermission="PERMISSION.MARK_TASK_DONE"
-                    [attr.title]="isFuture() ? t().futureTooltip : null"
+              <ul class="task-group__list">
+                @for (task of group.tasks; track task.taskId) {
+                  <li
+                    class="task"
+                    [class.task--done]="task.done"
+                    [class.task--passed]="isTimePassed(task)"
+                    data-testid="task-row"
                   >
-                    <app-button
-                      [disabled]="isFuture()"
-                      [loading]="markingTaskId() === task.taskId"
-                      (clicked)="markDone(task)"
-                    >
-                      {{ t().mark }}
-                    </app-button>
-                  </span>
+                    <!-- Entities, not literal glyphs: the file's encoding can
+                           never turn them into mojibake again. -->
+                    <span class="task__tick" aria-hidden="true">
+                      @if (task.done) {
+                        &#10003;
+                      } @else {
+                        &#9675;
+                      }
+                    </span>
+
+                    <span class="task__body">
+                      <span class="task__name">
+                        {{ task.taskType }}
+                        <small class="task__time">{{ task.scheduledTime }}</small>
+                      </span>
+
+                      <!-- Who and when, for EVERYONE who can see the screen.
+                             This is the record a VIEWER is entitled to read; it
+                             is not branched on any permission. -->
+                      @if (task.done) {
+                        <small class="task__by" data-testid="task-by">{{ completedLine(task) }}</small>
+                      }
+
+                      <!-- Presentation only: the backend still says OUTSTANDING,
+                             and the badge shows exactly that. -->
+                      @if (isTimePassed(task)) {
+                        <small class="task__passed" data-testid="time-passed">{{ t().timePassed }}</small>
+                      }
+
+                      <!-- Null for every row of existing data - see the model -
+                             so it appears only where somebody has actually set
+                             it, rather than printing an empty label. -->
+                      @if (task.assignedRoleName; as role) {
+                        <small class="task__meta">{{ t().assignedLabel }}: {{ role }}</small>
+                      }
+                      @if (task.notes; as notes) {
+                        <small class="task__meta">{{ t().notesLabel }}: {{ notes }}</small>
+                      }
+                    </span>
+
+                    <app-status-badge [status]="statusLabel(task)" [variant]="statusVariant(task)" />
+
+                    <!-- The one permission-branched control on the screen. A
+                           VIEWER holds `view_dashboard` and reads everything
+                           above; without `mark_task_done` there is no button at
+                           all, rather than a disabled one they cannot explain. -->
+                    @if (!task.done) {
+                      <span
+                        class="task__action"
+                        *appHasPermission="PERMISSION.MARK_TASK_DONE"
+                        [attr.title]="isFuture() ? t().futureTooltip : null"
+                      >
+                        <app-button
+                          [disabled]="isFuture()"
+                          [loading]="markingTaskId() === task.taskId"
+                          (clicked)="markDone(task)"
+                        >
+                          {{ t().mark }}
+                        </app-button>
+                      </span>
+                    }
+                  </li>
                 }
-              </li>
-            }
-          </ul>
+              </ul>
+            </section>
+          } @empty {
+            <p class="tasks__filter-empty" data-testid="filter-empty">
+              {{ filter() === 'done' ? t().filterEmptyDone : t().filterEmptyOutstanding }}
+            </p>
+          }
         </section>
-      }
-    </section>
+      </div>
+
+      <aside class="module-rail">
+        <div class="side-card" data-rail="summary">
+          <h3>{{ t().railTitle }}</h3>
+          @for (row of summary(); track row.label) {
+            <div class="side-stat">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.value }}</strong>
+            </div>
+          }
+        </div>
+
+        <!-- Only for today: "next" on a past or future day is not a question
+             anyone standing at a tank is asking. -->
+        @if (date() === today) {
+          <div class="side-card" data-rail="next">
+            <h3>{{ t().railNextTitle }}</h3>
+            @if (nextTask(); as next) {
+              <div class="side-stat">
+                <span>{{ next.task.taskType }}</span>
+                <strong>{{ next.task.scheduledTime }}</strong>
+              </div>
+              <p class="intro__body">{{ next.label }}</p>
+            } @else {
+              <p class="intro__body">{{ t().railNextNone }}</p>
+            }
+          </div>
+        }
+
+        <div class="side-card" data-rail="by-unit">
+          <h3>{{ t().railByUnitTitle }}</h3>
+          @for (group of groups(); track group.key) {
+            <div class="side-stat">
+              <span>{{ group.unitCode ?? t().noUnit }}</span>
+              <strong>{{ group.done }} / {{ group.total }}</strong>
+            </div>
+          }
+        </div>
+      </aside>
+    </div>
   }
 </section>
 

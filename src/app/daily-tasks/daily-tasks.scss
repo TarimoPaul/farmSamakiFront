@@ -1,3 +1,5 @@
+@use '../shared/ui/side-card' as *;
+@use '../shared/ui/module-rail' as *;
 @use '../shared/styles/screen' as *;
 
 /* The one colour this screen adds. The palette has no green - the brand is
@@ -86,6 +88,67 @@
   }
 }
 
+.tasks__percent {
+  margin-left: 0.25rem;
+}
+
+/* The day's progress at a glance, in the same green as a done row. */
+.tasks__bar {
+  height: 0.4rem;
+  margin: 0 0.25rem 0.9rem;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.tasks__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--task-done);
+  transition: width 0.25s ease;
+}
+
+/* All / Outstanding / Done - the same segmented look as Members' mode switch. */
+.tasks__filter {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 0.25rem 1rem;
+  padding: 0.25rem;
+  border-radius: var(--radius);
+  background: var(--surface-muted, rgba(0, 0, 0, 0.05));
+}
+
+.tasks__filter-option {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--surface, #fff);
+    color: var(--on-surface);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+}
+
+.tasks__filter-count {
+  margin-left: 0.25rem;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.tasks__filter-empty {
+  margin: 0.5rem 0.25rem 0.25rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
 .tasks__error {
   margin: 0 0.25rem 0.75rem;
 }
@@ -102,6 +165,9 @@
    identically-named tasks apart. Sticky, so the heading stays with its rows
    on a long farm-wide sheet scrolled on a phone. */
 .task-group__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -114,6 +180,12 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--muted);
+}
+
+.task-group__count {
+  flex: none;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .task-group__list {
@@ -181,6 +253,18 @@
 .task__by {
   font-size: 0.78rem;
   color: var(--task-done);
+}
+
+/* Time gone by and still undone: a warning tint on the edge and the line,
+   never the badge - the badge is the backend's word. */
+.task--passed {
+  box-shadow: inset 3px 0 0 var(--notice, #b45309);
+}
+
+.task__passed {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--notice, #b45309);
 }
 
 .task__meta {

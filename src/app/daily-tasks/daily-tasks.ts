@@ -42,7 +42,15 @@ interface TaskGroup {
   unitCode: string | null;
   speciesName: string | null;
   tasks: DailyTaskStatus[];
+  /** Counted over the WHOLE group, so the heading stays true under a filter. */
+  done: number;
+  total: number;
 }
+
+export type TaskFilter = 'all' | 'outstanding' | 'done';
+
+/** The date heading's locale per UI language. */
+const DATE_LOCALE = { sw: 'sw-TZ', en: 'en-GB' } as const;
 
 /**
  * Daily Tasks - the farm-wide task sheet for one day.
@@ -114,6 +122,87 @@ export class DailyTasks {
   readonly isFuture = computed(() => this.date() > this.today);
 
   readonly doneCount = computed(() => this.tasks().filter((task) => task.done).length);
+  readonly outstandingCount = computed(() => this.tasks().length - this.doneCount());
+
+  readonly progressPercent = computed(() => {
+    const total = this.tasks().length;
+    return total === 0 ? 0 : Math.round((this.doneCount() * 100) / total);
+  });
+
+  /**
+   * The farm's clock, HH:mm, read when the screen opens - the same "once"
+   * rule as `today`. A signal so a test can set it; nothing in the screen
+   * writes it.
+   */
+  readonly nowTime = signal(farmNowTime());
+
+  /** Which rows the list shows. The counts and the rail always use the whole sheet. */
+  readonly filter = signal<TaskFilter>('all');
+
+  /** "Jumanne, 15 Septemba 2026" - the ISO date is already in the picker. */
+  readonly displayDate = computed(() =>
+    formatDay(this.date(), DATE_LOCALE[this.languageService.lang()]),
+  );
+
+  /**
+   * An outstanding task whose time has gone by: any undone task on a past
+   * day, or one on today scheduled before the farm's clock.
+   *
+   * PRESENTATION ONLY. The backend's status stays what it sent (OUTSTANDING),
+   * and the badge still shows it - this is a highlight for the eye, not a
+   * second opinion on the record.
+   */
+  isTimePassed(task: DailyTaskStatus): boolean {
+    if (task.done || this.date() > this.today) {
+      return false;
+    }
+    return this.date() < this.today || task.scheduledTime < this.nowTime();
+  }
+
+  readonly timePassedCount = computed(
+    () => this.tasks().filter((task) => this.isTimePassed(task)).length,
+  );
+
+  readonly filterOptions = computed(() => {
+    const t = this.t();
+    return [
+      { value: 'all' as const, label: t.filterAll, count: this.tasks().length },
+      { value: 'outstanding' as const, label: t.filterOutstanding, count: this.outstandingCount() },
+      { value: 'done' as const, label: t.filterDone, count: this.doneCount() },
+    ];
+  });
+
+  readonly summary = computed(() => {
+    const t = this.t();
+    return [
+      { label: t.railAll, value: String(this.tasks().length) },
+      { label: t.railDone, value: String(this.doneCount()) },
+      { label: t.railOutstanding, value: String(this.outstandingCount()) },
+      { label: t.railTimePassed, value: String(this.timePassedCount()) },
+    ];
+  });
+
+  /**
+   * The next thing to do today: the earliest outstanding task whose time has
+   * not passed yet, or - once everything left is late - the earliest late one.
+   */
+  readonly nextTask = computed(() => {
+    const t = this.t();
+    const outstanding = this.groups()
+      .flatMap((group) => group.tasks.map((task) => ({ task, group })))
+      .filter(({ task }) => !task.done)
+      .sort((a, b) => a.task.scheduledTime.localeCompare(b.task.scheduledTime));
+    const pick =
+      outstanding.find(({ task }) => task.scheduledTime >= this.nowTime()) ?? outstanding[0];
+    if (!pick) {
+      return null;
+    }
+    const where = pick.group.unitCode ? `${t.unitLabel} ${pick.group.unitCode}` : t.noUnit;
+    return {
+      task: pick.task,
+      label: `${where} · ${pick.group.speciesName ?? t.noSpecies}`,
+    };
+  });
 
   /**
    * The tasks, grouped by the unit they happen in and sorted the way the day
@@ -138,8 +227,15 @@ export class DailyTasks {
           unitCode: task.unitCode,
           speciesName: task.speciesName,
           tasks: [task],
+          done: 0,
+          total: 0,
         });
       }
+    }
+
+    for (const group of groups.values()) {
+      group.total = group.tasks.length;
+      group.done = group.tasks.filter((task) => task.done).length;
     }
 
     const ordered = [...groups.values()].sort((a, b) => {
@@ -160,6 +256,24 @@ export class DailyTasks {
 
     return ordered;
   });
+
+  /** The groups under the current filter; a group with nothing left to show is dropped. */
+  readonly visibleGroups = computed<TaskGroup[]>(() => {
+    const filter = this.filter();
+    if (filter === 'all') {
+      return this.groups();
+    }
+    return this.groups()
+      .map((group) => ({
+        ...group,
+        tasks: group.tasks.filter((task) => (filter === 'done' ? task.done : !task.done)),
+      }))
+      .filter((group) => group.tasks.length > 0);
+  });
+
+  setFilter(filter: TaskFilter): void {
+    this.filter.set(filter);
+  }
 
   /**
    * Reloads when the day changes OR when the active farm does. Both are read
@@ -209,6 +323,12 @@ export class DailyTasks {
   goToToday(): void {
     this.markError.set(null);
     this.date.set(this.today);
+  }
+
+  /** The ‹ / › buttons beside the picker: one day back or forward. */
+  shiftDay(days: number): void {
+    this.markError.set(null);
+    this.date.set(shiftIsoDate(this.date(), days));
   }
 
   goToProduction(): void {
@@ -342,6 +462,53 @@ export class DailyTasks {
 
 function asApiError(err: unknown): ApiError {
   return isApiError(err) ? err : UNKNOWN_FAILURE;
+}
+
+/** YYYY-MM-DD moved by `days`. Done in UTC, so no timezone can shift the day. */
+function shiftIsoDate(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * A YYYY-MM-DD as words in the UI language. Formatted in UTC from the date's
+ * own parts - it is a calendar day, not an instant - and falls back to the
+ * ISO string if Intl refuses.
+ */
+function formatDay(date: string, locale: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      timeZone: 'UTC',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(Date.UTC(year, month - 1, day)));
+  } catch {
+    return date;
+  }
+}
+
+/** HH:mm now in the farm's timezone - see FARM_TIME_ZONE. */
+function farmNowTime(): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: FARM_TIME_ZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date());
+    const hour = parts.find((p) => p.type === 'hour')?.value;
+    const minute = parts.find((p) => p.type === 'minute')?.value;
+    if (hour && minute) {
+      return `${hour}:${minute}`;
+    }
+  } catch {
+    // Falls through to the local clock below.
+  }
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
 /**

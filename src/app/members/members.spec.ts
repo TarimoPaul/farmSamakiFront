@@ -63,6 +63,7 @@ const MEMBERS_BEFORE = {
       id: '9d1a1f6c-3b21-4a55-9d0e-6f2c1b0a7e01',
       name: 'F Admin',
       phone: '0788200111',
+      email: 'fadmin@samaki.co.tz',
       status: 'ACTIVE',
       farmId: FARM_ID,
       role: 'OWNER',
@@ -252,7 +253,22 @@ describe('Members screen', () => {
       expect(body).toContain('0788200333');
       expect(body).toContain('Active');
 
+      // Email on the row that has one; a muted "None" on the row that does not.
+      expect(rows(ctx.fixture)[0].textContent).toContain('fadmin@samaki.co.tz');
+      expect(rows(ctx.fixture)[1].textContent).toContain('None');
+
       ctx.httpMock.verify();
+    });
+
+    it('opens the edit form on the email already on file', async () => {
+      const ctx = setup();
+      await load(ctx);
+
+      ctx.component.openEdit(ctx.component.members()[0]);
+      expect(ctx.component.editForm.getRawValue().email).toBe('fadmin@samaki.co.tz');
+
+      ctx.component.openEdit(ctx.component.members()[1]);
+      expect(ctx.component.editForm.getRawValue().email).toBe('');
     });
 
     it('explains itself instead of listing nothing when no farm is applied', async () => {

@@ -48,7 +48,7 @@ export const SPECIES_I18N = {
     introBody: 'Katalogi ya mfumo mzima: kila shamba linachota hapa wakati wa kuanzisha mzunguko.',
     introStep1: 'Sajili aina - jina, miezi ya kukua, na uzito wa wastani wa mavuno.',
     introStep2: 'Miezi ya kukua ndiyo inayokokotoa tarehe ya mavuno ya kila mzunguko.',
-    introStep3: 'Aina haifutwi wala kuhaririwa - iliyokosewa inasajiliwa upya kwa jina sahihi.',
+    introStep3: 'Hariri au futa kupitia Vitendo - aina inayotumiwa na mzunguko haifutiki.',
     railTitle: 'Muhtasari wa katalogi',
     railTotal: 'Aina zote',
     railAvgGrowth: 'Wastani wa miezi ya kukua',
@@ -78,6 +78,22 @@ export const SPECIES_I18N = {
 
     createdToast: 'Aina ya samaki imesajiliwa.',
     close: 'Funga',
+
+    // ------------------------------------------------------------ vitendo
+    actions: 'Vitendo',
+    cancel: 'Ghairi',
+    save: 'Hifadhi',
+    edit: 'Hariri',
+    editTitle: 'Hariri aina ya samaki',
+    editNotice:
+      'Katalogi ni ya mfumo mzima. Mabadiliko yanaathiri mizunguko MIPYA pekee - mizunguko iliyopo inabaki na tarehe yake ya mavuno.',
+    savedToast: 'Aina ya samaki imehifadhiwa.',
+    delete: 'Futa',
+    deleteTitle: 'Futa aina ya samaki?',
+    deleteMessage:
+      'itatoweka kwenye katalogi. Inawezekana tu kama hakuna mzunguko wowote uliowahi kuitumia.',
+    deleteConfirm: 'Ndiyo, ifute',
+    deletedToast: 'Aina ya samaki imefutwa.',
   },
   en: {
     title: 'Fish Species',
@@ -101,7 +117,7 @@ export const SPECIES_I18N = {
     introBody: 'A system-wide catalogue: every farm draws from it when starting a cycle.',
     introStep1: 'Register a species - name, months to grow, average harvest weight.',
     introStep2: 'The months to grow is what computes every cycle expected harvest date.',
-    introStep3: 'A species is never edited or deleted - a wrong one is registered again correctly.',
+    introStep3: 'Edit or delete from Actions - a species used by a cycle cannot be deleted.',
     railTitle: 'Catalogue summary',
     railTotal: 'All species',
     railAvgGrowth: 'Average months to grow',
@@ -131,5 +147,19 @@ export const SPECIES_I18N = {
 
     createdToast: 'Species registered.',
     close: 'Close',
+
+    actions: 'Actions',
+    cancel: 'Cancel',
+    save: 'Save',
+    edit: 'Edit',
+    editTitle: 'Edit species',
+    editNotice:
+      'The catalogue is system-wide. Changes affect NEW cycles only - cycles already running keep their harvest date.',
+    savedToast: 'Species saved.',
+    delete: 'Delete',
+    deleteTitle: 'Delete this species?',
+    deleteMessage: 'will disappear from the catalogue. This only works if no cycle has ever used it.',
+    deleteConfirm: 'Yes, delete it',
+    deletedToast: 'Species deleted.',
   },
 } as const;

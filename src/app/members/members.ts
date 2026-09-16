@@ -257,6 +257,11 @@ export class Members implements OnInit {
       { label: t.colName, value: (member) => member.name },
       { label: t.colPhone, value: (member) => member.phone },
       {
+        label: t.colEmail,
+        value: (member) => member.email || t.noEmail,
+        muted: (member) => !member.email,
+      },
+      {
         label: t.colRole,
         value: (member) => member.role ?? t.noRole,
         muted: (member) => !member.role,
@@ -273,7 +278,7 @@ export class Members implements OnInit {
   // rail costs no request of its own.
   //
   // NO DATE PICKER: `UserSummary` carries no timestamp - id, name, phone,
-  // status, farmId, role and nothing else - so there is no date to filter by.
+  // email, status, farmId, role and nothing else - so there is no date to filter by.
   // The same gap the Approvals queue works around with a position column.
 
   /**
@@ -522,19 +527,15 @@ export class Members implements OnInit {
   });
 
   /**
-   * Opens on the member's CURRENT details.
-   *
-   * `UserSummary` carries no email - the list endpoint does not send one - so
-   * the field starts empty and saving an empty box clears whatever address
-   * was on file. That is a real edge, and the form says so rather than
-   * pretending to show what it cannot see.
+   * Opens on the member's CURRENT details, email included - the list now
+   * carries it, so saving without touching the box keeps the address on file.
    */
   openEdit(member: UserSummary): void {
     this.editError.set(null);
     this.editNameError.set(null);
     this.editPhoneError.set(null);
     this.actionError.set(null);
-    this.editForm.reset({ name: member.name, phone: member.phone, email: '' });
+    this.editForm.reset({ name: member.name, phone: member.phone, email: member.email ?? '' });
     this.editTarget.set(member);
   }
 

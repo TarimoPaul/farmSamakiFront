@@ -493,6 +493,107 @@ describe('SpeciesScreen', () => {
     });
   });
 
+  describe('editing a species', () => {
+    it('opens on the row values and sends updateSpecies with a numeric id', async () => {
+      const { fixture, component, httpMock } = setup(SPECIES_MANAGER);
+      await load(fixture, httpMock);
+
+      component.openEdit(CATFISH);
+      fixture.detectChanges();
+      expect(component.form.getRawValue()).toEqual({
+        name: 'Kambale',
+        growthMonthsAvg: '6.5',
+        avgHarvestWeightKg: '1.25',
+      });
+
+      component.form.patchValue({ growthMonthsAvg: '7' });
+      component.submit();
+
+      const req = gql(httpMock, 'mutation UpdateSpecies');
+      expect((req.request.body as { variables: unknown }).variables).toEqual({
+        speciesId: 2,
+        name: 'Kambale',
+        growthMonthsAvg: 7,
+        avgHarvestWeightKg: 1.25,
+      });
+      req.flush({ data: { updateSpecies: { ...CATFISH, growthMonthsAvg: 7 } } });
+      await fixture.whenStable();
+      fixture.detectChanges();
+      gql(httpMock, 'query Species').flush(CATALOG);
+
+      expect(component.editTarget()).toBeNull();
+      expect(component.toastMessage()).toBe(SPECIES_I18N.sw.savedToast);
+      httpMock.verify();
+    });
+
+    it('cancelling clears the form and sends nothing', async () => {
+      const { fixture, component, httpMock } = setup(SPECIES_MANAGER);
+      await load(fixture, httpMock);
+
+      component.openEdit(TILAPIA);
+      component.closeEdit();
+
+      expect(component.editTarget()).toBeNull();
+      expect(component.form.getRawValue().name).toBe('');
+      httpMock.verify();
+    });
+  });
+
+  describe('deleting a species', () => {
+    it('asks first, then sends deleteSpecies and refreshes', async () => {
+      const { fixture, component, httpMock } = setup(SPECIES_MANAGER);
+      await load(fixture, httpMock);
+
+      component.askDelete(TILAPIA);
+      fixture.detectChanges();
+      httpMock.expectNone((r) => r.url === environment.graphqlUrl);
+
+      component.confirmDelete();
+      const req = gql(httpMock, 'mutation DeleteSpecies');
+      expect((req.request.body as { variables: unknown }).variables).toEqual({ speciesId: 1 });
+      req.flush({ data: { deleteSpecies: true } });
+      await fixture.whenStable();
+      fixture.detectChanges();
+      gql(httpMock, 'query Species').flush({ data: { species: [CATFISH] } });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.deleteTarget()).toBeNull();
+      expect(component.toastMessage()).toBe(SPECIES_I18N.sw.deletedToast);
+      expect(text(fixture)).not.toContain('Sato');
+      httpMock.verify();
+    });
+
+    it('shows SPECIES_IN_USE verbatim in the banner, because it names the count', async () => {
+      const { fixture, component, httpMock } = setup(SPECIES_MANAGER);
+      await load(fixture, httpMock);
+
+      component.askDelete(TILAPIA);
+      component.confirmDelete();
+      gql(httpMock, 'mutation DeleteSpecies').flush({
+        data: null,
+        errors: [
+          {
+            message: 'Aina hii inatumika kwenye mizunguko 3. Haiwezi kufutwa - ihariri badala yake.',
+            path: ['deleteSpecies'],
+            extensions: { errorCode: 'SPECIES_IN_USE', classification: 'BAD_REQUEST' },
+          },
+        ],
+      });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.actionErrorMessage()).toContain('mizunguko 3');
+      expect(testId(fixture, 'action-error')).toBeTruthy();
+      expect(component.deleteTarget()).toBeNull();
+
+      component.dismissActionError();
+      fixture.detectChanges();
+      expect(testId(fixture, 'action-error')).toBeNull();
+      httpMock.verify();
+    });
+  });
+
   /**
    * The route gate, run against the REAL route table rather than a guard built
    * in the test - what is being checked is the wiring, and a guard constructed

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { GraphqlService } from './graphql';
-import { CreateSpeciesArgs, Species } from '../models/species';
+import { CreateSpeciesArgs, Species, UpdateSpeciesArgs } from '../models/species';
 
 /**
  * The species catalogue - reading it, and adding to it.
@@ -51,6 +51,29 @@ export class SpeciesService {
       })
       .pipe(map((data) => data.createSpecies));
   }
+
+  /**
+   * Corrects a species. Same rules as create (CONFLICT for another species'
+   * name, VALIDATION_ERROR for the numbers). Existing cycles keep their stored
+   * harvest dates.
+   */
+  update(args: UpdateSpeciesArgs): Observable<Species> {
+    return this.graphql
+      .query<{ updateSpecies: Species }>(UPDATE_SPECIES, {
+        speciesId: args.speciesId,
+        name: args.name,
+        growthMonthsAvg: args.growthMonthsAvg,
+        avgHarvestWeightKg: args.avgHarvestWeightKg,
+      })
+      .pipe(map((data) => data.updateSpecies));
+  }
+
+  /** Soft-deletes a species. Refused with SPECIES_IN_USE while a cycle uses it. */
+  remove(speciesId: number): Observable<boolean> {
+    return this.graphql
+      .query<{ deleteSpecies: boolean }>(DELETE_SPECIES, { speciesId })
+      .pipe(map((data) => data.deleteSpecies));
+  }
 }
 
 const SPECIES_FIELDS = `
@@ -75,5 +98,27 @@ const CREATE_SPECIES = `
       growthMonthsAvg: $growthMonthsAvg
       avgHarvestWeightKg: $avgHarvestWeightKg
     ) { ${SPECIES_FIELDS} }
+  }
+`;
+
+const UPDATE_SPECIES = `
+  mutation UpdateSpecies(
+    $speciesId: Int!
+    $name: String!
+    $growthMonthsAvg: Float!
+    $avgHarvestWeightKg: Float!
+  ) {
+    updateSpecies(
+      speciesId: $speciesId
+      name: $name
+      growthMonthsAvg: $growthMonthsAvg
+      avgHarvestWeightKg: $avgHarvestWeightKg
+    ) { ${SPECIES_FIELDS} }
+  }
+`;
+
+const DELETE_SPECIES = `
+  mutation DeleteSpecies($speciesId: Int!) {
+    deleteSpecies(speciesId: $speciesId)
   }
 `;

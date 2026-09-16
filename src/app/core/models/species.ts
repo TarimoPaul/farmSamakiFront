@@ -11,11 +11,10 @@
  * `manage_species` (V20, OWNER and FARM_MANAGER only), because what is written
  * here appears on every farm at once.
  *
- * THERE IS STILL NO `updateSpecies`, and that is a decision rather than a gap.
- * `growthMonthsAvg` computes `expectedHarvestDate` for EVERY cycle pointing at
- * the species, including ones already running - so editing it would silently
- * move harvest dates a farmer has already been shown. A misspelt species is
- * added again under the right name.
+ * EDITING DOES NOT MOVE EXISTING HARVEST DATES. `expectedHarvestDate` is
+ * STORED on the cycle when it is created and never recomputed, so a new
+ * `growthMonthsAvg` only affects cycles started afterwards. Deleting is
+ * refused with SPECIES_IN_USE while any cycle points at the species.
  *
  * `speciesId` is a string because the schema types it `ID!`, which GraphQL
  * serialises as a string even though the column is an integer. Anything
@@ -64,4 +63,13 @@ export interface CreateSpeciesArgs {
   name: string;
   growthMonthsAvg: number;
   avgHarvestWeightKg: number;
+}
+
+/**
+ * What `updateSpecies` is called with - the create's three flat arguments
+ * plus the id, the same shape as UpdateFeedTypeArgs. `speciesId` is a NUMBER
+ * here because the mutation declares `Int!`, while the query returns `ID!`.
+ */
+export interface UpdateSpeciesArgs extends CreateSpeciesArgs {
+  speciesId: number;
 }

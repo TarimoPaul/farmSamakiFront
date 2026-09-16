@@ -7,10 +7,13 @@ import { Species as SpeciesRow } from '../core/models/species';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { apiErrorMessage } from '../core/i18n/error-messages';
+import { ActionMenu } from '../shared/ui/action-menu/action-menu';
 import { Button } from '../shared/ui/button/button';
+import { ConfirmDialog } from '../shared/ui/confirm-dialog/confirm-dialog';
 import { DataTable, DataTableColumn } from '../shared/ui/data-table/data-table';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
 import { FormField } from '../shared/ui/form-field/form-field';
+import { Modal } from '../shared/ui/modal/modal';
 import { Toast } from '../shared/ui/toast/toast';
 import { SPECIES_I18N } from './species.i18n';
 
@@ -47,13 +50,17 @@ const NAME_MAX_LENGTH = 80;
  * list is already on Production for everyone else. That is also why nothing
  * inside is gated again: whoever is here holds the one code that matters.
  *
- * NO EDIT AND NO DELETE, and not because this slice ran short - the backend
- * has neither mutation, on purpose. `growthMonthsAvg` computes
- * `expectedHarvestDate` for EVERY cycle pointing at the species, running ones
- * included, so editing it would silently shift harvest dates a farmer has
- * already been shown and planned around. That is a question needing the
- * farmer's own decision, not a quiet mutation. A misspelt species is added
- * again under the right name - which is also why a deleted name stays taken.
+ * EDIT AND DELETE live in the row's action menu, both `manage_species`.
+ *
+ *  - EDIT shares the register form's controls (same rules, no drift), the way
+ *    Feed Catalogue does. It does NOT move harvest dates of cycles already
+ *    running: `expectedHarvestDate` is stored on the cycle at creation.
+ *  - DELETE asks first and is refused with SPECIES_IN_USE while any cycle
+ *    points at the species - the delete is soft, and hiding a referenced
+ *    species would make its cycles fail to read. That refusal is shown in the
+ *    banner in the backend's own words, because it names how many cycles.
+ *    A deleted name stays taken (the row is still there, and the column is
+ *    UNIQUE).
  *
  * THE DECIMAL IS LOAD-BEARING. `growth_months_avg` is `NUMERIC(4,1)` and the
  * backend goes out of its way to keep the tenth: 6.5 months is a real answer,
@@ -64,7 +71,18 @@ const NAME_MAX_LENGTH = 80;
 @Component({
   selector: 'app-species',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, Button, DataTable, EmptyState, FormField, Toast],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    ActionMenu,
+    Button,
+    ConfirmDialog,
+    DataTable,
+    EmptyState,
+    FormField,
+    Modal,
+    Toast,
+  ],
   templateUrl: './species.html',
   styleUrl: './species.scss',
 })
@@ -87,6 +105,35 @@ export class SpeciesScreen implements OnInit {
   readonly growthError = signal<string | null>(null);
   readonly weightError = signal<string | null>(null);
   readonly toastMessage = signal<string | null>(null);
+
+  /**
+   * The species being edited, or null while the register form owns the
+   * controls. ONE FORM SERVES BOTH, as on Feed Catalogue: `submit()` reads
+   * this to decide which mutation it sends.
+   */
+  readonly editTarget = signal<SpeciesRow | null>(null);
+
+  readonly deleteTarget = signal<SpeciesRow | null>(null);
+  readonly deleting = signal(false);
+
+  /**
+   * A refused row action - in practice SPECIES_IN_USE - kept in a banner
+   * until dismissed. The failure is stored, not the line, so it follows the
+   * language toggle.
+   */
+  readonly actionError = signal<ApiError | null>(null);
+
+  /** SPECIES_IN_USE keeps the backend's sentence: it names how many cycles. */
+  readonly actionErrorMessage = computed(() => {
+    const error = this.actionError();
+    if (!error) {
+      return null;
+    }
+    if (error.errorCode === ERROR_CODE.SPECIES_IN_USE) {
+      return error.message;
+    }
+    return this.messageFor(error);
+  });
 
   /**
    * Both numbers are left as text controls rather than declared `number`.
@@ -246,12 +293,25 @@ export class SpeciesScreen implements OnInit {
       return;
     }
 
+    // The ONE branch between registering and editing; every rule above is
+    // shared.
+    const target = this.editTarget();
+    const request = target
+      ? this.speciesService.update({
+          speciesId: Number(target.speciesId),
+          name,
+          growthMonthsAvg,
+          avgHarvestWeightKg,
+        })
+      : this.speciesService.create({ name, growthMonthsAvg, avgHarvestWeightKg });
+
     this.saving.set(true);
-    this.speciesService.create({ name, growthMonthsAvg, avgHarvestWeightKg }).subscribe({
+    request.subscribe({
       next: () => {
         this.saving.set(false);
+        this.editTarget.set(null);
         this.form.reset({ name: '', growthMonthsAvg: '', avgHarvestWeightKg: '' });
-        this.toastMessage.set(this.t().createdToast);
+        this.toastMessage.set(target ? this.t().savedToast : this.t().createdToast);
         // Re-read rather than push the returned row onto the list: the backend
         // is the authority on what the catalogue now holds - and on what it
         // stored, which is the value at the column's scale rather than the one
@@ -296,6 +356,81 @@ export class SpeciesScreen implements OnInit {
       return;
     }
     this.formError.set(this.messageFor(error));
+  }
+
+  // ------------------------------------------------------------ edit
+
+  openEdit(row: SpeciesRow): void {
+    this.clearFormErrors();
+    this.actionError.set(null);
+    // Written back as strings, matching how the empty form starts;
+    // parseDecimal takes either.
+    this.form.reset({
+      name: row.name,
+      growthMonthsAvg: String(row.growthMonthsAvg),
+      avgHarvestWeightKg: String(row.avgHarvestWeightKg),
+    });
+    this.editTarget.set(row);
+  }
+
+  closeEdit(): void {
+    if (this.saving()) {
+      return;
+    }
+    this.editTarget.set(null);
+    this.form.reset({ name: '', growthMonthsAvg: '', avgHarvestWeightKg: '' });
+    this.clearFormErrors();
+  }
+
+  private clearFormErrors(): void {
+    this.formError.set(null);
+    this.nameError.set(null);
+    this.growthError.set(null);
+    this.weightError.set(null);
+  }
+
+  // ---------------------------------------------------------- delete
+
+  askDelete(row: SpeciesRow): void {
+    this.actionError.set(null);
+    this.deleteTarget.set(row);
+  }
+
+  cancelDelete(): void {
+    if (!this.deleting()) {
+      this.deleteTarget.set(null);
+    }
+  }
+
+  confirmDelete(): void {
+    const row = this.deleteTarget();
+    if (!row || this.deleting()) {
+      return;
+    }
+
+    this.deleting.set(true);
+    this.speciesService.remove(Number(row.speciesId)).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.deleteTarget.set(null);
+        this.toastMessage.set(this.t().deletedToast);
+        this.fetch();
+      },
+      error: (err: unknown) => {
+        this.deleting.set(false);
+        // Closed on failure: the refusal is a different statement from the
+        // question asked, and it belongs in the banner.
+        this.deleteTarget.set(null);
+        const error = asApiError(err);
+        if (!error.sessionHandled) {
+          this.actionError.set(error);
+        }
+      },
+    });
+  }
+
+  dismissActionError(): void {
+    this.actionError.set(null);
   }
 
   dismissToast(): void {

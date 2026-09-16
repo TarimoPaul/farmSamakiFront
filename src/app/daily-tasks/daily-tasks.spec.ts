@@ -481,6 +481,145 @@ describe('DailyTasks', () => {
     });
   });
 
+  describe('reading the sheet at a glance', () => {
+    it('draws a real tick and circle, never mojibake', async () => {
+      const { fixture, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      const ticks = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll('.task__tick'),
+      ].map((el) => (el.textContent ?? '').trim());
+      expect(ticks).toContain('✓');
+      expect(ticks).toContain('○');
+      expect(text(fixture)).not.toContain('â');
+    });
+
+    it('titles the card with the day in words, not the ISO date again', async () => {
+      const { fixture, component, httpMock } = setup(READER, { lang: 'en' });
+      await load(fixture, httpMock);
+
+      const title = all(fixture, 'sheet-date')[0].textContent ?? '';
+      expect(title.trim()).toBe(component.displayDate());
+      expect(title).not.toContain(component.today);
+    });
+
+    it('shows progress as a percentage and per unit', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      // 1 of 4 done.
+      expect(component.progressPercent()).toBe(25);
+      expect(text(fixture)).toContain('(25%)');
+      const counts = all(fixture, 'group-count').map((el) => (el.textContent ?? '').trim());
+      expect(counts).toEqual(['1 / 2', '0 / 1', '0 / 1']);
+    });
+
+    it('filters to outstanding or done without a new request, and keeps the counts', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      component.setFilter('outstanding');
+      fixture.detectChanges();
+      expect(all(fixture, 'task-row').length).toBe(3);
+      // The heading still counts the whole unit.
+      expect((all(fixture, 'group-count')[0].textContent ?? '').trim()).toBe('1 / 2');
+
+      component.setFilter('done');
+      fixture.detectChanges();
+      expect(all(fixture, 'task-row').length).toBe(1);
+      expect(text(fixture)).toContain('Juma');
+
+      httpMock.verify();
+    });
+
+    it('says so when a filter leaves nothing to show', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      const noneDone = {
+        data: {
+          farmDailyTasks: TASKS.data.farmDailyTasks.map((task) => ({
+            ...task,
+            done: false,
+            status: 'OUTSTANDING',
+            completedAt: null,
+            completedByName: null,
+          })),
+        },
+      };
+      await load(fixture, httpMock, noneDone);
+
+      component.setFilter('done');
+      fixture.detectChanges();
+
+      expect(all(fixture, 'filter-empty').length).toBe(1);
+      expect(text(fixture)).toContain(DAILY_TASKS_I18N.sw.filterEmptyDone);
+    });
+
+    it('moves one day back and forward with the arrow buttons', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      component.shiftDay(-1);
+      fixture.detectChanges();
+      const back = gql(httpMock, 'FarmDailyTasks');
+      expect(variablesOf(back)).toEqual({ date: shiftDays(component.today, -1) });
+      back.flush(TASKS);
+      await fixture.whenStable();
+
+      component.shiftDay(1);
+      fixture.detectChanges();
+      const forward = gql(httpMock, 'FarmDailyTasks');
+      expect(variablesOf(forward)).toEqual({ date: component.today });
+      forward.flush(TASKS);
+      httpMock.verify();
+    });
+
+    it('marks every undone task on a past day as time passed, and none that are done', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      await pickDate(fixture, httpMock, shiftDays(component.today, -1));
+
+      expect(all(fixture, 'time-passed').length).toBe(3);
+      expect(component.timePassedCount()).toBe(3);
+    });
+
+    it('marks a task as time passed today only once its time has gone by', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      component.nowTime.set('08:00');
+      await load(fixture, httpMock);
+
+      // 07:00 (DEV-B2) is past; 09:00 and 17:00 are not; 07:00 DEV-A1 is done.
+      expect(all(fixture, 'time-passed').length).toBe(1);
+      // And the next task is the earliest one still ahead.
+      expect(component.nextTask()?.task.scheduledTime).toBe('09:00');
+    });
+
+    it('marks nothing as time passed on a future day', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      await pickDate(fixture, httpMock, shiftDays(component.today, 1));
+
+      expect(all(fixture, 'time-passed').length).toBe(0);
+    });
+
+    it('summarises the day on the rail', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      component.nowTime.set('08:00');
+      await load(fixture, httpMock);
+
+      const by = (label: string) => component.summary().find((row) => row.label === label)?.value;
+      expect(by('Kazi zote')).toBe('4');
+      expect(by('Zimefanyika')).toBe('1');
+      expect(by('Hazijafanyika')).toBe('3');
+      expect(by('Muda umepita')).toBe('1');
+
+      const rail = (fixture.nativeElement as HTMLElement).querySelector('.module-rail');
+      expect(rail?.querySelector('[data-rail="next"]')).toBeTruthy();
+      expect(rail?.querySelector('[data-rail="by-unit"]')?.textContent).toContain('DEV-B2');
+    });
+  });
+
   describe('copy', () => {
     it('holds the same keys in both languages', () => {
       expect(Object.keys(DAILY_TASKS_I18N.en).sort()).toEqual(

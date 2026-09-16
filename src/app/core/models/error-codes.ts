@@ -80,6 +80,17 @@ export const ERROR_CODE = {
    */
   FEED_TYPE_IN_USE: 'FEED_TYPE_IN_USE',
   /**
+   * 409 - a species cannot be deleted while any cycle points at it
+   * (SpeciesService.delete).
+   *
+   * The same family as FEED_TYPE_IN_USE and for the same reason: the delete is
+   * soft, `Species` carries `@SQLRestriction`, and `Cycle.speciesName` is
+   * `String!` - hiding a referenced species would make its cycles fail to
+   * read. The backend's sentence names how many cycles, so the screen shows
+   * it verbatim.
+   */
+  SPECIES_IN_USE: 'SPECIES_IN_USE',
+  /**
    * 409 - the purchase has already been reversed, so it can be neither
    * reversed nor corrected again (FeedService.reverseFeedPurchase /
    * correctFeedPurchase).
