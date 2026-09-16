@@ -94,6 +94,7 @@
 
 /* The day's progress at a glance, in the same green as a done row. */
 .tasks__bar {
+  display: flex;
   height: 0.4rem;
   margin: 0 0.25rem 0.9rem;
   border-radius: 999px;
@@ -101,11 +102,26 @@
   overflow: hidden;
 }
 
-.tasks__bar-fill {
+.tasks__bar-fill,
+.tasks__bar-closed {
   display: block;
   height: 100%;
-  background: var(--task-done);
   transition: width 0.25s ease;
+}
+
+.tasks__bar-fill {
+  background: var(--task-done);
+}
+
+/* Closed without a record: amber, after the green - visible, never mistaken
+   for progress. */
+.tasks__bar-closed {
+  background: var(--notice, #b45309);
+  opacity: 0.6;
+}
+
+.tasks__closed-count {
+  color: var(--notice, #b45309);
 }
 
 /* All / Outstanding / Done - the same segmented look as Members' mode switch. */
@@ -272,8 +288,117 @@
   color: var(--muted);
 }
 
+/* Closed without a record. Grey ground, amber warning sign - deliberately NOT
+   --task-done: the sheet is read by scanning for green, and this task was not
+   done. */
+.task--closed {
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+  border-radius: var(--radius);
+
+  .task__tick {
+    color: var(--notice, #b45309);
+    font-weight: 700;
+  }
+
+  .task__name {
+    color: var(--muted);
+  }
+}
+
+.task__closed-by {
+  font-size: 0.78rem;
+  color: var(--notice, #b45309);
+}
+
+.task__closure {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
 .task__action {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+
+/* The escape hatch is a link, and a small one: the button beside it is the
+   path this screen wants taken. */
+.task__close-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.76rem;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+.task-close {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  border-left: 3px solid var(--notice, #b45309);
+  background: var(--notice-bg, rgba(180, 83, 9, 0.08));
+}
+
+.task-close__reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.task-close__title {
+  padding: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.task-close__hint {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--notice, #b45309);
+}
+
+.task-close__reason {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.86rem;
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.task-close__note-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.task-close__note {
+  resize: vertical;
+}
+
+.task-close__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 640px) {

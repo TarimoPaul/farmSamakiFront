@@ -35,6 +35,14 @@ export const FEEDING_I18N = {
     cancelConfirm: 'Ghairi',
     savedToast: 'Kulisha kumehifadhiwa.',
 
+    // Ukifika hapa kutoka kwenye kazi ya kulisha (Kazi za Kila Siku).
+    taskContextTitle: 'Unarekodi kwa ajili ya kazi',
+    taskContextFallback: 'Kazi ya kulisha',
+    taskContextHint: 'Ukihifadhi, ulishaji utarekodiwa NA kazi hii itakamilika - kwa pamoja.',
+    taskContextAlreadyClosed:
+      'Kazi hii tayari imekamilika au imefungwa kwa siku hii. Hakuna cha kuhifadhi hapa.',
+    backToTasks: 'Rudi kwenye kazi',
+
     // Utoshelevu wa chakula kwa umri wa samaki - jibu la seva, si hesabu yetu.
     suitabilitySafeLowerTag: 'chakula cha samaki wadogo',
     suitabilitySafeLowerNote: 'chakula cha samaki wadogo — hawa watakula lakini si bora',
@@ -121,6 +129,14 @@ export const FEEDING_I18N = {
     submitConfirm: 'Yes, save it',
     cancelConfirm: 'Cancel',
     savedToast: 'Feeding saved.',
+
+    // Arriving here from a feeding task (Daily Tasks).
+    taskContextTitle: 'Recording for a task',
+    taskContextFallback: 'Feeding task',
+    taskContextHint: 'Saving records the feeding AND completes this task - together.',
+    taskContextAlreadyClosed:
+      'This task is already done or closed for this day. There is nothing to save here.',
+    backToTasks: 'Back to tasks',
 
     // Suitability is the SERVER'S judgement about the age of the fish in this
     // cycle, not a calculation of ours - these lines only report it.

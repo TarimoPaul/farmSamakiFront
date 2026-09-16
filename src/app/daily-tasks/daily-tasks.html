@@ -65,8 +65,15 @@
         <section class="card" data-panel="tasks">
           <header class="card__head tasks__card-head">
             <h2 class="card__title" data-testid="sheet-date">{{ displayDate() }}</h2>
-            <p class="tasks__progress">
-              {{ t().progressLabel }}: <strong>{{ doneCount() }}</strong> / {{ tasks().length }}
+            <!-- "Zimefanyika 3 · Zimefungwa 1 / 6": closed is its own number,
+                 never added to done. Shown only when there is one. -->
+            <p class="tasks__progress" data-testid="progress">
+              {{ t().progressLabel }}: <strong>{{ doneCount() }}</strong>
+              @if (closedCount() > 0) {
+                &middot; <span class="tasks__closed-count">{{ t().progressClosed }}
+                <strong>{{ closedCount() }}</strong></span>
+              }
+              / {{ tasks().length }}
               <span class="tasks__percent">({{ progressPercent() }}%)</span>
             </p>
           </header>
@@ -80,6 +87,7 @@
             [attr.aria-label]="t().progressLabel"
           >
             <span class="tasks__bar-fill" [style.width.%]="progressPercent()"></span>
+            <span class="tasks__bar-closed" [style.width.%]="closedPercent()"></span>
           </div>
 
           <div class="tasks__filter" role="group" [attr.aria-label]="t().filterLabel">
@@ -120,7 +128,7 @@
                   {{ group.speciesName ?? t().noSpecies }}
                 </span>
                 <span class="task-group__count" data-testid="group-count">
-                  {{ group.done }} / {{ group.total }}
+                  {{ group.done }}@if (group.closed) { &middot; {{ t().progressClosed }} {{ group.closed }} } / {{ group.total }}
                 </span>
               </h3>
 
@@ -129,14 +137,18 @@
                   <li
                     class="task"
                     [class.task--done]="task.done"
+                    [class.task--closed]="isClosed(task)"
                     [class.task--passed]="isTimePassed(task)"
                     data-testid="task-row"
                   >
                     <!-- Entities, not literal glyphs: the file's encoding can
-                           never turn them into mojibake again. -->
+                           never turn them into mojibake again. A closed task
+                           gets a warning sign, never the tick. -->
                     <span class="task__tick" aria-hidden="true">
                       @if (task.done) {
                         &#10003;
+                      } @else if (isClosed(task)) {
+                        &#9888;
                       } @else {
                         &#9675;
                       }
@@ -153,6 +165,9 @@
                              is not branched on any permission. -->
                       @if (task.done) {
                         <small class="task__by" data-testid="task-by">{{ completedLine(task) }}</small>
+                      } @else if (isClosed(task)) {
+                        <small class="task__closed-by" data-testid="task-closed-by">{{ closedLine(task) }}</small>
+                        <small class="task__closure" data-testid="task-closure">{{ closureLine(task) }}</small>
                       }
 
                       <!-- Presentation only: the backend still says OUTSTANDING,
@@ -178,28 +193,112 @@
                            VIEWER holds `view_dashboard` and reads everything
                            above; without `mark_task_done` there is no button at
                            all, rather than a disabled one they cannot explain. -->
-                    @if (!task.done) {
+                    @if (!task.done && !isClosed(task)) {
                       <span
                         class="task__action"
                         *appHasPermission="PERMISSION.MARK_TASK_DONE"
                         [attr.title]="isFuture() ? t().futureTooltip : null"
                       >
-                        <app-button
-                          [disabled]="isFuture()"
-                          [loading]="markingTaskId() === task.taskId"
-                          (clicked)="markDone(task)"
-                        >
-                          {{ t().mark }}
-                        </app-button>
+                        @if (isFeeding(task)) {
+                          <!-- A feeding task is done BECAUSE a feeding was
+                               recorded - so its button goes to the form, and
+                               there is no bare tick for it. -->
+                          @if (canLogFeeding() && task.cycleId !== null) {
+                            <app-button
+                              data-testid="record-feeding"
+                              [disabled]="isFuture()"
+                              (clicked)="recordFeeding(task)"
+                            >
+                              {{ t().recordFeeding }}
+                            </app-button>
+                          }
+                          <button
+                            type="button"
+                            class="task__close-link"
+                            data-testid="close-without-record"
+                            [disabled]="isFuture()"
+                            (click)="openClose(task)"
+                          >
+                            {{ t().closeWithoutRecord }}
+                          </button>
+                        } @else {
+                          <app-button
+                            data-testid="mark-done"
+                            [disabled]="isFuture()"
+                            [loading]="markingTaskId() === task.taskId"
+                            (clicked)="markDone(task)"
+                          >
+                            {{ t().mark }}
+                          </app-button>
+                        }
                       </span>
                     }
                   </li>
+
+                  <!-- The reason picker, under its own row. Inline rather than a
+                       dialog for the same reason Feeding's confirm step is: a
+                       modal at the tank is a thing to dismiss, not to read. -->
+                  @if (closingTaskId() === task.taskId) {
+                    <li class="task-close" data-panel="close-without-record">
+                      <fieldset class="task-close__reasons">
+                        <legend class="task-close__title">{{ t().closeTitle }}</legend>
+                        <p class="task-close__hint">{{ t().closeHint }}</p>
+                        @for (reason of CLOSURE_REASONS; track reason) {
+                          <label class="task-close__reason">
+                            <input
+                              type="radio"
+                              name="close-reason-{{ task.taskId }}"
+                              [value]="reason"
+                              [checked]="closeReason() === reason"
+                              [attr.data-reason]="reason"
+                              (change)="closeReason.set(reason)"
+                            />
+                            {{ t().reasons[reason] }}
+                          </label>
+                        }
+                      </fieldset>
+
+                      <label class="task-close__note-label" for="close-note-{{ task.taskId }}">
+                        {{ t().closeNoteLabel }}
+                      </label>
+                      <textarea
+                        id="close-note-{{ task.taskId }}"
+                        class="text-input task-close__note"
+                        rows="2"
+                        [value]="closeNote()"
+                        (input)="onCloseNoteInput($event)"
+                      ></textarea>
+
+                      @if (closeError(); as message) {
+                        <p class="form-error" role="alert" data-testid="close-error">{{ message }}</p>
+                      }
+
+                      <div class="task-close__actions">
+                        <app-button variant="ghost" (clicked)="cancelClose()">
+                          {{ t().closeCancel }}
+                        </app-button>
+                        <app-button
+                          data-testid="close-confirm"
+                          [loading]="closeSaving()"
+                          (clicked)="submitClose(task)"
+                        >
+                          {{ t().closeConfirm }}
+                        </app-button>
+                      </div>
+                    </li>
+                  }
                 }
               </ul>
             </section>
           } @empty {
             <p class="tasks__filter-empty" data-testid="filter-empty">
-              {{ filter() === 'done' ? t().filterEmptyDone : t().filterEmptyOutstanding }}
+              {{
+                filter() === 'done'
+                  ? t().filterEmptyDone
+                  : filter() === 'closed'
+                    ? t().filterEmptyClosed
+                    : t().filterEmptyOutstanding
+              }}
             </p>
           }
         </section>
@@ -238,7 +337,9 @@
           @for (group of groups(); track group.key) {
             <div class="side-stat">
               <span>{{ group.unitCode ?? t().noUnit }}</span>
-              <strong>{{ group.done }} / {{ group.total }}</strong>
+              <strong>
+                {{ group.done }}@if (group.closed) { &middot; {{ t().progressClosed }} {{ group.closed }} } / {{ group.total }}
+              </strong>
             </div>
           }
         </div>

@@ -62,6 +62,40 @@ export const DAILY_TASKS_I18N = {
     mark: 'Weka imefanyika',
     markedToast: 'Kazi imewekwa imefanyika.',
 
+    // Kazi za KULISHA hazina "Weka imefanyika": zinakamilika kwa kurekodi
+    // ulishaji wenyewe (V28).
+    recordFeeding: 'Rekodi ulishaji',
+    recordedToast: 'Ulishaji umerekodiwa na kazi imekamilika.',
+
+    /** Njia ya dharura - HAIHESABIWI kuwa imefanyika. */
+    closeWithoutRecord: 'Funga bila rekodi',
+    closeTitle: 'Kwa nini hakuna rekodi ya ulishaji?',
+    closeHint:
+      'Vikumbusho vitasimama, lakini kazi HAITAHESABIWA kuwa imefanyika. Stoo ya chakula haiguswi.',
+    closeReasonLabel: 'Sababu',
+    // Code thabiti kutoka backend -> maneno. Code yenyewe haionyeshwi kamwe.
+    reasons: {
+      OFFLINE: 'Hakukuwa na mtandao',
+      FORGOT: 'Nilisahau kurekodi',
+      DEVICE_FAILURE: 'Simu au kifaa kiliharibika',
+      OTHER: 'Sababu nyingine',
+    },
+    closeNoteLabel: 'Maelezo',
+    closeNoteRequired: 'Andika maelezo ya sababu nyingine.',
+    closeReasonRequired: 'Chagua sababu.',
+    closeConfirm: 'Funga kazi',
+    closeCancel: 'Ghairi',
+    closedToast: 'Kazi imefungwa bila rekodi.',
+
+    statusClosed: 'Imefungwa bila rekodi',
+    /** "imefungwa na Juma, 07:14" */
+    closedBy: 'imefungwa na',
+    closedAnonymous: 'imefungwa',
+    progressClosed: 'Zimefungwa',
+    filterClosed: 'Zimefungwa',
+    filterEmptyClosed: 'Hakuna kazi iliyofungwa bila rekodi kwa siku hii.',
+    railClosed: 'Zimefungwa bila rekodi',
+
     emptyTitle: 'Hakuna kazi kwa siku hii',
     emptyMessage:
       'Kazi hutengenezwa na mzunguko unaoendelea. Nenda kwenye Uzalishaji, anzisha mzunguko kwenye kitengo - kazi za kulisha na kuangalia maji zitajitokeza hapa zenyewe kila siku.',
@@ -122,6 +156,40 @@ export const DAILY_TASKS_I18N = {
 
     mark: 'Mark done',
     markedToast: 'Task marked done.',
+
+    // FEEDING tasks have no "Mark done": they are completed by recording the
+    // feeding itself (V28).
+    recordFeeding: 'Record feeding',
+    recordedToast: 'Feeding recorded and task done.',
+
+    /** The escape hatch - NOT counted as done. */
+    closeWithoutRecord: 'Close without record',
+    closeTitle: 'Why is there no feeding record?',
+    closeHint:
+      'Reminders will stop, but the task will NOT be counted as done. Feed stock is not touched.',
+    closeReasonLabel: 'Reason',
+    // Stable backend codes -> words. The code itself is never shown.
+    reasons: {
+      OFFLINE: 'No network',
+      FORGOT: 'Forgot to record',
+      DEVICE_FAILURE: 'Phone or device failed',
+      OTHER: 'Other reason',
+    },
+    closeNoteLabel: 'Note',
+    closeNoteRequired: 'Write a note for the other reason.',
+    closeReasonRequired: 'Choose a reason.',
+    closeConfirm: 'Close task',
+    closeCancel: 'Cancel',
+    closedToast: 'Task closed without a record.',
+
+    statusClosed: 'Closed, no record',
+    /** "closed by Juma, 07:14" */
+    closedBy: 'closed by',
+    closedAnonymous: 'closed',
+    progressClosed: 'Closed',
+    filterClosed: 'Closed',
+    filterEmptyClosed: 'No task was closed without a record on this day.',
+    railClosed: 'Closed, no record',
 
     emptyTitle: 'No tasks for this day',
     emptyMessage:

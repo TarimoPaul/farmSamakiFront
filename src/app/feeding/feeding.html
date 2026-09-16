@@ -31,6 +31,33 @@
          only filters what this screen already holds. -->
     <div class="module-layout">
       <div class="module-layout__main">
+        <!-- Opened from a feeding task: say which one, and that saving closes
+             it. The task's name and time are what tell morning from evening. -->
+        @if (taskContext; as context) {
+          <section class="card task-context" data-panel="task-context">
+            <header class="card__head">
+              <h2 class="card__title">{{ t().taskContextTitle }}</h2>
+            </header>
+            <p class="task-context__line" data-testid="task-context-line">
+              <strong>{{ task()?.taskType ?? t().taskContextFallback }}</strong>
+              @if (task()?.scheduledTime; as time) {
+                &middot; {{ time }}
+              }
+              &middot; {{ context.date }}
+            </p>
+            @if (taskAlreadyClosed()) {
+              <p class="form-error" role="alert" data-testid="task-already-closed">
+                {{ t().taskContextAlreadyClosed }}
+              </p>
+            } @else {
+              <p class="task-context__hint">{{ t().taskContextHint }}</p>
+            }
+            <div>
+              <app-button variant="ghost" (clicked)="backToTasks()">{{ t().backToTasks }}</app-button>
+            </div>
+          </section>
+        }
+
         <section class="card" data-panel="context">
           <p class="context__line">
             {{ t().contextLabel }}:
@@ -114,7 +141,15 @@
               </app-form-field>
 
               <app-form-field [label]="t().fieldDate" for="feed-date">
-                <input id="feed-date" class="text-input" type="date" formControlName="logDate" />
+                <!-- Read-only for a task: the log and the task's completion share
+                     the task's day, and submit() sends that day regardless. -->
+                <input
+                  id="feed-date"
+                  class="text-input"
+                  type="date"
+                  formControlName="logDate"
+                  [readOnly]="!!taskContext"
+                />
               </app-form-field>
             </div>
 
@@ -144,7 +179,11 @@
                inside the form, so a click goes through ngSubmit exactly as
                pressing Enter does. Wiring both would call submit() twice. -->
             <div class="feed-form__actions">
-              <app-button type="submit" [loading]="saving()" [disabled]="formDisabled()">
+              <app-button
+                type="submit"
+                [loading]="saving()"
+                [disabled]="formDisabled() || taskAlreadyClosed()"
+              >
                 {{ awaitingConfirm() ? t().submitConfirm : t().submit }}
               </app-button>
             </div>

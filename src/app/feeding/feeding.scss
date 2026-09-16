@@ -205,3 +205,20 @@
   font-size: 0.85rem;
   line-height: 1.5;
 }
+
+/* Opened from a feeding task: the card that says which task this save closes. */
+.task-context {
+  border-left: 3px solid var(--brand);
+}
+
+.task-context__line {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+  color: var(--on-surface);
+}
+
+.task-context__hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}

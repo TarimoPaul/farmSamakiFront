@@ -262,6 +262,13 @@ export interface LogFeedingInput {
   quantityKg: number;
   /** ISO date, yyyy-MM-dd. */
   logDate: string;
+  /**
+   * The FEEDING task this record closes. When present the backend writes the
+   * log, the stock movement and the task's DONE in ONE transaction - all or
+   * nothing. When absent no task is closed: a bare log cannot tell morning
+   * from evening.
+   */
+  taskId?: number;
 }
 
 /**

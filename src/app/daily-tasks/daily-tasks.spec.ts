@@ -1,10 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { DailyTasks } from './daily-tasks';
 import { DAILY_TASKS_I18N } from './daily-tasks.i18n';
 import { LanguageService, Lang } from '../core/services/language';
+import { CycleSelectionService } from '../core/services/cycle-selection';
 import { environment } from '../../environments/environment';
 
 /**
@@ -22,6 +23,11 @@ const TASKS = {
     farmDailyTasks: [
       {
         taskId: '11',
+        cycleId: 7,
+        taskKind: 'FEEDING',
+        feedingLogId: 501,
+        closureReason: null,
+        closureNote: null,
         unitCode: 'DEV-A1',
         speciesName: 'Sato',
         taskType: 'Kulisha - Asubuhi',
@@ -37,6 +43,11 @@ const TASKS = {
       },
       {
         taskId: '12',
+        cycleId: 7,
+        taskKind: 'FEEDING',
+        feedingLogId: null,
+        closureReason: null,
+        closureNote: null,
         unitCode: 'DEV-A1',
         speciesName: 'Sato',
         taskType: 'Kulisha - Jioni',
@@ -52,6 +63,11 @@ const TASKS = {
       },
       {
         taskId: '13',
+        cycleId: 8,
+        taskKind: 'FEEDING',
+        feedingLogId: null,
+        closureReason: null,
+        closureNote: null,
         unitCode: 'DEV-B2',
         speciesName: 'Kambale',
         taskType: 'Kulisha - Asubuhi',
@@ -67,6 +83,11 @@ const TASKS = {
       },
       {
         taskId: '14',
+        cycleId: null,
+        taskKind: 'WATER_QUALITY',
+        feedingLogId: null,
+        closureReason: null,
+        closureNote: null,
         unitCode: null,
         speciesName: null,
         taskType: 'Kuangalia Maji',
@@ -84,11 +105,14 @@ const TASKS = {
   },
 };
 
-/** The same sheet after task 13 has been marked: the row the test watches flip. */
+/**
+ * The same sheet after task 14 - the WATER check - has been marked. Only a
+ * non-feeding task can be ticked; a feeding task is done by recording it.
+ */
 const TASKS_AFTER_MARK = {
   data: {
     farmDailyTasks: TASKS.data.farmDailyTasks.map((task) =>
-      task.taskId === '13'
+      task.taskId === '14'
         ? {
             ...task,
             status: 'DONE',
@@ -131,17 +155,58 @@ const FORBIDDEN = {
 const TOKEN_KEY = 'samakiFarm.token';
 const PERMISSIONS_KEY = 'samakiFarm.permissions';
 
+/** The same sheet with task 13 closed without a record. */
+const TASKS_AFTER_CLOSE = {
+  data: {
+    farmDailyTasks: TASKS.data.farmDailyTasks.map((task) =>
+      task.taskId === '13'
+        ? {
+            ...task,
+            status: 'CLOSED_NO_RECORD',
+            done: false,
+            completedAt: '2026-09-06T09:30:00',
+            completedByName: 'D Worker',
+            closureReason: 'FORGOT',
+            closureNote: null,
+          }
+        : task,
+    ),
+  },
+};
+
 const READER = ['view_dashboard'];
 const MARKER = ['view_dashboard', 'mark_task_done'];
+/** A WORKER: can tick, and can record feedings. */
+const FEEDER = ['view_dashboard', 'mark_task_done', 'log_feeding'];
 
-function setup(permissions: string[], options: { lang?: Lang } = {}) {
+function setup(
+  permissions: string[],
+  options: { lang?: Lang; queryParams?: Record<string, string> } = {},
+) {
   localStorage.setItem(TOKEN_KEY, 'a-token');
   localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
 
   TestBed.configureTestingModule({
-    providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      provideRouter([]),
+      ...(options.queryParams
+        ? [
+            {
+              provide: ActivatedRoute,
+              useValue: { snapshot: { queryParamMap: convertToParamMap(options.queryParams) } },
+            },
+          ]
+        : []),
+    ],
   });
   TestBed.inject(LanguageService).setLang(options.lang ?? 'sw');
+  if (options.queryParams) {
+    // The screen strips the params it read, in its constructor - so the spy
+    // must exist before the component does.
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+  }
 
   const fixture = TestBed.createComponent(DailyTasks);
   return {
@@ -173,12 +238,21 @@ const all = (fixture: ComponentFixture<DailyTasks>, testId: string) => [
   ...(fixture.nativeElement as HTMLElement).querySelectorAll(`[data-testid="${testId}"]`),
 ];
 
-/** The mark buttons actually on the page - none at all for a VIEWER. */
-const markButtons = (fixture: ComponentFixture<DailyTasks>) => [
-  ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
-    '.task__action button',
-  ),
+const buttonsIn = (fixture: ComponentFixture<DailyTasks>, selector: string) => [
+  ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(selector),
 ];
+
+/** The "Mark done" buttons - non-feeding tasks only; none at all for a VIEWER. */
+const markButtons = (fixture: ComponentFixture<DailyTasks>) =>
+  buttonsIn(fixture, '[data-testid="mark-done"] button');
+
+/** "Record feeding" - needs log_feeding as well as mark_task_done. */
+const recordButtons = (fixture: ComponentFixture<DailyTasks>) =>
+  buttonsIn(fixture, '[data-testid="record-feeding"] button');
+
+/** "Close without record" - the escape hatch, mark_task_done only. */
+const closeLinks = (fixture: ComponentFixture<DailyTasks>) =>
+  buttonsIn(fixture, 'button[data-testid="close-without-record"]');
 
 /** YYYY-MM-DD, `days` away from `date`. Shifted in UTC so no zone can move it. */
 function shiftDays(date: string, days: number): string {
@@ -364,19 +438,19 @@ describe('DailyTasks', () => {
 
       // A past day is markable: the button is live, not disabled.
       const buttons = markButtons(fixture);
-      expect(buttons.length).toBe(3);
+      expect(buttons.length).toBe(1);
       expect(buttons.every((button) => button.disabled)).toBe(false);
 
-      const task = component.tasks().find((t) => t.taskId === '13')!;
+      const task = component.tasks().find((t) => t.taskId === '14')!;
       component.markDone(task);
 
       const mutation = gql(httpMock, 'CompleteTask');
       expect(variablesOf(mutation)).toEqual({
         // Converted: the type hands out an ID! string, the input takes Int!.
         // And yesterday, because that is the sheet being ticked.
-        input: { taskId: 13, completionDate: yesterday },
+        input: { taskId: 14, completionDate: yesterday },
       });
-      mutation.flush({ data: { completeTask: TASKS_AFTER_MARK.data.farmDailyTasks[2] } });
+      mutation.flush({ data: { completeTask: TASKS_AFTER_MARK.data.farmDailyTasks[3] } });
       await fixture.whenStable();
       fixture.detectChanges();
 
@@ -393,7 +467,7 @@ describe('DailyTasks', () => {
       expect(all(fixture, 'task-by').map((el) => (el.textContent ?? '').trim())).toContain(
         'imefanywa na D Worker, 08:02',
       );
-      expect(markButtons(fixture).length).toBe(2);
+      expect(markButtons(fixture).length).toBe(0);
       httpMock.verify();
     });
 
@@ -403,23 +477,37 @@ describe('DailyTasks', () => {
       await load(fixture, httpMock);
 
       expect(markButtons(fixture).length).toBe(0);
+      expect(recordButtons(fixture).length).toBe(0);
+      expect(closeLinks(fixture).length).toBe(0);
       // Read-only, not blinded: the record is all still there.
       expect(all(fixture, 'task-row').length).toBe(4);
       expect(text(fixture)).toContain('imefanywa na Juma, 07:14');
       expect(panel(fixture, 'date-bar')).toBeTruthy();
     });
 
-    it('is offered on every outstanding task, and on no done one', async () => {
+    it('ticks only non-feeding tasks; outstanding FEEDING tasks get record + close instead', async () => {
+      const { fixture, httpMock } = setup(FEEDER);
+
+      await load(fixture, httpMock);
+
+      // Outstanding: 12 and 13 (feeding), 14 (water). 11 is done - nothing.
+      expect(markButtons(fixture).length).toBe(1);
+      expect(recordButtons(fixture).length).toBe(2);
+      expect(closeLinks(fixture).length).toBe(2);
+    });
+
+    it('offers only "close without record" on a feeding task to someone without log_feeding', async () => {
       const { fixture, httpMock } = setup(MARKER);
 
       await load(fixture, httpMock);
 
-      // Three outstanding of four. The done row has nothing to mark.
-      expect(markButtons(fixture).length).toBe(3);
+      expect(recordButtons(fixture).length).toBe(0);
+      expect(closeLinks(fixture).length).toBe(2);
+      expect(markButtons(fixture).length).toBe(1);
     });
 
-    it('disables the button on a future day, and says why', async () => {
-      const { fixture, component, httpMock } = setup(MARKER);
+    it('disables the buttons on a future day, and says why', async () => {
+      const { fixture, component, httpMock } = setup(FEEDER);
       await load(fixture, httpMock);
 
       await pickDate(fixture, httpMock, shiftDays(component.today, 1));
@@ -428,8 +516,8 @@ describe('DailyTasks', () => {
       expect(panel(fixture, 'future')).toBeTruthy();
       expect(text(fixture)).toContain('Siku hii bado haijafika');
 
-      const buttons = markButtons(fixture);
-      expect(buttons.length).toBe(3);
+      const buttons = [...markButtons(fixture), ...recordButtons(fixture), ...closeLinks(fixture)];
+      expect(buttons.length).toBe(5);
       expect(buttons.every((button) => button.disabled)).toBe(true);
       // The sheet itself is still readable - only the marking is refused.
       expect(all(fixture, 'task-row').length).toBe(4);
@@ -447,12 +535,12 @@ describe('DailyTasks', () => {
       const tomorrow = shiftDays(component.today, 1);
       await pickDate(fixture, httpMock, tomorrow);
 
-      const task = component.tasks().find((t) => t.taskId === '13')!;
+      const task = component.tasks().find((t) => t.taskId === '14')!;
       component.markDone(task);
 
       const mutation = gql(httpMock, 'CompleteTask');
       expect(variablesOf(mutation)).toEqual({
-        input: { taskId: 13, completionDate: tomorrow },
+        input: { taskId: 14, completionDate: tomorrow },
       });
       mutation.flush(FUTURE_DATE_REFUSED);
       await fixture.whenStable();
@@ -469,7 +557,7 @@ describe('DailyTasks', () => {
       const { fixture, component, httpMock } = setup(MARKER);
       await load(fixture, httpMock);
 
-      component.markDone(component.tasks().find((t) => t.taskId === '13')!);
+      component.markDone(component.tasks().find((t) => t.taskId === '14')!);
       gql(httpMock, 'CompleteTask').flush(FORBIDDEN);
       await fixture.whenStable();
       fixture.detectChanges();
@@ -477,6 +565,180 @@ describe('DailyTasks', () => {
       expect(component.markError()).toBe(
         'Huna ruhusa ya kuona taarifa hizi. Wasiliana na msimamizi wa shamba.',
       );
+      httpMock.verify();
+    });
+  });
+
+  describe('recording a feeding task', () => {
+    it("opens Feeding for the task's cycle, day and task - by URL, not by switching the cycle", async () => {
+      const { fixture, component, httpMock } = setup(FEEDER);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const selection = TestBed.inject(CycleSelectionService);
+      const select = vi.spyOn(selection, 'select');
+      await load(fixture, httpMock);
+
+      const yesterday = shiftDays(component.today, -1);
+      await pickDate(fixture, httpMock, yesterday);
+      recordButtons(fixture)[1].click(); // DEV-B2's morning feed, task 13
+      fixture.detectChanges();
+
+      expect(navigate).toHaveBeenCalledWith(['/feeding'], {
+        queryParams: { cycleId: 8, date: yesterday, taskId: '13' },
+      });
+      // The global selection Production and Water Quality read is untouched.
+      expect(select).not.toHaveBeenCalled();
+      // And no mutation from here: the record is written by Feeding.
+      httpMock.verify();
+    });
+
+    it('lands back on the given day with a toast when Feeding sends it back', async () => {
+      const { fixture, component, httpMock } = setup(FEEDER, {
+        queryParams: { date: '2026-09-06', recorded: '1' },
+      });
+
+      fixture.detectChanges();
+      const req = gql(httpMock, 'FarmDailyTasks');
+
+      expect(variablesOf(req)).toEqual({ date: '2026-09-06' });
+      expect(component.toastMessage()).toBe('Ulishaji umerekodiwa na kazi imekamilika.');
+      req.flush(TASKS);
+    });
+  });
+
+  describe('closing a feeding task without a record', () => {
+    async function openCloseFor(taskIndex: number) {
+      const ctx = setup(FEEDER);
+      await load(ctx.fixture, ctx.httpMock);
+      closeLinks(ctx.fixture)[taskIndex].click();
+      ctx.fixture.detectChanges();
+      return ctx;
+    }
+
+    const confirm = (fixture: ComponentFixture<DailyTasks>) => {
+      buttonsIn(fixture, '[data-testid="close-confirm"] button')[0].click();
+      fixture.detectChanges();
+    };
+
+    const pickReason = (fixture: ComponentFixture<DailyTasks>, reason: string) => {
+      const radio = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        `input[data-reason="${reason}"]`,
+      )!;
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+
+    it('asks for a reason, in words, before anything is sent', async () => {
+      const { fixture, httpMock } = await openCloseFor(1);
+
+      expect(panel(fixture, 'close-without-record')).toBeTruthy();
+      // Translated reasons - never the stored codes.
+      const body = text(fixture);
+      expect(body).toContain('Hakukuwa na mtandao');
+      expect(body).toContain('Nilisahau kurekodi');
+      expect(body).not.toContain('DEVICE_FAILURE');
+
+      confirm(fixture);
+      expect(all(fixture, 'close-error')[0].textContent).toContain('Chagua sababu.');
+      httpMock.verify();
+    });
+
+    it('requires a note for OTHER', async () => {
+      const { fixture, httpMock } = await openCloseFor(1);
+
+      pickReason(fixture, 'OTHER');
+      confirm(fixture);
+
+      expect(all(fixture, 'close-error')[0].textContent).toContain(
+        'Andika maelezo ya sababu nyingine.',
+      );
+      httpMock.verify();
+    });
+
+    it('sends the code and the shown day, then counts the task as CLOSED - not done', async () => {
+      const { fixture, component, httpMock } = await openCloseFor(1); // task 13
+
+      pickReason(fixture, 'FORGOT');
+      confirm(fixture);
+
+      const mutation = gql(httpMock, 'CloseTaskWithoutRecord');
+      expect(variablesOf(mutation)).toEqual({
+        input: { taskId: 13, completionDate: component.today, reason: 'FORGOT', note: null },
+      });
+      mutation.flush({
+        data: { closeTaskWithoutRecord: TASKS_AFTER_CLOSE.data.farmDailyTasks[2] },
+      });
+      await fixture.whenStable();
+      gql(httpMock, 'FarmDailyTasks').flush(TASKS_AFTER_CLOSE);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.toastMessage()).toBe('Kazi imefungwa bila rekodi.');
+      // Done 1 · Closed 1 / 4 - closed is NOT progress.
+      expect(component.doneCount()).toBe(1);
+      expect(component.closedCount()).toBe(1);
+      expect(component.outstandingCount()).toBe(2);
+      expect(component.progressPercent()).toBe(25);
+      expect(all(fixture, 'progress')[0].textContent?.replace(/\s+/g, ' ')).toContain(
+        'Zimefanyika: 1 · Zimefungwa 1 / 4',
+      );
+
+      // Its own look: a warning sign, a grey row, never the green done class.
+      const row = all(fixture, 'task-row')[2];
+      expect(row.classList.contains('task--closed')).toBe(true);
+      expect(row.classList.contains('task--done')).toBe(false);
+      expect(row.querySelector('.task__tick')?.textContent?.trim()).toBe('⚠');
+      expect(row.textContent).toContain('Imefungwa bila rekodi');
+      expect(row.textContent).toContain('imefungwa na D Worker, 09:30');
+      expect(row.textContent).toContain('Sababu: Nilisahau kurekodi');
+      // Nothing left to do on it.
+      expect(row.querySelector('.task__action')).toBeNull();
+      httpMock.verify();
+    });
+
+    it('keeps closed tasks out of both the outstanding and done filters', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock, TASKS_AFTER_CLOSE);
+
+      expect(component.filterOptions().map((o) => o.value)).toContain('closed');
+
+      component.setFilter('outstanding');
+      fixture.detectChanges();
+      expect(all(fixture, 'task-row').length).toBe(2);
+
+      component.setFilter('done');
+      fixture.detectChanges();
+      expect(all(fixture, 'task-row').length).toBe(1);
+
+      component.setFilter('closed');
+      fixture.detectChanges();
+      expect(all(fixture, 'task-row').length).toBe(1);
+      // Not late, not next: reminders have stopped for it.
+      expect(component.isTimePassed(component.tasks()[2])).toBe(false);
+    });
+
+    it("shows the backend's CONFLICT sentence when the task was closed meanwhile", async () => {
+      const { fixture, component, httpMock } = await openCloseFor(0);
+
+      pickReason(fixture, 'OFFLINE');
+      confirm(fixture);
+      gql(httpMock, 'CloseTaskWithoutRecord').flush({
+        data: null,
+        errors: [
+          {
+            message: 'Kazi hii tayari imewekwa kuwa imekamilika kwa tarehe 2026-09-06.',
+            path: ['closeTaskWithoutRecord'],
+            extensions: { errorCode: 'CONFLICT', classification: 'BAD_REQUEST' },
+          },
+        ],
+      });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.closeError()).toBe(
+        'Kazi hii tayari imewekwa kuwa imekamilika kwa tarehe 2026-09-06.',
+      );
+      expect(component.closingTaskId()).not.toBeNull();
       httpMock.verify();
     });
   });
@@ -625,6 +887,12 @@ describe('DailyTasks', () => {
       expect(Object.keys(DAILY_TASKS_I18N.en).sort()).toEqual(
         Object.keys(DAILY_TASKS_I18N.sw).sort(),
       );
+    });
+
+    it('words every closure reason code in both languages', () => {
+      const codes = ['OFFLINE', 'FORGOT', 'DEVICE_FAILURE', 'OTHER'];
+      expect(Object.keys(DAILY_TASKS_I18N.sw.reasons).sort()).toEqual([...codes].sort());
+      expect(Object.keys(DAILY_TASKS_I18N.en.reasons).sort()).toEqual([...codes].sort());
     });
 
     it('renders in English when the UI language is English', async () => {

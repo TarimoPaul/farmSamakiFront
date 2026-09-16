@@ -1,10 +1,12 @@
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { catchError, forkJoin, of } from 'rxjs';
 import { AuthService } from '../core/services/auth';
 import { CycleSelectionService } from '../core/services/cycle-selection';
+import { DailyTasksService } from '../core/services/daily-tasks';
+import { DailyTaskStatus } from '../core/models/daily-task';
 import { FarmSelectionService } from '../core/services/farm-selection';
 import { FeedService } from '../core/services/feed';
 import { LanguageService } from '../core/services/language';
@@ -43,6 +45,17 @@ const UNKNOWN_FAILURE = new ApiError({
 export const LOW_STOCK_THRESHOLD_KG = 10;
 
 /**
+ * The feeding task this visit records for, from Daily Tasks' query params
+ * (`?cycleId=&date=&taskId=`). All three or nothing: a partial set is ignored
+ * and the screen behaves as it always has.
+ */
+export interface FeedingTaskContext {
+  cycleId: number;
+  date: string;
+  taskId: number;
+}
+
+/**
  * Feeding - the second of the day-to-day logging screens, built on the shape
  * Water Quality established: the cycle comes from CycleSelectionService, the
  * stored id is resolved against the backend's own cycle list before it is
@@ -61,6 +74,10 @@ export const LOW_STOCK_THRESHOLD_KG = 10;
  *  3. THE STOCK PANEL IS A THIRD PERMISSION. `view_feed_stock` puts it on the
  *     page at all - a feeder without it sees the form and the history and no
  *     numbers, which is the ordinary case, not an edge one.
+ *  4. OPENED FROM A FEEDING TASK (V28), the cycle and date come from the URL
+ *     and the save carries `taskId`: the backend records the feeding and
+ *     completes the task in one transaction. The global cycle selection is
+ *     neither read nor written in that mode - see FeedingTaskContext.
  */
 @Component({
   selector: 'app-feeding',
@@ -93,6 +110,36 @@ export class Feeding {
   private readonly farmSelection = inject(FarmSelectionService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly dailyTasksService = inject(DailyTasksService);
+
+  /** Read once, on open. Null for an ordinary visit. */
+  readonly taskContext: FeedingTaskContext | null = taskContextFrom(
+    this.route.snapshot.queryParamMap,
+  );
+
+  /**
+   * The task itself, for its name and time - "Kulisha - Jioni, 17:00" is what
+   * tells the person which of the day's two feedings they are writing up.
+   * Null when there is no context, or the lookup failed (the save still works:
+   * the backend validates the task, not this label).
+   */
+  readonly task = signal<DailyTaskStatus | null>(null);
+
+  /** Already DONE or closed for that day: saving would be refused with CONFLICT. */
+  readonly taskAlreadyClosed = computed(() => {
+    const task = this.task();
+    return !!task && (task.done || task.status === 'CLOSED_NO_RECORD');
+  });
+
+  /**
+   * The cycle this screen shows: the task's, when there is one - WITHOUT
+   * touching CycleSelectionService, whose choice Production and Water Quality
+   * also read - and otherwise the stored selection, as before.
+   */
+  private readonly activeCycleId = computed(
+    () => this.taskContext?.cycleId ?? this.cycleSelection.selectedCycleId(),
+  );
 
   /** Resolved - null both when nothing is selected and when the stored id is stale. */
   readonly cycle = signal<Cycle | null>(null);
@@ -133,7 +180,8 @@ export class Feeding {
   readonly form = this.formBuilder.nonNullable.group({
     feedTypeId: [''],
     quantityKg: [''],
-    logDate: [todayIso()],
+    // A task's feeding is written up against the task's day, not today.
+    logDate: [this.taskContext?.date ?? todayIso()],
   });
 
   /** The dropdown's selection as a signal, so the warnings track it. */
@@ -179,7 +227,7 @@ export class Feeding {
   // own `logDate`, which is what makes "what was fed on the 7th" a filter
   // rather than a question for the server.
 
-  readonly selectedDate = signal(isoDate(new Date()));
+  readonly selectedDate = signal(this.taskContext?.date ?? isoDate(new Date()));
   readonly viewingToday = computed(() => this.selectedDate() === isoDate(new Date()));
 
   readonly dayState = computed<string | null>(() =>
@@ -310,7 +358,7 @@ export class Feeding {
   /** Reloads on a farm switch or a cycle switch, exactly as Water Quality does. */
   private readonly load = effect(() => {
     this.farmSelection.selectedFarmId();
-    this.cycleSelection.selectedCycleId();
+    this.activeCycleId();
     this.fetch();
   });
 
@@ -322,8 +370,9 @@ export class Feeding {
     this.cycleAgeMonths.set(null);
     this.balances.set([]);
     this.logs.set([]);
+    this.task.set(null);
 
-    const selectedId = this.cycleSelection.selectedCycleId();
+    const selectedId = this.activeCycleId();
     if (selectedId === null) {
       this.cycle.set(null);
       this.loading.set(false);
@@ -368,17 +417,25 @@ export class Feeding {
    * that query the same way the panel does.
    */
   private fetchCycleData(cycleId: number): void {
+    const context = this.taskContext;
     forkJoin({
       feed: this.feedService.feedTypesForCycle(cycleId),
       logs: this.feedService.feedingLogs(cycleId),
       balance: this.canViewStock() ? this.feedService.feedStockBalance() : of(null),
+      // Only a label and an early warning, so a failure is not a failed load.
+      tasks: context
+        ? this.dailyTasksService.cycleTasks(cycleId, context.date).pipe(catchError(() => of(null)))
+        : of(null),
     }).subscribe({
-      next: ({ feed, logs, balance }) => {
+      next: ({ feed, logs, balance, tasks }) => {
         this.feedTypes.set(feed.feedTypes);
         this.noSuitableFeed.set(feed.noSuitableFeed);
         this.cycleAgeMonths.set(feed.cycleAgeMonths);
         this.logs.set(logs);
         this.balances.set(balance ?? []);
+        this.task.set(
+          tasks?.find((task) => Number(task.taskId) === context?.taskId) ?? null,
+        );
         this.loading.set(false);
       },
       error: (err: unknown) => {
@@ -420,6 +477,16 @@ export class Feeding {
     void this.router.navigateByUrl('/feed-catalog');
   }
 
+  /** Back to the task sheet, on the day this task belongs to. */
+  backToTasks(recorded = false): void {
+    void this.router.navigate(['/daily-tasks'], {
+      queryParams: {
+        date: this.taskContext?.date ?? null,
+        recorded: recorded ? 1 : null,
+      },
+    });
+  }
+
   /**
    * Records the feeding.
    *
@@ -435,9 +502,10 @@ export class Feeding {
    */
   submit(): void {
     const cycle = this.cycle();
-    if (!cycle || this.saving() || this.formDisabled()) {
+    if (!cycle || this.saving() || this.formDisabled() || this.taskAlreadyClosed()) {
       return;
     }
+    const context = this.taskContext;
 
     this.formError.set(null);
 
@@ -474,12 +542,20 @@ export class Feeding {
         cycleId: Number(cycle.cycleId),
         feedTypeId: Number(raw.feedTypeId),
         quantityKg,
-        logDate: raw.logDate,
+        // The task's day, whatever the date box says: the log and the task's
+        // completion are one record of one event and must share a date.
+        logDate: context?.date ?? raw.logDate,
+        ...(context ? { taskId: context.taskId } : {}),
       })
       .subscribe({
         next: () => {
           this.saving.set(false);
           this.awaitingConfirm.set(false);
+          if (context) {
+            // The feeding AND the task are done; the sheet is where that shows.
+            this.backToTasks(true);
+            return;
+          }
           // The date survives the reset: a shift's feedings are written up
           // together, and re-picking yesterday for every one of them is the
           // kind of friction that ends in nobody recording anything.
@@ -547,6 +623,23 @@ export class Feeding {
 
 function asApiError(err: unknown): ApiError {
   return isApiError(err) ? err : UNKNOWN_FAILURE;
+}
+
+/** All three params, well-formed, or null. */
+function taskContextFrom(params: { get(name: string): string | null }): FeedingTaskContext | null {
+  const cycleId = Number(params.get('cycleId'));
+  const taskId = Number(params.get('taskId'));
+  const date = params.get('date') ?? '';
+  if (
+    !Number.isInteger(cycleId) ||
+    cycleId <= 0 ||
+    !Number.isInteger(taskId) ||
+    taskId <= 0 ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(date)
+  ) {
+    return null;
+  }
+  return { cycleId, date, taskId };
 }
 
 /**

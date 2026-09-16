@@ -1,7 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { GraphqlService } from './graphql';
-import { CompleteTaskInput, DailyTaskStatus } from '../models/daily-task';
+import {
+  CloseTaskWithoutRecordInput,
+  CompleteTaskInput,
+  DailyTaskStatus,
+} from '../models/daily-task';
 
 /**
  * The farm's tasks for one day, and the marking of one of them.
@@ -56,15 +60,41 @@ export class DailyTasksService {
       })
       .pipe(map((data) => data.completeTask));
   }
+
+  /**
+   * One cycle's tasks for `date` - used by Feeding to name the task it is
+   * recording for ("Kulisha - Jioni", not just "a feeding task").
+   */
+  cycleTasks(cycleId: number, date: string): Observable<DailyTaskStatus[]> {
+    return this.graphql
+      .query<{ dailyTasks: DailyTaskStatus[] }>(CYCLE_DAILY_TASKS, { cycleId, date })
+      .pipe(map((data) => data.dailyTasks));
+  }
+
+  /**
+   * Closes a FEEDING task WITHOUT a feeding record - the escape hatch, not the
+   * normal path. Touches no feeding log and no stock; the task stays not-done
+   * but stops being reminded. The normal path is logFeeding with a taskId.
+   */
+  closeWithoutRecord(input: CloseTaskWithoutRecordInput): Observable<DailyTaskStatus> {
+    return this.graphql
+      .query<{ closeTaskWithoutRecord: DailyTaskStatus }>(CLOSE_TASK_WITHOUT_RECORD, {
+        input: { ...input, taskId: Number(input.taskId) },
+      })
+      .pipe(map((data) => data.closeTaskWithoutRecord));
+  }
 }
 
 /**
- * Every field of DailyTaskStatus except `cycleId`, which the UI must not show
- * - see the note on the model. Asking for it anyway would invite exactly the
- * bare-number label the unitCode/speciesName pair exists to prevent.
+ * Every field of DailyTaskStatus.
+ *
+ * `cycleId` is fetched to be PASSED ON, never shown: a feeding task opens the
+ * Feeding form for its own cycle, and that id is the only thing the form
+ * needs. The label on screen is still unitCode/speciesName - see the model.
  */
 const TASK_FIELDS = `
   taskId
+  cycleId
   unitCode
   speciesName
   taskType
@@ -77,6 +107,22 @@ const TASK_FIELDS = `
   completedAt
   completedByName
   notes
+  taskKind
+  feedingLogId
+  closureReason
+  closureNote
+`;
+
+const CYCLE_DAILY_TASKS = `
+  query CycleDailyTasks($cycleId: Int!, $date: String) {
+    dailyTasks(cycleId: $cycleId, date: $date) { ${TASK_FIELDS} }
+  }
+`;
+
+const CLOSE_TASK_WITHOUT_RECORD = `
+  mutation CloseTaskWithoutRecord($input: CloseTaskWithoutRecordInput!) {
+    closeTaskWithoutRecord(input: $input) { ${TASK_FIELDS} }
+  }
 `;
 
 const FARM_DAILY_TASKS = `

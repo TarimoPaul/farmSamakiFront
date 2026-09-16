@@ -1,10 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { Feeding, LOW_STOCK_THRESHOLD_KG } from './feeding';
 import { FEEDING_I18N } from './feeding.i18n';
 import { LanguageService, Lang } from '../core/services/language';
+import { CycleSelectionService } from '../core/services/cycle-selection';
 import { environment } from '../../environments/environment';
 
 const CYCLES = {
@@ -171,7 +172,10 @@ const SELECTED_CYCLE_KEY = 'samakiFarm.selectedCycleId';
 const FEEDER = ['view_dashboard', 'log_feeding'];
 const FEEDER_WITH_STOCK = ['view_dashboard', 'log_feeding', 'view_feed_stock'];
 
-function setup(permissions: string[], options: { cycleId?: string; lang?: Lang } = {}) {
+function setup(
+  permissions: string[],
+  options: { cycleId?: string; lang?: Lang; queryParams?: Record<string, string> } = {},
+) {
   localStorage.setItem(TOKEN_KEY, 'a-token');
   localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
   if (options.cycleId) {
@@ -179,7 +183,20 @@ function setup(permissions: string[], options: { cycleId?: string; lang?: Lang }
   }
 
   TestBed.configureTestingModule({
-    providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      provideRouter([]),
+      // Daily Tasks' link: `?cycleId=&date=&taskId=`, read once from the snapshot.
+      ...(options.queryParams
+        ? [
+            {
+              provide: ActivatedRoute,
+              useValue: { snapshot: { queryParamMap: convertToParamMap(options.queryParams) } },
+            },
+          ]
+        : []),
+    ],
   });
   TestBed.inject(LanguageService).setLang(options.lang ?? 'sw');
 
@@ -673,6 +690,163 @@ describe('Feeding', () => {
 
       chooseFeed(fixture, '3');
       expect(component.awaitingConfirm()).toBe(false);
+    });
+  });
+
+  describe('opened from a feeding task', () => {
+    const TASK_PARAMS = { cycleId: '9', date: '2026-09-05', taskId: '12' };
+
+    /** Cycle 9's tasks on the 5th - task 12 is the evening feed. */
+    const cycleTasks = (overrides: object = {}) => ({
+      data: {
+        dailyTasks: [
+          {
+            taskId: '12',
+            cycleId: 9,
+            unitCode: 'T1',
+            speciesName: 'Sato',
+            taskType: 'Kulisha - Jioni',
+            scheduledTime: '17:00',
+            frequency: 'DAILY',
+            assignedRoleName: null,
+            date: '2026-09-05',
+            status: 'OUTSTANDING',
+            done: false,
+            completedAt: null,
+            completedByName: null,
+            notes: null,
+            taskKind: 'FEEDING',
+            feedingLogId: null,
+            closureReason: null,
+            closureNote: null,
+            ...overrides,
+          },
+        ],
+      },
+    });
+
+    async function loadForTask(
+      fixture: ComponentFixture<Feeding>,
+      httpMock: HttpTestingController,
+      tasks: object = cycleTasks(),
+    ) {
+      fixture.detectChanges();
+      gql(httpMock, 'query Cycles').flush(CYCLES);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const feedTypes = gql(httpMock, 'FeedTypesForCycle');
+      feedTypes.flush(FEED_TYPES);
+      gql(httpMock, 'FeedingLogs').flush(LOGS);
+      const taskReq = gql(httpMock, 'CycleDailyTasks');
+      taskReq.flush(tasks);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return { feedTypes, taskReq };
+    }
+
+    it("feeds the task's cycle WITHOUT changing the stored cycle selection", async () => {
+      // Production has cycle 5 selected. Recording tank T1's task must not
+      // switch what Production and Water Quality are showing.
+      const { fixture, component, httpMock } = setup(FEEDER, {
+        cycleId: '5',
+        queryParams: TASK_PARAMS,
+      });
+
+      const { feedTypes, taskReq } = await loadForTask(fixture, httpMock);
+
+      expect((feedTypes.request.body as { variables: unknown }).variables).toEqual({ cycleId: 9 });
+      expect((taskReq.request.body as { variables: unknown }).variables).toEqual({
+        cycleId: 9,
+        date: '2026-09-05',
+      });
+      expect(component.cycle()?.cycleId).toBe('9');
+      expect(TestBed.inject(CycleSelectionService).selectedCycleId()).toBe(5);
+      expect(localStorage.getItem(SELECTED_CYCLE_KEY)).toBe('5');
+      httpMock.verify();
+    });
+
+    it("names the task, sends taskId with the task's date, and returns to the sheet", async () => {
+      const { fixture, component, httpMock } = setup(FEEDER, { queryParams: TASK_PARAMS });
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      await loadForTask(fixture, httpMock);
+
+      expect(panel(fixture, 'task-context')).toBeTruthy();
+      expect(text(fixture)).toContain('Kulisha - Jioni');
+      expect(text(fixture)).toContain('17:00');
+      expect(component.form.getRawValue().logDate).toBe('2026-09-05');
+
+      chooseFeed(fixture, '3');
+      // Even if the box were edited, the task's day is what is sent.
+      component.form.patchValue({ quantityKg: '5', logDate: '2026-09-01' });
+      component.submit();
+
+      const req = gql(httpMock, 'LogFeeding');
+      expect((req.request.body as { variables: unknown }).variables).toEqual({
+        input: { cycleId: 9, feedTypeId: 3, quantityKg: 5, logDate: '2026-09-05', taskId: 12 },
+      });
+      req.flush({ data: { logFeeding: LOGS.data.feedingLogs[0] } });
+      await fixture.whenStable();
+
+      expect(navigate).toHaveBeenCalledWith(['/daily-tasks'], {
+        queryParams: { date: '2026-09-05', recorded: 1 },
+      });
+      // Back to the sheet - nothing re-read here.
+      httpMock.verify();
+    });
+
+    it('offers nothing to save for a task already done that day', async () => {
+      const { fixture, component, httpMock } = setup(FEEDER, { queryParams: TASK_PARAMS });
+      await loadForTask(fixture, httpMock, cycleTasks({ status: 'DONE', done: true }));
+
+      expect(component.taskAlreadyClosed()).toBe(true);
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="task-already-closed"]'),
+      ).toBeTruthy();
+
+      chooseFeed(fixture, '3');
+      component.form.patchValue({ quantityKg: '5' });
+      component.submit();
+      httpMock.verify();
+    });
+
+    it("keeps the backend's CONFLICT sentence and stays on the form", async () => {
+      const { fixture, component, httpMock } = setup(FEEDER, { queryParams: TASK_PARAMS });
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      await loadForTask(fixture, httpMock);
+
+      chooseFeed(fixture, '3');
+      component.form.patchValue({ quantityKg: '5' });
+      component.submit();
+      gql(httpMock, 'LogFeeding').flush({
+        data: null,
+        errors: [
+          {
+            message: 'Kazi hii tayari imewekwa kuwa imekamilika kwa tarehe 2026-09-05.',
+            path: ['logFeeding'],
+            extensions: { errorCode: 'CONFLICT', classification: 'BAD_REQUEST' },
+          },
+        ],
+      });
+      await fixture.whenStable();
+
+      expect(component.formError()).toBe(
+        'Kazi hii tayari imewekwa kuwa imekamilika kwa tarehe 2026-09-05.',
+      );
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('ignores an incomplete set of params and behaves as an ordinary visit', async () => {
+      const { fixture, component, httpMock } = setup(FEEDER, { queryParams: { cycleId: '9' } });
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.taskContext).toBeNull();
+      // No stored selection either, so: pick a cycle - and no request at all.
+      expect(panel(fixture, 'no-cycle')).toBeTruthy();
+      httpMock.verify();
     });
   });
 

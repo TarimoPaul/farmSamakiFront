@@ -1,9 +1,15 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { AuthService } from '../core/services/auth';
 import { DailyTasksService } from '../core/services/daily-tasks';
 import { FarmSelectionService } from '../core/services/farm-selection';
 import { LanguageService } from '../core/services/language';
-import { DailyTaskStatus } from '../core/models/daily-task';
+import {
+  CLOSED_NO_RECORD,
+  DailyTaskStatus,
+  TASK_CLOSURE_REASONS,
+  TaskClosureReason,
+} from '../core/models/daily-task';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { PERMISSION } from '../core/models/permissions';
@@ -44,10 +50,17 @@ interface TaskGroup {
   tasks: DailyTaskStatus[];
   /** Counted over the WHOLE group, so the heading stays true under a filter. */
   done: number;
+  /** Closed without a record - never folded into `done`. */
+  closed: number;
   total: number;
 }
 
-export type TaskFilter = 'all' | 'outstanding' | 'done';
+export type TaskFilter = 'all' | 'outstanding' | 'done' | 'closed';
+
+/** Closed without a feeding record: not done, not outstanding. See the model. */
+export function isClosedTask(task: DailyTaskStatus): boolean {
+  return task.status === CLOSED_NO_RECORD;
+}
 
 /** The date heading's locale per UI language. */
 const DATE_LOCALE = { sw: 'sw-TZ', en: 'en-GB' } as const;
@@ -65,13 +78,20 @@ const DATE_LOCALE = { sw: 'sw-TZ', en: 'en-GB' } as const;
  *     there to do for this cycle?".
  *  2. THE UNIT NAMES THE TASK, NEVER THE CYCLE ID. On a farm-wide list
  *     "Kulisha - Asubuhi" repeats once per active cycle, so the rows are only
- *     distinguishable by where the fish are. `cycleId` is not even fetched -
- *     see the note on the model.
+ *     distinguishable by where the fish are. `cycleId` is fetched only to
+ *     hand to the Feeding form, never printed - see the note on the model.
  *  3. READING AND MARKING ARE DIFFERENT PERMISSIONS, and only the marking is
  *     branched. `view_dashboard` shows everything on this page - the picker,
  *     past days, who completed what and when - because a VIEWER is entitled
  *     to the whole record. `mark_task_done` adds the one button that changes
  *     it.
+ *  4. A FEEDING TASK IS DONE BECAUSE A FEEDING WAS RECORDED (V28). Its button
+ *     opens the Feeding form for that cycle, day and task through QUERY
+ *     PARAMS - never through CycleSelectionService, which would silently
+ *     switch the cycle Production and Water Quality are showing. The backend
+ *     writes the log, the stock movement and the DONE together. The only
+ *     other way out is "close without record", which is counted apart from
+ *     done and never drawn in green.
  */
 @Component({
   selector: 'app-daily-tasks',
@@ -88,7 +108,20 @@ export class DailyTasks {
 
   private readonly dailyTasksService = inject(DailyTasksService);
   private readonly farmSelection = inject(FarmSelectionService);
+  private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  readonly CLOSURE_REASONS = TASK_CLOSURE_REASONS;
+  readonly isClosed = isClosedTask;
+
+  /**
+   * Recording a feeding needs BOTH codes: `mark_task_done` (the row's action
+   * slot is gated on it) and `log_feeding`, which the Feeding form and the
+   * backend's logFeeding require. Without the second the row still offers
+   * "close without record", which is only `mark_task_done`.
+   */
+  readonly canLogFeeding = computed(() => this.authService.hasPermission(PERMISSION.LOG_FEEDING));
 
   /**
    * Today, in the farm's day. Read once, when the screen is opened.
@@ -101,8 +134,13 @@ export class DailyTasks {
    */
   readonly today = farmToday();
 
-  /** The day being shown. Defaults to today; the picker moves it. */
-  readonly date = signal(this.today);
+  /**
+   * The day being shown. Defaults to today; the picker moves it.
+   *
+   * `?date=` wins when it is a real YYYY-MM-DD: it is how the Feeding form
+   * sends somebody back to the sheet they left, which may be yesterday's.
+   */
+  readonly date = signal(isoDateOrNull(this.route.snapshot.queryParamMap.get('date')) ?? this.today);
 
   readonly tasks = signal<readonly DailyTaskStatus[]>([]);
   readonly loading = signal(true);
@@ -112,7 +150,33 @@ export class DailyTasks {
   /** The task currently being marked - so one row spins, not all of them. */
   readonly markingTaskId = signal<string | null>(null);
   readonly markError = signal<string | null>(null);
-  readonly toastMessage = signal<string | null>(null);
+  readonly toastMessage = signal<string | null>(
+    this.route.snapshot.queryParamMap.get('recorded') ? this.t().recordedToast : null,
+  );
+
+  /**
+   * The "close without record" picker - inline under its row, like Feeding's
+   * confirm step, because this is used one-handed at a tank. One open at a time.
+   */
+  readonly closingTaskId = signal<string | null>(null);
+  readonly closeReason = signal<TaskClosureReason | null>(null);
+  readonly closeNote = signal('');
+  readonly closeError = signal<string | null>(null);
+  readonly closeSaving = signal(false);
+
+  constructor() {
+    // The params were read above; drop them so a reload or a shared link does
+    // not repeat the toast or pin the sheet to that day forever.
+    const params = this.route.snapshot.queryParamMap;
+    if (params.has('date') || params.has('recorded')) {
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { date: null, recorded: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
+  }
 
   /**
    * A day that has not happened yet. String comparison is exact here: both
@@ -122,12 +186,21 @@ export class DailyTasks {
   readonly isFuture = computed(() => this.date() > this.today);
 
   readonly doneCount = computed(() => this.tasks().filter((task) => task.done).length);
-  readonly outstandingCount = computed(() => this.tasks().length - this.doneCount());
+  readonly closedCount = computed(() => this.tasks().filter(isClosedTask).length);
+  /** Neither done nor closed - the only rows reminders still chase. */
+  readonly outstandingCount = computed(
+    () => this.tasks().length - this.doneCount() - this.closedCount(),
+  );
 
-  readonly progressPercent = computed(() => {
+  /** DONE only. A closed task is not progress, so it never moves this number. */
+  readonly progressPercent = computed(() => this.percentOf(this.doneCount()));
+  /** The closed share, drawn as its own amber segment after the green one. */
+  readonly closedPercent = computed(() => this.percentOf(this.closedCount()));
+
+  private percentOf(count: number): number {
     const total = this.tasks().length;
-    return total === 0 ? 0 : Math.round((this.doneCount() * 100) / total);
-  });
+    return total === 0 ? 0 : Math.round((count * 100) / total);
+  }
 
   /**
    * The farm's clock, HH:mm, read when the screen opens - the same "once"
@@ -153,7 +226,7 @@ export class DailyTasks {
    * second opinion on the record.
    */
   isTimePassed(task: DailyTaskStatus): boolean {
-    if (task.done || this.date() > this.today) {
+    if (task.done || isClosedTask(task) || this.date() > this.today) {
       return false;
     }
     return this.date() < this.today || task.scheduledTime < this.nowTime();
@@ -165,11 +238,17 @@ export class DailyTasks {
 
   readonly filterOptions = computed(() => {
     const t = this.t();
-    return [
-      { value: 'all' as const, label: t.filterAll, count: this.tasks().length },
-      { value: 'outstanding' as const, label: t.filterOutstanding, count: this.outstandingCount() },
-      { value: 'done' as const, label: t.filterDone, count: this.doneCount() },
+    const options: { value: TaskFilter; label: string; count: number }[] = [
+      { value: 'all', label: t.filterAll, count: this.tasks().length },
+      { value: 'outstanding', label: t.filterOutstanding, count: this.outstandingCount() },
+      { value: 'done', label: t.filterDone, count: this.doneCount() },
     ];
+    // Only when there is something to filter to (or it is already chosen): a
+    // fourth segment reading "0" every normal day is noise on a phone.
+    if (this.closedCount() > 0 || this.filter() === 'closed') {
+      options.push({ value: 'closed', label: t.filterClosed, count: this.closedCount() });
+    }
+    return options;
   });
 
   readonly summary = computed(() => {
@@ -177,6 +256,7 @@ export class DailyTasks {
     return [
       { label: t.railAll, value: String(this.tasks().length) },
       { label: t.railDone, value: String(this.doneCount()) },
+      { label: t.railClosed, value: String(this.closedCount()) },
       { label: t.railOutstanding, value: String(this.outstandingCount()) },
       { label: t.railTimePassed, value: String(this.timePassedCount()) },
     ];
@@ -190,7 +270,7 @@ export class DailyTasks {
     const t = this.t();
     const outstanding = this.groups()
       .flatMap((group) => group.tasks.map((task) => ({ task, group })))
-      .filter(({ task }) => !task.done)
+      .filter(({ task }) => !task.done && !isClosedTask(task))
       .sort((a, b) => a.task.scheduledTime.localeCompare(b.task.scheduledTime));
     const pick =
       outstanding.find(({ task }) => task.scheduledTime >= this.nowTime()) ?? outstanding[0];
@@ -228,6 +308,7 @@ export class DailyTasks {
           speciesName: task.speciesName,
           tasks: [task],
           done: 0,
+          closed: 0,
           total: 0,
         });
       }
@@ -236,6 +317,7 @@ export class DailyTasks {
     for (const group of groups.values()) {
       group.total = group.tasks.length;
       group.done = group.tasks.filter((task) => task.done).length;
+      group.closed = group.tasks.filter(isClosedTask).length;
     }
 
     const ordered = [...groups.values()].sort((a, b) => {
@@ -266,7 +348,7 @@ export class DailyTasks {
     return this.groups()
       .map((group) => ({
         ...group,
-        tasks: group.tasks.filter((task) => (filter === 'done' ? task.done : !task.done)),
+        tasks: group.tasks.filter((task) => matchesFilter(task, filter)),
       }))
       .filter((group) => group.tasks.length > 0);
   });
@@ -315,20 +397,24 @@ export class DailyTasks {
   onDateChange(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     if (value) {
-      this.markError.set(null);
-      this.date.set(value);
+      this.moveTo(value);
     }
   }
 
   goToToday(): void {
-    this.markError.set(null);
-    this.date.set(this.today);
+    this.moveTo(this.today);
   }
 
   /** The ‹ / › buttons beside the picker: one day back or forward. */
   shiftDay(days: number): void {
+    this.moveTo(shiftIsoDate(this.date(), days));
+  }
+
+  /** A different day: an error or an open close-picker was about the old one. */
+  private moveTo(date: string): void {
     this.markError.set(null);
-    this.date.set(shiftIsoDate(this.date(), days));
+    this.cancelClose();
+    this.date.set(date);
   }
 
   goToProduction(): void {
@@ -376,6 +462,93 @@ export class DailyTasks {
       });
   }
 
+  isFeeding(task: DailyTaskStatus): boolean {
+    return task.taskKind === 'FEEDING';
+  }
+
+  /**
+   * Opens the Feeding form FOR THIS TASK: its cycle, the day on the sheet, and
+   * the task id, all as query params.
+   *
+   * NOT cycleSelection.select(): that is a global choice other screens read,
+   * and ticking a task on tank B must not quietly switch what Production and
+   * Water Quality are showing. Feeding reads the params, sends `taskId` with
+   * the log, and comes back here on success.
+   */
+  recordFeeding(task: DailyTaskStatus): void {
+    if (task.cycleId === null) {
+      return;
+    }
+    void this.router.navigate(['/feeding'], {
+      queryParams: { cycleId: task.cycleId, date: this.date(), taskId: task.taskId },
+    });
+  }
+
+  openClose(task: DailyTaskStatus): void {
+    this.markError.set(null);
+    this.closeError.set(null);
+    this.closeReason.set(null);
+    this.closeNote.set('');
+    this.closingTaskId.set(task.taskId);
+  }
+
+  cancelClose(): void {
+    this.closingTaskId.set(null);
+    this.closeError.set(null);
+    this.closeSaving.set(false);
+  }
+
+  onCloseNoteInput(event: Event): void {
+    this.closeNote.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  /**
+   * Closes a feeding task without a record, ON THE DAY BEING SHOWN.
+   *
+   * The two client checks only mirror what the form is missing - a reason, and
+   * a note for OTHER - so the person is told before a round trip. The backend
+   * enforces both (and its database does too).
+   */
+  submitClose(task: DailyTaskStatus): void {
+    if (this.closeSaving()) {
+      return;
+    }
+    const t = this.t();
+    const reason = this.closeReason();
+    const note = this.closeNote().trim();
+
+    if (!reason) {
+      this.closeError.set(t.closeReasonRequired);
+      return;
+    }
+    if (reason === 'OTHER' && !note) {
+      this.closeError.set(t.closeNoteRequired);
+      return;
+    }
+
+    this.closeError.set(null);
+    this.closeSaving.set(true);
+    this.dailyTasksService
+      .closeWithoutRecord({
+        taskId: Number(task.taskId),
+        completionDate: this.date(),
+        reason,
+        note: note || null,
+      })
+      .subscribe({
+        next: () => {
+          this.cancelClose();
+          this.toastMessage.set(this.t().closedToast);
+          // Re-read, for the same reason markDone does.
+          this.fetch();
+        },
+        error: (err: unknown) => {
+          this.closeSaving.set(false);
+          this.closeError.set(this.preferBackendMessage(asApiError(err)));
+        },
+      });
+  }
+
   dismissToast(): void {
     this.toastMessage.set(null);
   }
@@ -384,6 +557,8 @@ export class DailyTasks {
   statusLabel(task: DailyTaskStatus): string {
     const t = this.t();
     switch (task.status) {
+      case CLOSED_NO_RECORD:
+        return t.statusClosed;
       case 'DONE':
         return t.statusDone;
       case 'OUTSTANDING':
@@ -403,12 +578,39 @@ export class DailyTasks {
    * The badge colour. Branches on `done` FIRST, because that is the contract:
    * a DONE record is the only thing that counts as done, and everything else
    * - MISSED included - is work still outstanding.
+   *
+   * CLOSED_NO_RECORD is grey: not the brand's "approved", and not the amber of
+   * work still waiting either. The row's warning icon carries the caution.
    */
-  statusVariant(task: DailyTaskStatus): 'approved' | 'rejected' | 'pending' {
+  statusVariant(task: DailyTaskStatus): 'approved' | 'rejected' | 'pending' | 'neutral' {
     if (task.done) {
       return 'approved';
     }
+    if (isClosedTask(task)) {
+      return 'neutral';
+    }
     return task.status === 'MISSED' ? 'rejected' : 'pending';
+  }
+
+  /** "imefungwa na Juma, 07:14" - the closed row's counterpart of completedLine. */
+  closedLine(task: DailyTaskStatus): string {
+    const t = this.t();
+    const who = task.completedByName ? `${t.closedBy} ${task.completedByName}` : t.closedAnonymous;
+    const time = this.completedTime(task);
+    return time ? `${who}, ${time}` : who;
+  }
+
+  /**
+   * "Sababu: Nilisahau kurekodi - maelezo". The CODE is translated here and
+   * never printed; an unknown code (a newer backend) is shown as sent rather
+   * than hidden.
+   */
+  closureLine(task: DailyTaskStatus): string {
+    const t = this.t();
+    const code = task.closureReason;
+    const reason = code ? (t.reasons[code] ?? code) : '';
+    const text = `${t.closeReasonLabel}: ${reason}`;
+    return task.closureNote ? `${text} - ${task.closureNote}` : text;
   }
 
   /**
@@ -450,9 +652,13 @@ export class DailyTasks {
    * shared code map in the UI language.
    */
   private showMarkError(error: ApiError): void {
+    this.markError.set(this.preferBackendMessage(error));
+  }
+
+  private preferBackendMessage(error: ApiError): string | null {
     const preferBackend =
       error.errorCode === ERROR_CODE.VALIDATION_ERROR || error.errorCode === ERROR_CODE.CONFLICT;
-    this.markError.set(this.messageFor(error, preferBackend));
+    return this.messageFor(error, preferBackend);
   }
 
   private messageFor(error: ApiError | null, preferBackendMessage = false): string | null {
@@ -462,6 +668,24 @@ export class DailyTasks {
 
 function asApiError(err: unknown): ApiError {
   return isApiError(err) ? err : UNKNOWN_FAILURE;
+}
+
+function matchesFilter(task: DailyTaskStatus, filter: TaskFilter): boolean {
+  switch (filter) {
+    case 'done':
+      return task.done;
+    case 'closed':
+      return isClosedTask(task);
+    case 'outstanding':
+      return !task.done && !isClosedTask(task);
+    default:
+      return true;
+  }
+}
+
+/** A YYYY-MM-DD from a query param, or null for anything else. */
+function isoDateOrNull(value: string | null): string | null {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
 
 /** YYYY-MM-DD moved by `days`. Done in UTC, so no timezone can shift the day. */
