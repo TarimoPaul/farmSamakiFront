@@ -68,7 +68,7 @@
             <!-- "Zimefanyika 3 · Zimefungwa 1 / 6": closed is its own number,
                  never added to done. Shown only when there is one. -->
             <p class="tasks__progress" data-testid="progress">
-              {{ t().progressLabel }}: <strong>{{ doneCount() }}</strong>
+              {{ t().progressLabel }}: <strong class="tasks__done-count">{{ doneCount() }}</strong>
               @if (closedCount() > 0) {
                 &middot; <span class="tasks__closed-count">{{ t().progressClosed }}
                 <strong>{{ closedCount() }}</strong></span>
@@ -143,12 +143,29 @@
                   >
                     <!-- Entities, not literal glyphs: the file's encoding can
                            never turn them into mojibake again. A closed task
-                           gets a warning sign, never the tick. -->
+                           gets a warning sign, never the tick - drawn as SVG,
+                           not the U+26A0 character, which phones render as a
+                           yellow emoji that ignores the token colour. -->
                     <span class="task__tick" aria-hidden="true">
                       @if (task.done) {
                         &#10003;
                       } @else if (isClosed(task)) {
-                        &#9888;
+                        <svg
+                          class="task__warning"
+                          data-icon="warning"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path
+                            d="M10.36 3.59 2.26 17.13a1.91 1.91 0 0 0 1.63 2.87h16.22a1.91 1.91 0 0 0 1.63-2.87L13.64 3.59a1.91 1.91 0 0 0-3.28 0z"
+                          />
+                          <path d="M12 9v4" />
+                          <path d="M12 16h.01" />
+                        </svg>
                       } @else {
                         &#9675;
                       }

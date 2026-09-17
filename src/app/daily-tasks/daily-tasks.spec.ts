@@ -683,11 +683,14 @@ describe('DailyTasks', () => {
         'Zimefanyika: 1 · Zimefungwa 1 / 4',
       );
 
-      // Its own look: a warning sign, a grey row, never the green done class.
+      // Its own look: a warning sign, an amber badge, never the green done class.
       const row = all(fixture, 'task-row')[2];
       expect(row.classList.contains('task--closed')).toBe(true);
       expect(row.classList.contains('task--done')).toBe(false);
-      expect(row.querySelector('.task__tick')?.textContent?.trim()).toBe('⚠');
+      // An SVG, not the U+26A0 character - phones draw that as an emoji.
+      expect(row.querySelector('.task__tick svg[data-icon="warning"]')).not.toBeNull();
+      expect(row.querySelector('.task__tick')?.textContent?.trim()).toBe('');
+      expect(row.querySelector('.badge--tone-idle')).not.toBeNull();
       expect(row.textContent).toContain('Imefungwa bila rekodi');
       expect(row.textContent).toContain('imefungwa na D Worker, 09:30');
       expect(row.textContent).toContain('Sababu: Nilisahau kurekodi');
@@ -754,6 +757,21 @@ describe('DailyTasks', () => {
       expect(ticks).toContain('✓');
       expect(ticks).toContain('○');
       expect(text(fixture)).not.toContain('â');
+    });
+
+    it('gives each status its own semantic tone - amber only for closed without a record', async () => {
+      const { component, fixture, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+      const base = component.tasks()[0];
+      const tone = (status: string, done = false) =>
+        component.statusVariant({ ...base, status, done });
+
+      expect(tone('DONE', true)).toBe('tone-active');
+      expect(tone('CLOSED_NO_RECORD')).toBe('tone-idle');
+      expect(tone('OUTSTANDING')).toBe('tone-neutral');
+      expect(tone('PENDING')).toBe('tone-neutral');
+      expect(tone('MISSED')).toBe('tone-danger');
+      expect(tone('LATE')).toBe('tone-danger');
     });
 
     it('titles the card with the day in words, not the ISO date again', async () => {

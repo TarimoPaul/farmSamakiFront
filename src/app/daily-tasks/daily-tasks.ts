@@ -579,17 +579,23 @@ export class DailyTasks {
    * a DONE record is the only thing that counts as done, and everything else
    * - MISSED included - is work still outstanding.
    *
-   * CLOSED_NO_RECORD is grey: not the brand's "approved", and not the amber of
-   * work still waiting either. The row's warning icon carries the caution.
+   * One semantic token per meaning, and amber for ONE thing only:
+   *   done              -> active (green)
+   *   CLOSED_NO_RECORD  -> idle (amber) - never green, never mistaken for done
+   *   MISSED / LATE     -> danger (red)
+   *   everything else   -> neutral (grey): OUTSTANDING, PENDING
+   *
+   * PENDING, MISSED and LATE are allowed by the schema but no backend path
+   * writes them today; their branches are future-proofing, not live states.
    */
-  statusVariant(task: DailyTaskStatus): 'approved' | 'rejected' | 'pending' | 'neutral' {
+  statusVariant(task: DailyTaskStatus): 'tone-active' | 'tone-idle' | 'tone-danger' | 'tone-neutral' {
     if (task.done) {
-      return 'approved';
+      return 'tone-active';
     }
     if (isClosedTask(task)) {
-      return 'neutral';
+      return 'tone-idle';
     }
-    return task.status === 'MISSED' ? 'rejected' : 'pending';
+    return task.status === 'MISSED' || task.status === 'LATE' ? 'tone-danger' : 'tone-neutral';
   }
 
   /** "imefungwa na Juma, 07:14" - the closed row's counterpart of completedLine. */

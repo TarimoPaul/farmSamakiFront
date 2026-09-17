@@ -2,21 +2,14 @@
 @use '../shared/ui/module-rail' as *;
 @use '../shared/styles/screen' as *;
 
-/* The one colour this screen adds. The palette has no green - the brand is
-   orange and --brand is what "approved" means everywhere else - but a task
-   sheet is read by glancing down the left edge for ticks, and orange ticks on
-   an orange-accented page do not separate from the rest. So: a green scoped
-   to this component, defined in both themes like every other token, and used
-   for nothing but "this one is done". */
-:host {
-  --task-done: #2e7d32;
-  --task-done-bg: rgba(46, 125, 50, 0.08);
-}
-
-:host-context(:root[data-theme='dark']) {
-  --task-done: #6ee7a2;
-  --task-done-bg: rgba(110, 231, 162, 0.1);
-}
+/* Status colour on this screen comes ONLY from the semantic tokens in
+   styles.scss, one meaning each - no colour is defined here:
+     --color-active   done (a real record)
+     --color-idle     closed without a record - and nothing else is amber, so
+                      a claimed completion never reads like a real one
+     --color-danger   time gone by and still undone; MISSED / LATE
+     --color-neutral  outstanding / pending
+   Tints are color-mix toward transparent, so both themes follow the token. */
 
 .tasks {
   display: flex;
@@ -86,6 +79,10 @@
   strong {
     color: var(--on-surface);
   }
+
+  .tasks__done-count {
+    color: var(--color-active);
+  }
 }
 
 .tasks__percent {
@@ -110,18 +107,19 @@
 }
 
 .tasks__bar-fill {
-  background: var(--task-done);
+  background: var(--color-active);
 }
 
 /* Closed without a record: amber, after the green - visible, never mistaken
    for progress. */
 .tasks__bar-closed {
-  background: var(--notice, #b45309);
+  background: var(--color-idle);
   opacity: 0.6;
 }
 
-.tasks__closed-count {
-  color: var(--notice, #b45309);
+.tasks__closed-count,
+.tasks__closed-count strong {
+  color: var(--color-idle);
 }
 
 /* All / Outstanding / Done - the same segmented look as Members' mode switch. */
@@ -146,7 +144,7 @@
   cursor: pointer;
 
   &.is-active {
-    background: var(--surface, #fff);
+    background: var(--surface);
     color: var(--on-surface);
     font-weight: 600;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
@@ -223,7 +221,7 @@
 }
 
 .task--done {
-  background: var(--task-done-bg);
+  background: color-mix(in srgb, var(--color-active) 10%, transparent);
   border-radius: var(--radius);
 }
 
@@ -238,9 +236,18 @@
   color: var(--muted);
 
   .task--done & {
-    color: var(--task-done);
+    color: var(--color-active);
     font-weight: 700;
   }
+}
+
+/* The closed row's warning sign. SVG so it takes the token colour everywhere;
+   sized to the glyphs it sits between. */
+.task__warning {
+  display: block;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0 auto;
 }
 
 .task__body {
@@ -268,19 +275,20 @@
    done row is announcing - and shown to everyone who can open the screen. */
 .task__by {
   font-size: 0.78rem;
-  color: var(--task-done);
+  color: var(--color-active);
 }
 
-/* Time gone by and still undone: a warning tint on the edge and the line,
-   never the badge - the badge is the backend's word. */
+/* Time gone by and still undone: danger on the edge and the line, never the
+   badge - the badge is the backend's word. Red, not amber: amber is reserved
+   for "closed without a record", and the two must never look alike. */
 .task--passed {
-  box-shadow: inset 3px 0 0 var(--notice, #b45309);
+  box-shadow: inset 3px 0 0 var(--color-danger);
 }
 
 .task__passed {
   font-size: 0.76rem;
   font-weight: 600;
-  color: var(--notice, #b45309);
+  color: var(--color-danger);
 }
 
 .task__meta {
@@ -288,26 +296,26 @@
   color: var(--muted);
 }
 
-/* Closed without a record. Grey ground, amber warning sign - deliberately NOT
-   --task-done: the sheet is read by scanning for green, and this task was not
-   done. */
+/* Closed without a record. Amber ground, amber warning sign, muted name -
+   deliberately NOT --color-active: the sheet is read by scanning for green,
+   and this task was not done. */
 .task--closed {
-  background: color-mix(in srgb, var(--muted) 8%, transparent);
+  background: color-mix(in srgb, var(--color-idle) 10%, transparent);
   border-radius: var(--radius);
 
   .task__tick {
-    color: var(--notice, #b45309);
+    color: var(--color-idle);
     font-weight: 700;
   }
 
   .task__name {
-    color: var(--muted);
+    color: var(--color-neutral);
   }
 }
 
 .task__closed-by {
   font-size: 0.78rem;
-  color: var(--notice, #b45309);
+  color: var(--color-idle);
 }
 
 .task__closure {
@@ -348,8 +356,8 @@
   margin: 0.25rem 0 0.5rem;
   padding: 0.85rem 1rem;
   border-radius: var(--radius);
-  border-left: 3px solid var(--notice, #b45309);
-  background: var(--notice-bg, rgba(180, 83, 9, 0.08));
+  border-left: 3px solid var(--color-idle);
+  background: color-mix(in srgb, var(--color-idle) 10%, transparent);
 }
 
 .task-close__reasons {
@@ -372,7 +380,7 @@
   margin: 0 0 0.25rem;
   font-size: 0.8rem;
   line-height: 1.45;
-  color: var(--notice, #b45309);
+  color: var(--color-idle);
 }
 
 .task-close__reason {
