@@ -224,10 +224,23 @@ describe('Dashboard error surface', () => {
     expect(component.loading()).toBe(false);
 
     // The type chart speaks words, not enum codes.
-    const labels = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('.bar-chart__label'),
-    ).map((label) => label.textContent?.trim());
-    expect(labels).toEqual(['Tangi', 'Bwawa la kuchimbwa', 'Bwawa la kujengwa']);
+    const rows = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.type-list__row'),
+    );
+    expect(rows.map((row) => row.querySelector('.type-list__label')?.textContent?.trim())).toEqual(
+      ['Tangi', 'Bwawa la kuchimbwa', 'Bwawa la kujengwa'],
+    );
+
+    // Only the populated type is drawn as data; the empty ones are muted and
+    // their bars hold nothing.
+    expect(rows.map((row) => row.classList.contains('type-list__row--zero'))).toEqual([
+      true,
+      false,
+      true,
+    ]);
+    expect(
+      rows.map((row) => row.querySelector<HTMLElement>('.type-list__fill')?.style.width),
+    ).toEqual(['0%', '100%', '0%']);
   });
 });
 

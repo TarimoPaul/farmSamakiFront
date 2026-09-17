@@ -85,60 +85,104 @@
   color: var(--muted);
 }
 
-.bar-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 1.5rem;
-  height: 160px;
-  margin-top: 1.25rem;
-  padding: 0 1rem;
-}
-
-.bar-chart__col {
+// ── Units by type ────────────────────────────────────────────────────────
+// A horizontal bar-list, the rail's "Units by Status" language: one row per
+// type, so it grows by rows, not by squeezing columns. Units that exist are
+// live capacity: --color-active. A type with none is --color-neutral in every
+// part - chip, words and track - so "0 ponds" is never drawn like "3 tanks".
+// Tints are derived, as the pills': color-mix toward transparent.
+.type-list {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  flex: 1;
-  height: 100%;
+  gap: 0.9rem;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.bar-chart__count {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--on-surface);
-}
-
-.bar-chart__track {
-  flex: 1;
-  // Narrowed from 34px: at full width a single bar was another orange slab.
-  width: 22px;
+.type-list__row {
   display: flex;
-  align-items: flex-end;
-  border-radius: 8px;
-  background: var(--surface-alt);
-  overflow: hidden;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
-// Units that exist are live capacity: --color-active. A type with none keeps
-// its stub so the column is still visibly there, but in --color-neutral -
-// otherwise "0 ponds" was drawn in the same colour as "3 tanks".
-.bar-chart__fill {
-  width: 100%;
-  min-height: 6px;
-  border-radius: 8px;
-  background: var(--color-active);
+// Same size and radius as the KPI tiles' chip: one chip across the dashboard.
+.type-list__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-active) 15%, transparent);
+  color: var(--color-active);
 
-  &--zero {
-    background: var(--color-neutral);
+  svg {
+    width: 20px;
+    height: 20px;
   }
 }
 
-.bar-chart__label {
-  font-size: 0.72rem;
+.type-list__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.type-list__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+// Allowed to wrap rather than be cut: a type's name is the row's whole point.
+.type-list__label {
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.type-list__count {
+  flex: none;
+  font-size: 0.85rem;
   font-weight: 700;
-  color: var(--muted);
-  letter-spacing: 0.03em;
+  color: var(--on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.type-list__track {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.type-list__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-active);
+}
+
+.type-list__row--zero {
+  .type-list__icon {
+    background: color-mix(in srgb, var(--color-neutral) 15%, transparent);
+    color: var(--color-neutral);
+  }
+
+  .type-list__label,
+  .type-list__count {
+    color: var(--color-neutral);
+  }
+
+  .type-list__track {
+    background: color-mix(in srgb, var(--color-neutral) 25%, transparent);
+  }
 }
 
 // ── Table ────────────────────────────────────────────────────────────────
@@ -317,12 +361,6 @@ td {
   .chart-card,
   .table-card {
     padding: 0.9rem 1rem 1rem;
-  }
-
-  .bar-chart {
-    gap: 1rem;
-    height: 140px;
-    padding: 0;
   }
 }
 
