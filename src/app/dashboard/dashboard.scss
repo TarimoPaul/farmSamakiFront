@@ -290,8 +290,10 @@ td {
 }
 
 // One modifier per semantic token - the class name IS the token name, set by
-// Dashboard.statusTone(). Text in the token, background a 15% tint of it, so
-// both themes follow the token with no dark-mode rule of their own.
+// Dashboard.statusTone(). Background a 15% tint of the token, text the token
+// mixed 70% with --on-surface (the bare token on its own tint misses 4.5:1 -
+// see styles.scss), so both themes follow the token with no dark-mode rule of
+// their own.
 .pill {
   display: inline-block;
   padding: 0.25rem 0.65rem;
@@ -302,7 +304,7 @@ td {
   @each $tone in active, done, idle, danger, neutral {
     &--#{$tone} {
       background: color-mix(in srgb, var(--color-#{$tone}) 15%, transparent);
-      color: var(--color-#{$tone});
+      color: color-mix(in srgb, var(--color-#{$tone}) 70%, var(--on-surface));
     }
   }
 }

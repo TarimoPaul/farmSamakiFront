@@ -52,25 +52,14 @@ type StatusVariant =
       background: color-mix(in srgb, var(--muted) 15%, transparent);
       color: var(--muted);
     }
-    .badge--tone-active {
-      background: color-mix(in srgb, var(--color-active) 15%, transparent);
-      color: var(--color-active);
-    }
-    .badge--tone-idle {
-      background: color-mix(in srgb, var(--color-idle) 15%, transparent);
-      color: var(--color-idle);
-    }
-    .badge--tone-danger {
-      background: color-mix(in srgb, var(--color-danger) 15%, transparent);
-      color: var(--color-danger);
-    }
-    .badge--tone-neutral {
-      background: color-mix(in srgb, var(--color-neutral) 15%, transparent);
-      color: var(--color-neutral);
-    }
-    .badge--tone-done {
-      background: color-mix(in srgb, var(--color-done) 15%, transparent);
-      color: var(--color-done);
+    // The same tint and text as the dashboard's .pill: text is the token mixed
+    // 70% with --on-surface, because the bare token on its own tint misses
+    // 4.5:1 (see styles.scss).
+    @each $tone in active, done, idle, danger, neutral {
+      .badge--tone-#{$tone} {
+        background: color-mix(in srgb, var(--color-#{$tone}) 15%, transparent);
+        color: color-mix(in srgb, var(--color-#{$tone}) 70%, var(--on-surface));
+      }
     }
   `,
 })
