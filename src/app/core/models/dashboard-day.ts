@@ -1,3 +1,5 @@
+import { Cycle } from './cycle';
+
 /**
  * Hali ya shamba TAREHE MOJA - jibu la `dashboardOnDate`.
  *
@@ -16,6 +18,16 @@ export interface DashboardDay {
   totalVolumeM3: number;
 
   cyclesRunning: number;
+
+  /**
+   * Mizunguko iliyokuwa inaendelea siku hiyo - safu za jedwali la dashibodi.
+   *
+   * `cyclesRunning` NI urefu wa orodha hii (backend inaihesabu hivyo), hivyo
+   * tile na jedwali haviwezi kutofautiana. `status` ni hali ya SASA: mzunguko
+   * uliovunwa baadaye unarudi HARVESTED, ingawa siku hiyo ulikuwa unaendelea.
+   */
+  cycles: Cycle[];
+
   cyclesStarted: number;
   cyclesClosed: number;
 

@@ -262,13 +262,29 @@ describe('Dashboard date picker', () => {
     TestBed.resetTestingModule();
   });
 
+  /** A cycle row as both DASHBOARD_QUERY and DAY_QUERY select it. */
+  function cycleRow(cycleId: string, unitCode: string, status = 'ACTIVE') {
+    return {
+      cycleId,
+      speciesName: 'Sato',
+      stockingDate: '2026-01-10',
+      fingerlingsCount: 500,
+      survivalRateEstimate: 0.85,
+      expectedHarvestDate: '2026-07-10',
+      status,
+      unit: { unitId: '1', code: unitCode, type: 'TANK' },
+    };
+  }
+
   const DASHBOARD_DATA = {
     data: {
       productionUnits: [
         { unitId: '1', code: 'T1', type: 'TANK', sizeM3: 10, waterSource: null, status: 'ACTIVE' },
         { unitId: '2', code: 'T2', type: 'TANK', sizeM3: 5, waterSource: null, status: 'IDLE' },
       ],
-      cycles: [],
+      // TODAY's one running cycle. Every table test below proves it never
+      // appears on another date.
+      cycles: [cycleRow('100', 'LIVE-T1')],
     },
   };
 
@@ -282,7 +298,8 @@ describe('Dashboard date picker', () => {
           unitsActive: 4,
           unitsIdle: 3,
           totalVolumeM3: 70,
-          cyclesRunning: 4,
+          cyclesRunning: 0,
+          cycles: [],
           cyclesStarted: 0,
           cyclesClosed: 0,
           fingerlingsRunning: 900,
@@ -325,7 +342,7 @@ describe('Dashboard date picker', () => {
 
     const request = ctx.httpMock.expectOne(environment.graphqlUrl);
     expect(request.request.body.variables.date).toBe(ctx.component.selectedDate());
-    request.flush(dayResponse(ctx.component.selectedDate()));
+    request.flush(dayResponse(ctx.component.selectedDate(), { cyclesRunning: 4 }));
     await ctx.fixture.whenStable();
     ctx.fixture.detectChanges();
 
@@ -415,6 +432,155 @@ describe('Dashboard date picker', () => {
     expect(ctx.component.selectedDate()).toBe(before);
     expect(ctx.component.weekDates().some((d) => ctx.component.isToday(d))).toBe(false);
     ctx.httpMock.verify();
+  });
+
+  describe('Active Cycles table follows the selected date', () => {
+    const rows = (ctx: { fixture: { nativeElement: HTMLElement } }) =>
+      Array.from(ctx.fixture.nativeElement.querySelectorAll<HTMLElement>('[data-testid="cycle-row"]'));
+    const tableText = (ctx: { fixture: { nativeElement: HTMLElement } }) =>
+      ctx.fixture.nativeElement.querySelector('.table-card')?.textContent ?? '';
+
+    function pastDate(daysAgo: number): Date {
+      const past = new Date();
+      past.setDate(past.getDate() - daysAgo);
+      return past;
+    }
+
+    it('lists today\'s running cycles on today', async () => {
+      const ctx = await loaded();
+
+      expect(rows(ctx).map((r) => r.textContent)).toEqual([expect.stringContaining('LIVE-T1')]);
+    });
+
+    it('lists the cycles that were running on a past date - never today\'s', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+        dayResponse(ctx.component.selectedDate(), {
+          cyclesRunning: 2,
+          cycles: [cycleRow('7', 'OLD-A'), cycleRow('8', 'OLD-B', 'HARVESTED')],
+        }),
+      );
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(rows(ctx)).toHaveLength(2);
+      expect(tableText(ctx)).toContain('OLD-A');
+      expect(tableText(ctx)).toContain('OLD-B');
+      expect(tableText(ctx)).not.toContain('LIVE-T1');
+      // Tile and table are one answer.
+      expect(ctx.component.shownCyclesRunning()).toBe(rows(ctx).length);
+    });
+
+    it('shows a since-harvested cycle as Active on a date it was running', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+        dayResponse(ctx.component.selectedDate(), {
+          cyclesRunning: 1,
+          cycles: [cycleRow('8', 'OLD-B', 'HARVESTED')],
+        }),
+      );
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      const pill = rows(ctx)[0].querySelector('.pill');
+      expect(pill?.classList.contains('pill--active')).toBe(true);
+      expect(pill?.textContent?.trim()).toBe(ctx.component.t().statusActive);
+    });
+
+    it('shows the empty message on a past date with no cycles, not today\'s rows', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate(), { cyclesRunning: 0, cycles: [] }));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(rows(ctx)).toHaveLength(0);
+      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-empty"]')).not.toBeNull();
+      expect(tableText(ctx)).not.toContain('LIVE-T1');
+    });
+
+    it('shows no rows while a past date is loading', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.fixture.detectChanges();
+
+      expect(ctx.component.dayLoading()).toBe(true);
+      expect(rows(ctx)).toHaveLength(0);
+      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-loading"]')).not.toBeNull();
+      expect(tableText(ctx)).not.toContain('LIVE-T1');
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+    });
+
+    it('does not show the previous date\'s rows while the next date loads', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+        dayResponse(ctx.component.selectedDate(), {
+          cyclesRunning: 1,
+          cycles: [cycleRow('7', 'OLD-A')],
+        }),
+      );
+      await ctx.fixture.whenStable();
+
+      ctx.component.selectDate(pastDate(5));
+      ctx.fixture.detectChanges();
+
+      expect(rows(ctx)).toHaveLength(0);
+      expect(tableText(ctx)).not.toContain('OLD-A');
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+    });
+
+    it('shows no rows after a past date fails to load', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(2));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush({ errors: [{ message: 'nope', extensions: { errorCode: 'FORBIDDEN' } }], data: null });
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(rows(ctx)).toHaveLength(0);
+      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-failed"]')).not.toBeNull();
+      expect(tableText(ctx)).not.toContain('LIVE-T1');
+    });
+
+    it('says there is no record in the table for a date before our records', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(2000));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate(), { historyComplete: false }));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(rows(ctx)).toHaveLength(0);
+      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-no-history"]')).not.toBeNull();
+      expect(tableText(ctx)).not.toContain('LIVE-T1');
+    });
+
+    it('goes back to today\'s rows on "back to today"', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+      await ctx.fixture.whenStable();
+
+      ctx.component.backToToday();
+      ctx.fixture.detectChanges();
+
+      expect(tableText(ctx)).toContain('LIVE-T1');
+    });
   });
 
   it('keeps the date selected when its fetch fails', async () => {

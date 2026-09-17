@@ -9,7 +9,7 @@ import { UsersService } from '../core/services/users';
 import { PERMISSION } from '../core/models/permissions';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { ProductionUnit, UNIT_TYPES } from '../core/models/production-unit';
-import { Cycle } from '../core/models/cycle';
+import { Cycle, CYCLE_ACTIVE } from '../core/models/cycle';
 import { DashboardDay } from '../core/models/dashboard-day';
 import { LanguageService } from '../core/services/language';
 import { DASHBOARD_I18N } from './dashboard.i18n';
@@ -65,6 +65,20 @@ const DAY_QUERY = `
       unitsIdle
       totalVolumeM3
       cyclesRunning
+      cycles {
+        cycleId
+        speciesName
+        stockingDate
+        fingerlingsCount
+        survivalRateEstimate
+        expectedHarvestDate
+        status
+        unit {
+          unitId
+          code
+          type
+        }
+      }
       cyclesStarted
       cyclesClosed
       fingerlingsRunning
@@ -272,6 +286,49 @@ export class Dashboard {
   });
 
   readonly shownMembers = computed(() => this.day()?.members ?? this.totalMembers());
+
+  /**
+   * What the Active Cycles table can show for the selected date.
+   *
+   * Keyed on `viewingToday()`, not on `day()`: away from today the table never
+   * falls back to the live rows. While a date loads `day()` still holds the
+   * PREVIOUS date, after a failure it is null, and a date before our records
+   * has no rows worth listing - in all three the table says so instead.
+   */
+  readonly cycleTableState = computed<'rows' | 'loading' | 'failed' | 'noHistory'>(() => {
+    if (this.viewingToday()) {
+      return 'rows';
+    }
+    if (this.dayLoading()) {
+      return 'loading';
+    }
+    if (this.dayError()) {
+      return 'failed';
+    }
+    const dated = this.day();
+    if (!dated) {
+      return 'loading';
+    }
+    return dated.historyComplete ? 'rows' : 'noHistory';
+  });
+
+  /**
+   * The table's rows: today's live ACTIVE cycles, or the cycles that were
+   * running on the selected date - the same list `cyclesRunning` is the length
+   * of, so the tile above and the rows below cannot disagree.
+   */
+  readonly shownCycles = computed(() =>
+    this.viewingToday() ? this.activeCycles() : (this.day()?.cycles ?? []),
+  );
+
+  /**
+   * A row's status AS OF the selected date. Every dated row was running that
+   * day, so it reads Active even if the cycle has been harvested since -
+   * `status` on the wire is today's.
+   */
+  shownCycleStatus(cycle: Cycle): string {
+    return this.viewingToday() ? cycle.status : CYCLE_ACTIVE;
+  }
 
   /**
    * The status bars, dated.

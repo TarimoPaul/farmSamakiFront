@@ -185,8 +185,21 @@
           </div>
         </div>
 
-        @if (activeCycles().length === 0) {
-          <p class="dash-status">{{ t().tableEmpty }}</p>
+        <!-- The table follows the SAME date as the tiles. Away from today it
+             never shows the live rows: while the date loads, after it fails,
+             or before our records begin, it says which instead. -->
+        @if (cycleTableState() === 'loading') {
+          <p class="dash-status" data-testid="cycles-loading">{{ t().dayLoading }}</p>
+        } @else if (cycleTableState() === 'failed') {
+          <p class="dash-status dash-status--error" data-testid="cycles-failed">
+            {{ t().dayFailed }}
+          </p>
+        } @else if (cycleTableState() === 'noHistory') {
+          <p class="dash-status" data-testid="cycles-no-history">
+            {{ t().dayNoHistory }} {{ day()?.historyStartsOn }}.
+          </p>
+        } @else if (shownCycles().length === 0) {
+          <p class="dash-status" data-testid="cycles-empty">{{ t().tableEmpty }}</p>
         } @else {
           <table>
             <thead>
@@ -199,11 +212,11 @@
               </tr>
             </thead>
             <tbody>
-              @for (cycle of activeCycles(); track cycle.cycleId) {
+              @for (cycle of shownCycles(); track cycle.cycleId) {
                 <!-- data-label: on a phone each row is stacked into a small
                      card, and the header row is gone - so every cell names
                      itself (see the table block in dashboard.scss). -->
-                <tr>
+                <tr data-testid="cycle-row">
                   <td [attr.data-label]="t().colUnit">{{ cycle.unit.code }}</td>
                   <td [attr.data-label]="t().colSpecies">{{ cycle.speciesName }}</td>
                   <td [attr.data-label]="t().colStockingDate">{{ cycle.stockingDate }}</td>
@@ -211,8 +224,8 @@
                     {{ cycle.expectedHarvestDate ?? '-' }}
                   </td>
                   <td [attr.data-label]="t().colStatus">
-                    <span class="pill" [ngClass]="'pill--' + statusTone(cycle.status)">{{
-                      statusLabel(cycle.status)
+                    <span class="pill" [ngClass]="'pill--' + statusTone(shownCycleStatus(cycle))">{{
+                      statusLabel(shownCycleStatus(cycle))
                     }}</span>
                   </td>
                 </tr>
