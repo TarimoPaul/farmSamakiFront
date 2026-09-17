@@ -35,26 +35,28 @@ type StatusVariant =
       font-weight: 700;
       white-space: nowrap;
     }
+    // Every variant: a 15% tint of its colour, text that colour mixed 70% with
+    // --on-surface - the same rule as the dashboard's .pill, because the bare
+    // colour on its own tint misses 4.5:1 (see styles.scss).
     .badge--pending {
       background: color-mix(in srgb, var(--notice) 15%, transparent);
-      color: var(--notice);
+      color: color-mix(in srgb, var(--notice) 70%, var(--on-surface));
     }
+    // Brand text takes --brand-dark, the ramp's text value in both themes:
+    // --brand itself reaches only 4.46:1 at 70% in light mode.
     .badge--approved,
     .badge--active {
       background: color-mix(in srgb, var(--brand) 15%, transparent);
-      color: var(--brand);
+      color: color-mix(in srgb, var(--brand-dark) 70%, var(--on-surface));
     }
     .badge--rejected {
       background: color-mix(in srgb, var(--error) 15%, transparent);
-      color: var(--error);
+      color: color-mix(in srgb, var(--error) 70%, var(--on-surface));
     }
     .badge--neutral {
       background: color-mix(in srgb, var(--muted) 15%, transparent);
-      color: var(--muted);
+      color: color-mix(in srgb, var(--muted) 70%, var(--on-surface));
     }
-    // The same tint and text as the dashboard's .pill: text is the token mixed
-    // 70% with --on-surface, because the bare token on its own tint misses
-    // 4.5:1 (see styles.scss).
     @each $tone in active, done, idle, danger, neutral {
       .badge--tone-#{$tone} {
         background: color-mix(in srgb, var(--color-#{$tone}) 15%, transparent);

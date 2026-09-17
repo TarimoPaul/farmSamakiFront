@@ -53,7 +53,11 @@
   // contrast (light-mode neutral fell to 3.79:1). Every pill writes
   // color-mix(in srgb, var(--color-x) 70%, var(--on-surface)) - 4.85-7.03:1
   // across all five tones, both themes, on --surface and on a row already
-  // tinted with the same token.
+  // tinted with the same token. Brand is the one exception to the text source:
+  // --brand reaches only 4.46:1 that way in light mode, so brand pill text
+  // mixes --brand-dark instead (6.23:1 or better).
+  // Known edge: light neutral on --surface-alt is exactly 4.50:1 - no pill sits
+  // there today.
   //
   // brand, idle, danger and neutral ALIAS the tokens that already carried those
   // colours, so there is still one source per value; the dark block below
