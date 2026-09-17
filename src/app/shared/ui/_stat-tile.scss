@@ -8,13 +8,14 @@
 // Inatumiwa na dashboard.scss (angalia _auth-shared.scss kwa mtindo huu wa
 // partial ya pamoja).
 // ── Stat tiles ───────────────────────────────────────────────────────────
-// Anatomy: a neutral icon-chip with the label beside it, the number below.
+// Anatomy: a thin brand accent along the top edge, a brand-tinted icon-chip
+// with the label beside it, the number below.
 //
-// COLOUR RULE FOR THIS BLOCK: nothing here introduces a colour, and nothing
-// here is orange. The tiles are data; orange is the brand, and it lives on the
-// nav, the primary buttons and the week-strip selection - not on four counts.
-// All four tiles wear the same --color-neutral chip. The ICON tells them
-// apart, never a hue.
+// COLOUR RULE FOR THIS BLOCK: nothing here introduces a colour. The brand
+// appears as a hint only - a 3px accent and a soft chip, both derived from
+// --color-brand - so the tiles have warmth without four orange slabs. The
+// number stays in ink: the count is data. All four tiles wear the same chip;
+// the ICON tells them apart, never a hue.
 .stat-grid {
   display: grid;
   // Column count is chosen to hold the tile's 3:1 proportion, not to fill
@@ -39,6 +40,7 @@
 }
 
 .tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -54,7 +56,8 @@
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 
-  // Hover firms the border toward the chip's grey, not the brand.
+  // Hover firms the border toward the neutral grey; the brand already has
+  // its hint on the top edge.
   &:hover {
     border-color: color-mix(in srgb, var(--color-neutral) 45%, var(--border));
     box-shadow: 0 14px 24px -14px rgba(15, 35, 60, 0.55);
@@ -62,6 +65,20 @@
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
+  }
+
+  // The brand accent. A plain border-top on the tile would meet the 1px grey
+  // sides mid-corner and split the curve into two colours. Instead an overlay
+  // the exact shape of the tile's border box (inset -1px over the border,
+  // same radius) draws only its top border: the stroke follows the outer
+  // curve and tapers to nothing down each corner, so the corners stay round.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border-top: 3px solid var(--color-brand);
+    pointer-events: none;
   }
 }
 
@@ -72,9 +89,11 @@
   min-width: 0;
 }
 
-// The icon-chip. Its tint is derived from --color-neutral the way the status
-// pills derive theirs (color-mix toward transparent), so it follows the token
-// into dark mode with no value of its own.
+// The icon-chip. Its tint is derived from --color-brand the way the status
+// pills derive theirs (color-mix toward transparent). The icon is the brand
+// pulled toward the ink: --on-surface is dark in light mode and light in dark
+// mode, so the same mix deepens the orange on white and lifts it on slate -
+// readable in both themes with no value of its own.
 .tile__icon {
   flex: none;
   display: flex;
@@ -83,8 +102,8 @@
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--color-neutral) 15%, transparent);
-  color: var(--color-neutral);
+  background: color-mix(in srgb, var(--color-brand) 15%, transparent);
+  color: color-mix(in srgb, var(--color-brand) 80%, var(--on-surface));
 
   svg {
     width: 20px;
@@ -106,11 +125,12 @@
 }
 
 // The number, the biggest thing on the tile, in ink rather than a tint: the
-// count is data, not decoration.
+// count is data, not decoration. 500, not heavier: the type scale uses 400
+// and 500 only, and 400 is too light for the primary figure.
 .tile__value {
   min-width: 0;
-  font-size: 1.9rem;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 500;
   line-height: 1;
   letter-spacing: -0.02em;
   color: var(--on-surface);
@@ -146,9 +166,5 @@
   .tile__label {
     font-size: 0.7rem;
     white-space: normal;
-  }
-
-  .tile__value {
-    font-size: 1.45rem;
   }
 }
