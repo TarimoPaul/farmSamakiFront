@@ -44,7 +44,7 @@ const REAL = {
   validation: {
     errors: [
       {
-        message: 'Aina ya kitengo si sahihi. Chagua: TANK, POND, BWAWA.',
+        message: 'Aina ya kitengo si sahihi. Chagua: TANK, POND_EARTHEN, POND_LINED.',
         locations: [{ line: 1, column: 12 }],
         path: ['createProductionUnit'],
         extensions: { errorCode: 'VALIDATION_ERROR', classification: 'BAD_REQUEST' },
@@ -185,7 +185,9 @@ describe('GraphqlService', () => {
       expect(apiError.errorCode).toBe(ERROR_CODE.VALIDATION_ERROR);
       expect(apiError.classification).toBe('BAD_REQUEST');
       expect(apiError.path).toEqual(['createProductionUnit']);
-      expect(apiError.message).toBe('Aina ya kitengo si sahihi. Chagua: TANK, POND, BWAWA.');
+      expect(apiError.message).toBe(
+        'Aina ya kitengo si sahihi. Chagua: TANK, POND_EARTHEN, POND_LINED.',
+      );
     });
 
     it('surfaces CONFLICT with the code, not just a message', async () => {

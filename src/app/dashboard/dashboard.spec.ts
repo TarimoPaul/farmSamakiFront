@@ -179,7 +179,7 @@ describe('Dashboard error surface', () => {
           {
             unitId: '27',
             code: 'D4-A',
-            type: 'POND',
+            type: 'POND_EARTHEN',
             sizeM3: 10,
             waterSource: null,
             status: 'ACTIVE',
@@ -206,7 +206,7 @@ describe('Dashboard error surface', () => {
           {
             unitId: '27',
             code: 'D4-A',
-            type: 'POND',
+            type: 'POND_EARTHEN',
             sizeM3: 10,
             waterSource: null,
             status: 'IDLE',
@@ -216,11 +216,18 @@ describe('Dashboard error surface', () => {
       },
     });
     await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(component.error()).toBeNull();
     expect(component.errorMessage()).toBeNull();
     expect(component.totalUnits()).toBe(1);
     expect(component.loading()).toBe(false);
+
+    // The type chart speaks words, not enum codes.
+    const labels = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.bar-chart__label'),
+    ).map((label) => label.textContent?.trim());
+    expect(labels).toEqual(['Tangi', 'Bwawa la kuchimbwa', 'Bwawa la kujengwa']);
   });
 });
 

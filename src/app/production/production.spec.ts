@@ -134,7 +134,14 @@ const money = (value: number) =>
 
 const UNITS = [
   { unitId: '27', code: 'T1', type: 'TANK', sizeM3: 12.5, waterSource: 'Kisima', status: 'ACTIVE' },
-  { unitId: '28', code: 'P2', type: 'POND', sizeM3: null, waterSource: null, status: 'IDLE' },
+  {
+    unitId: '28',
+    code: 'P2',
+    type: 'POND_EARTHEN',
+    sizeM3: null,
+    waterSource: null,
+    status: 'IDLE',
+  },
 ];
 
 const SPECIES = [{ speciesId: '1', name: 'Sato', growthMonthsAvg: 7, avgHarvestWeightKg: 0.35 }];
@@ -391,21 +398,21 @@ describe('Production', () => {
       await load(fixture, httpMock);
 
       component.openUnitForm();
-      component.unitForm.setValue({ code: 'T9', type: 'POND', sizeM3: '', waterSource: '' });
+      component.unitForm.setValue({ code: 'T9', type: 'POND_LINED', sizeM3: '', waterSource: '' });
       component.submitUnit();
 
       const req = gql(httpMock, 'CreateProductionUnit');
       // Blank optionals travel as null, NOT as 0 or "" - a tank of unknown
       // size is not a tank of zero cubic metres.
       expect((req.request.body as { variables: unknown }).variables).toEqual({
-        input: { code: 'T9', type: 'POND', sizeM3: null, waterSource: null },
+        input: { code: 'T9', type: 'POND_LINED', sizeM3: null, waterSource: null },
       });
       req.flush({
         data: {
           createProductionUnit: {
             unitId: '31',
             code: 'T9',
-            type: 'POND',
+            type: 'POND_LINED',
             sizeM3: null,
             waterSource: null,
             status: 'IDLE',
@@ -496,7 +503,7 @@ describe('Production', () => {
             cycleId: '12',
             stockingDate: '2026-09-02',
             fingerlingsCount: 400,
-            unit: { unitId: '28', code: 'P2', type: 'POND' },
+            unit: { unitId: '28', code: 'P2', type: 'POND_EARTHEN' },
           },
         },
       });
@@ -2032,8 +2039,24 @@ describe('Production summary rail', () => {
 
     const bars = fixture.componentInstance.unitsByType();
     expect(bars.find((bar) => bar.key === 'TANK')?.count).toBe(1);
-    expect(bars.find((bar) => bar.key === 'POND')?.count).toBe(1);
-    expect(bars.find((bar) => bar.key === 'BWAWA')?.count).toBe(0);
+    expect(bars.find((bar) => bar.key === 'POND_EARTHEN')?.count).toBe(1);
+    expect(bars.find((bar) => bar.key === 'POND_LINED')?.count).toBe(0);
+  });
+
+  it('shows unit types in words, never as codes', async () => {
+    const { fixture, httpMock } = setup(['view_dashboard']);
+    await load(fixture, httpMock);
+
+    const element = fixture.nativeElement as HTMLElement;
+    const rail = Array.from(element.querySelectorAll('.mini-bars__label')).map((label) =>
+      label.textContent?.trim(),
+    );
+    expect(rail).toEqual(
+      expect.arrayContaining(['Tangi', 'Bwawa la kuchimbwa', 'Bwawa la kujengwa']),
+    );
+    // Jedwali la vitengo pia: P2 ni bwawa la kuchimbwa, si "POND_EARTHEN".
+    expect(element.textContent).toContain('Bwawa la kuchimbwa');
+    expect(element.textContent).not.toMatch(/\b(TANK|POND_EARTHEN|POND_LINED)\b/);
   });
 
   it('renders the five cards beside the work, not above it', async () => {
@@ -2056,6 +2079,7 @@ describe('Production summary rail', () => {
 
     expect(fixture.componentInstance.cycleSummary().map((row) => row.label)).toContain('Running');
     expect(fixture.componentInstance.unitStatusLabel('IDLE')).toBe('Idle');
+    expect(fixture.componentInstance.unitTypeLabel('POND_LINED')).toBe('Lined Pond');
   });
   it('keeps the intro card for somebody who may start nothing', async () => {
     // VIEWER: hana manage_units wala edit_cycle. Kadi inabaki - maelezo ndiyo
@@ -2107,7 +2131,7 @@ describe('Production date picker', () => {
           unitsIdle: 4,
           unitsByType: [
             { type: 'TANK', count: 7 },
-            { type: 'POND', count: 2 },
+            { type: 'POND_EARTHEN', count: 2 },
           ],
           historyStartsOn: '2020-01-01',
           historyComplete: true,
@@ -2171,12 +2195,12 @@ describe('Production date picker', () => {
     expect(status.find((bar) => bar.key === 'ACTIVE')?.count).toBe(5);
     expect(status.find((bar) => bar.key === 'IDLE')?.count).toBe(4);
 
-    // BWAWA haikurudi kwenye jibu - sifuri inatoka kwenye orodha yetu, ili
+    // POND_LINED haikurudi kwenye jibu - sifuri inatoka kwenye orodha yetu, ili
     // kadi isibadilike umbo kulingana na data iliyopo.
     const types = fixture.componentInstance.unitsByType();
-    expect(types.map((bar) => bar.key)).toEqual(['TANK', 'POND', 'BWAWA']);
+    expect(types.map((bar) => bar.key)).toEqual(['TANK', 'POND_EARTHEN', 'POND_LINED']);
     expect(types.find((bar) => bar.key === 'TANK')?.count).toBe(7);
-    expect(types.find((bar) => bar.key === 'BWAWA')?.count).toBe(0);
+    expect(types.find((bar) => bar.key === 'POND_LINED')?.count).toBe(0);
   });
 
   it('says there is no record rather than reporting an empty farm', async () => {

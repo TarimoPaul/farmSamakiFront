@@ -397,7 +397,7 @@
           <div class="mini-bars">
             @for (bar of unitsByType(); track bar.key) {
               <div class="mini-bars__row">
-                <span class="mini-bars__label">{{ bar.key }}</span>
+                <span class="mini-bars__label">{{ unitTypeLabel(bar.key) }}</span>
                 <div class="mini-bars__track">
                   <div class="mini-bars__fill" [style.width.%]="bar.percent"></div>
                 </div>
@@ -437,7 +437,7 @@
     <app-form-field [label]="t().fieldUnitType" for="unit-type" [required]="true">
       <select id="unit-type" class="text-input" formControlName="type">
         @for (type of unitTypes; track type) {
-          <option [value]="type">{{ type }}</option>
+          <option [value]="type">{{ unitTypeLabel(type) }}</option>
         }
       </select>
     </app-form-field>
@@ -493,7 +493,7 @@
     <app-form-field [label]="t().fieldCycleUnit" for="cycle-unit" [required]="true">
       <select id="cycle-unit" class="text-input" formControlName="unitId">
         @for (unit of units(); track unit.unitId) {
-          <option [value]="unit.unitId">{{ unit.code }} ({{ unit.type }})</option>
+          <option [value]="unit.unitId">{{ unit.code }} ({{ unitTypeLabel(unit.type) }})</option>
         }
       </select>
     </app-form-field>

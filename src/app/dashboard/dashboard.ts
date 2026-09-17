@@ -8,13 +8,14 @@ import { FarmsService } from '../core/services/farms';
 import { UsersService } from '../core/services/users';
 import { PERMISSION } from '../core/models/permissions';
 import { ERROR_CODE } from '../core/models/error-codes';
-import { ProductionUnit } from '../core/models/production-unit';
+import { ProductionUnit, UNIT_TYPES } from '../core/models/production-unit';
 import { Cycle } from '../core/models/cycle';
 import { DashboardDay } from '../core/models/dashboard-day';
 import { LanguageService } from '../core/services/language';
 import { DASHBOARD_I18N } from './dashboard.i18n';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { apiErrorMessage } from '../core/i18n/error-messages';
+import { unitTypeLabel } from '../core/i18n/unit-types';
 
 const DASHBOARD_QUERY = `
   query {
@@ -86,7 +87,6 @@ function isoDate(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-const UNIT_TYPES = ['TANK', 'POND', 'BWAWA'] as const;
 const UNIT_STATUSES = ['ACTIVE', 'IDLE', 'MAINTENANCE'] as const;
 
 /** The semantic colour a status takes - `--color-<tone>` in src/styles.scss. */
@@ -307,6 +307,10 @@ export class Dashboard {
       return { type, count, percent: Math.round((count / max) * 100) };
     });
   });
+
+  unitTypeLabel(type: string): string {
+    return unitTypeLabel(type, this.languageService.lang());
+  }
 
   readonly unitsByStatus = computed(() => {
     const units = this.units();

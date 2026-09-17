@@ -77,8 +77,8 @@ const FALLBACK_MESSAGE: Record<Lang, string> = {
  *
  * `preferBackendMessage` is for forms: on VALIDATION_ERROR and CONFLICT the
  * backend names the actual problem ("Aina ya kitengo si sahihi. Chagua: TANK,
- * POND, BWAWA.") and that beats our generic line - at the cost of being
- * Swahili even in English UI. Read-only screens leave it off.
+ * POND_EARTHEN, POND_LINED.") and that beats our generic line - at the cost of
+ * being Swahili even in English UI. Read-only screens leave it off.
  */
 export function apiErrorMessage(error: ApiError, lang: Lang, preferBackendMessage = false): string {
   if (preferBackendMessage && error.errorCode && error.message) {

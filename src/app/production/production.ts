@@ -31,6 +31,7 @@ import {
   cycleCloseRuleMessage,
   harvestEventRuleMessage,
 } from '../core/i18n/error-messages';
+import { unitTypeLabel } from '../core/i18n/unit-types';
 import { HasPermission } from '../shared/directives/has-permission';
 import { Button } from '../shared/ui/button/button';
 import { ConfirmDialog } from '../shared/ui/confirm-dialog/confirm-dialog';
@@ -284,6 +285,11 @@ export class Production {
       default:
         return status;
     }
+  }
+
+  /** A unit type's words - the rail, the table, the form and the cycle picker all use this. */
+  unitTypeLabel(type: string): string {
+    return unitTypeLabel(type, this.languageService.lang());
   }
 
   /**
@@ -708,7 +714,7 @@ export class Production {
     const t = this.t();
     return [
       { label: t.colUnitCode, value: (unit) => unit.code },
-      { label: t.colUnitType, value: (unit) => unit.type },
+      { label: t.colUnitType, value: (unit) => this.unitTypeLabel(unit.type) },
       {
         label: t.colUnitSize,
         value: (unit) => (unit.sizeM3 === null ? t.noSize : String(unit.sizeM3)),
