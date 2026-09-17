@@ -5,32 +5,29 @@
 // ingemaanisha vyanzo viwili vya ukweli kwa umbo lile lile, na vingetofautiana
 // mara ya kwanza mmoja wao unapoguswa.
 //
-// Inatumiwa na dashboard.scss na na stat-strip.scss (angalia _auth-shared.scss
-// kwa mtindo huu wa partial ya pamoja).
+// Inatumiwa na dashboard.scss (angalia _auth-shared.scss kwa mtindo huu wa
+// partial ya pamoja).
 // ── Stat tiles ───────────────────────────────────────────────────────────
-// Ported from the reference infographic (ScreenShoot/til1.png). Every
-// proportion below is measured off that artwork, not guessed - its card is
-// 272x91px, so the ratios are stated against those numbers.
+// Anatomy: a neutral icon-chip with the label beside it, the number below.
 //
-// COLOUR RULE FOR THIS BLOCK: nothing here introduces a colour. The
-// reference gives each of its four rows a different hue; we have one accent,
-// so all four tiles share the ramp already defined in src/styles.scss - the
-// pale brand chip on the tab, --brand-strong on the icon, and the slate
-// neutrals everywhere else. (The tab and icon are brand for now; their
-// treatment is a separate task. The reference's orange cap was removed.)
+// COLOUR RULE FOR THIS BLOCK: nothing here introduces a colour, and nothing
+// here is orange. The tiles are data; orange is the brand, and it lives on the
+// nav, the primary buttons and the week-strip selection - not on four counts.
+// All four tiles wear the same --color-neutral chip. The ICON tells them
+// apart, never a hue.
 .stat-grid {
   display: grid;
-  // Column count is chosen to hold the reference tile.s 3:1 proportion, not
-  // to fill the row: on a wide screen two across stretched each tile to 7:1
-  // (measured on the running app) and the tab stretched with it into a slab.
+  // Column count is chosen to hold the tile's 3:1 proportion, not to fill
+  // the row: on a wide screen two across stretched each tile to 7:1
+  // (measured on the running app).
   grid-template-columns: repeat(4, 1fr);
 
   @media (max-width: 1600px) {
     grid-template-columns: repeat(2, 1fr);
   }
-  // Row gap is the larger of the two: the tab overhangs the top of its tile
-  // by 0.85rem and must not touch the tile above it.
-  gap: 1.9rem 1.15rem;
+  // One gap both ways: the larger row gap only existed to keep the old
+  // overhanging label tab off the tile above it.
+  gap: 1.15rem;
 
   // A phone: TWO across, not one. One-per-row made four tiles fill the whole
   // first screen before anything else could be seen. The compact tile below
@@ -42,25 +39,24 @@
 }
 
 .tile {
-  position: relative;
-  // Top padding clears the tab (2.15rem tall, pulled 0.85rem above the tile)
-  // plus its pendant; right padding clears the cap standing on that edge.
-  padding: 2.5rem 2.4rem 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.15rem 2.4rem 1.15rem 1.25rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  // Measured from the artwork: the shadow sits directly UNDER the card with
-  // no sideways offset (the strip to the right of the card is untouched
-  // background), darkest at the edge and gone within ~35px. The border is
-  // ours, not the reference's - on a white canvas, and again on the dark
-  // theme's slate, a shadow alone does not hold the tile's edge.
+  // The shadow sits directly UNDER the card with no sideways offset, darkest
+  // at the edge and gone within ~35px. The border holds the tile's edge where
+  // a shadow alone does not - on a white canvas, and on the dark theme's slate.
   box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 
+  // Hover firms the border toward the chip's grey, not the brand.
   &:hover {
-    border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
+    border-color: color-mix(in srgb, var(--color-neutral) 45%, var(--border));
     box-shadow: 0 14px 24px -14px rgba(15, 35, 60, 0.55);
   }
 
@@ -69,86 +65,48 @@
   }
 }
 
-// The tab: straddles the top edge. It carries the LABEL now, not the number -
-// which is why it is wide again (the reference's own tab is 51% of the card
-// and holds text too). The number moved down into the body, where it has the
-// room to be the biggest thing on the tile.
-.tile__tab {
-  position: absolute;
-  top: -0.85rem;
-  left: 1.15rem;
-  z-index: 1;
-  // Wide enough for the longest label ("Mizunguko Inayoendelea" in Swahili)
-  // without wrapping, and capped so it never reaches the cap on the right.
-  width: 66%;
-  max-width: calc(100% - 3.6rem);
-  height: 2.15rem;
+.tile__head {
   display: flex;
   align-items: center;
-  padding: 0 0.95rem;
-  border-radius: 12px;
-  // A pale chip rather than a solid block: four saturated tabs across the top
-  // of the screen read as an alarm. Same two tokens, swapped roles -
-  // --brand-soft carries --brand-dark at 6.0:1 in light, 4.9:1 in dark.
-  background: var(--brand-soft);
-  color: var(--brand-dark);
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 1.2;
-  // A long label is cut rather than allowed to break the tab's height.
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-// The pendant hanging below the tab. In the artwork it hangs where it points
-// at the divider inside the card, so this one is placed on the divider too -
-// 4.65rem from the tile's left edge (1.25rem of padding + the 3.4rem icon
-// zone), measured back from the tab's own left edge at 1.15rem.
-.tile__tab::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 3.5rem;
-  width: 2.1rem;
-  height: 0.9rem;
-  margin-left: -1.05rem;
-  background: inherit;
-  border-radius: 0 0 1.05rem 1.05rem;
-}
-
-// The reference's orange CAP on the right edge is gone: orange is the brand,
-// and a slab of it on every tile said "brand" four times over nothing. The
-// right padding it needed is left as it was - colour-only change.
-
-.tile__body {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
+  gap: 0.7rem;
   min-width: 0;
 }
 
-// Icon zone, closed by the hairline divider the reference draws between the
-// icon and the text. Its width sets where the pendant above points.
+// The icon-chip. Its tint is derived from --color-neutral the way the status
+// pills derive theirs (color-mix toward transparent), so it follows the token
+// into dark mode with no value of its own.
 .tile__icon {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3.4rem;
-  padding-right: 0.9rem;
-  border-right: 1px solid var(--border);
-  color: var(--brand-strong);
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-neutral) 15%, transparent);
+  color: var(--color-neutral);
 
   svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
   }
 }
 
-// The number, now the biggest thing on the tile. Slate rather than orange:
-// the tile already spends its accent on the tab, the icon and the cap, and
-// the count is data, not decoration.
+// Plain secondary text. A long label ("Mizunguko Inayoendelea") is cut rather
+// than allowed to change the tile's height.
+.tile__label {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// The number, the biggest thing on the tile, in ink rather than a tint: the
+// count is data, not decoration.
 .tile__value {
   min-width: 0;
   font-size: 1.9rem;
@@ -161,50 +119,33 @@
 }
 
 // ── Compact tile (phone) ─────────────────────────────────────────────────
-// At ~165px wide the reference anatomy has no room: the overhanging tab would
-// cover the tile, the pendant would point at nothing, and a 22px cap is an
-// eighth of the card. So the same parts, re-set: the tab becomes a small chip
-// INSIDE the tile (still the label, still the pale brand chip, now allowed to
-// wrap to two lines - "Mizunguko Inayoendelea" does), the pendant goes, and
-// the icon loses its divider.
+// At ~165px wide the same parts, smaller: the chip shrinks and the label may
+// wrap to two lines ("Mizunguko Inayoendelea" does).
 @media (max-width: 700px) {
   .tile {
-    display: flex;
-    flex-direction: column;
     gap: 0.6rem;
     padding: 0.75rem 1.2rem 0.8rem 0.8rem;
     box-shadow: 0 8px 14px -12px rgba(15, 35, 60, 0.45);
   }
 
-  .tile__tab {
-    position: static;
-    align-self: flex-start;
-    width: auto;
-    max-width: 100%;
-    height: auto;
-    padding: 0.22rem 0.5rem;
-    border-radius: 8px;
-    font-size: 0.7rem;
-    white-space: normal;
-  }
-
-  .tile__tab::after {
-    display: none;
-  }
-
-  .tile__body {
+  .tile__head {
     gap: 0.5rem;
   }
 
   .tile__icon {
-    width: auto;
-    padding-right: 0;
-    border-right: 0;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 8px;
 
     svg {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
     }
+  }
+
+  .tile__label {
+    font-size: 0.7rem;
+    white-space: normal;
   }
 
   .tile__value {

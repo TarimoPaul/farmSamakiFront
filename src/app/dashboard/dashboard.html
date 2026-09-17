@@ -23,18 +23,13 @@
     } @else if (errorMessage()) {
       <p class="dash-status dash-status--error">{{ errorMessage() }}</p>
     } @else {
-      <!-- Tile anatomy is taken from the reference (ScreenShoot/til1.png),
-             measured off its pixels: a landscape card, a coloured TAB that
-             straddles the top edge - carrying the label, with the number
-             moved down into the body where it has room - a pendant
-             hanging under it, and inside the card an icon, a hairline
-             divider, then the number. The reference's coloured cap on the
-             right edge was dropped: orange is the brand, not decoration. No
+      <!-- Tile anatomy: a neutral icon-chip with the label beside it, the
+             number below. All four chips are the same grey - the ICON tells
+             the tiles apart, never a colour, and no orange enters them. No
              colour enters this file that is not already a token. -->
       <section class="stat-grid">
         <article class="tile">
-          <span class="tile__tab">{{ t().statTotalUnits }}</span>
-          <div class="tile__body">
+          <div class="tile__head">
             <span class="tile__icon">
               <svg
                 viewBox="0 0 24 24"
@@ -51,13 +46,13 @@
                 <line x1="12" y1="22.08" x2="12" y2="12" />
               </svg>
             </span>
-            <span class="tile__value">{{ shownTotalUnits() | number }}</span>
+            <span class="tile__label">{{ t().statTotalUnits }}</span>
           </div>
+          <span class="tile__value">{{ shownTotalUnits() | number }}</span>
         </article>
 
         <article class="tile">
-          <span class="tile__tab">{{ t().statActiveUnits }}</span>
-          <div class="tile__body">
+          <div class="tile__head">
             <span class="tile__icon">
               <svg
                 viewBox="0 0 24 24"
@@ -68,16 +63,16 @@
                 stroke-linejoin="round"
               >
                 <circle cx="12" cy="12" r="10" />
-                <path d="M12 6v6l4 2" />
+                <path d="M8 12l3 3 5-6" />
               </svg>
             </span>
-            <span class="tile__value">{{ shownActiveUnits() | number }}</span>
+            <span class="tile__label">{{ t().statActiveUnits }}</span>
           </div>
+          <span class="tile__value">{{ shownActiveUnits() | number }}</span>
         </article>
 
         <article class="tile">
-          <span class="tile__tab">{{ t().statActiveCycles }}</span>
-          <div class="tile__body">
+          <div class="tile__head">
             <span class="tile__icon">
               <svg
                 viewBox="0 0 24 24"
@@ -92,13 +87,13 @@
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
               </svg>
             </span>
-            <span class="tile__value">{{ shownCyclesRunning() | number }}</span>
+            <span class="tile__label">{{ t().statActiveCycles }}</span>
           </div>
+          <span class="tile__value">{{ shownCyclesRunning() | number }}</span>
         </article>
 
         <article class="tile">
-          <span class="tile__tab">{{ t().statFingerlings }}</span>
-          <div class="tile__body">
+          <div class="tile__head">
             <span class="tile__icon">
               <svg
                 viewBox="0 0 24 24"
@@ -108,14 +103,15 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
-                <path
-                  d="M6.5 12c.9-3.3 4.7-5.5 8-5.5 3.3 0 5.7 2.4 6.5 5.5-.8 3.1-3.2 5.5-6.5 5.5-3.3 0-7.1-2.2-8-5.5z"
-                />
-                <path d="M21 12l2.5-2.5v5L21 12z" />
+                <path d="M16.69 7.44a6.97 6.97 0 0 0-1.69 4.56c0 1.75.64 3.35 1.7 4.57" />
+                <path d="M2 9.5c7.72 8.65 14.75 10.27 20 2.5-5.25-7.76-12.29-6.14-20 2.5" />
+                <path d="M18 11v.01" />
+                <path d="M11.5 10.5c-.67 1-.67 2 0 3" />
               </svg>
             </span>
-            <span class="tile__value">{{ shownFingerlings() | number }}</span>
+            <span class="tile__label">{{ t().statFingerlings }}</span>
           </div>
+          <span class="tile__value">{{ shownFingerlings() | number }}</span>
         </article>
       </section>
 

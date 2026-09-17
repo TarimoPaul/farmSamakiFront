@@ -445,8 +445,8 @@ td {
     border-color: var(--brand);
   }
 
-  // The same pale chip the tile tabs use, so the one orange square in the
-  // rail stops competing with the numbers around it.
+  // A pale brand chip rather than a solid block, so the one orange square in
+  // the rail stops competing with the numbers around it.
   &--today {
     background: var(--brand-soft);
     color: var(--brand-dark);
