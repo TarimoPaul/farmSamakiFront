@@ -305,6 +305,7 @@ describe('Dashboard date picker', () => {
           fingerlingsRunning: 900,
           fingerlingsStocked: 0,
           members: 6,
+          unitsByType: [],
           historyStartsOn: '2020-01-01',
           historyComplete: true,
           ...overrides,
@@ -580,6 +581,169 @@ describe('Dashboard date picker', () => {
       ctx.fixture.detectChanges();
 
       expect(tableText(ctx)).toContain('LIVE-T1');
+    });
+  });
+
+  describe('Units by Type chart follows the selected date', () => {
+    type Ctx = { fixture: { nativeElement: HTMLElement } };
+    const bars = (ctx: Ctx) =>
+      Array.from(ctx.fixture.nativeElement.querySelectorAll<HTMLElement>('.type-list__row')).map(
+        (row) => ({
+          count: row.querySelector('.type-list__count')?.textContent?.trim(),
+          width: row.querySelector<HTMLElement>('.type-list__fill')?.style.width,
+          zero: row.classList.contains('type-list__row--zero'),
+        }),
+      );
+    const has = (ctx: Ctx, testId: string) =>
+      ctx.fixture.nativeElement.querySelector(`[data-testid="${testId}"]`) !== null;
+
+    function pastDate(daysAgo: number): Date {
+      const past = new Date();
+      past.setDate(past.getDate() - daysAgo);
+      return past;
+    }
+
+    // Live fixture: two TANKs, nothing else - TANK 2 (100%), the ponds 0.
+    const LIVE_BARS = [
+      { count: '2', width: '100%', zero: false },
+      { count: '0', width: '0%', zero: true },
+      { count: '0', width: '0%', zero: true },
+    ];
+
+    it("draws today's live counts on today", async () => {
+      const ctx = await loaded();
+
+      expect(bars(ctx)).toEqual(LIVE_BARS);
+    });
+
+    it("draws the selected date's counts, against THAT date's max, filling omitted types with 0", async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      // No TANK row: the backend leaves out a type with no unit that day.
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+        dayResponse(ctx.component.selectedDate(), {
+          unitsByType: [
+            { type: 'POND_LINED', count: 1 },
+            { type: 'POND_EARTHEN', count: 4 },
+          ],
+        }),
+      );
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      // Always three rows in UNIT_TYPES order; 4 is the max that day, so
+      // POND_LINED is 25% - not measured against today's TANK count.
+      expect(bars(ctx)).toEqual([
+        { count: '0', width: '0%', zero: true },
+        { count: '4', width: '100%', zero: false },
+        { count: '1', width: '25%', zero: false },
+      ]);
+    });
+
+    it('draws three muted 0 rows on a date with records but no units', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate(), { unitsExisting: 0, unitsByType: [] }));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(bars(ctx)).toEqual([
+        { count: '0', width: '0%', zero: true },
+        { count: '0', width: '0%', zero: true },
+        { count: '0', width: '0%', zero: true },
+      ]);
+    });
+
+    it('draws no bars while a past date is loading', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.fixture.detectChanges();
+
+      expect(bars(ctx)).toEqual([]);
+      expect(has(ctx, 'types-loading')).toBe(true);
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+    });
+
+    it("does not keep the previous date's bars while the next date loads", async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(
+          dayResponse(ctx.component.selectedDate(), {
+            unitsByType: [{ type: 'POND_EARTHEN', count: 4 }],
+          }),
+        );
+      await ctx.fixture.whenStable();
+
+      ctx.component.selectDate(pastDate(5));
+      ctx.fixture.detectChanges();
+
+      expect(bars(ctx)).toEqual([]);
+      expect(has(ctx, 'types-loading')).toBe(true);
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+    });
+
+    it('draws no bars after a past date fails to load', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(2));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush({ errors: [{ message: 'nope', extensions: { errorCode: 'FORBIDDEN' } }], data: null });
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(bars(ctx)).toEqual([]);
+      expect(has(ctx, 'types-failed')).toBe(true);
+    });
+
+    it('draws no bars for a date before our records', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(2000));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate(), { historyComplete: false }));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(bars(ctx)).toEqual([]);
+      expect(has(ctx, 'types-no-history')).toBe(true);
+    });
+
+    it('asks the backend for unitsByType on a past date', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      const request = ctx.httpMock.expectOne(environment.graphqlUrl);
+      expect(request.request.body.query).toMatch(/unitsByType\s*\{\s*type\s+count\s*\}/);
+      request.flush(dayResponse(ctx.component.selectedDate()));
+    });
+
+    it("goes back to today's bars on \"back to today\"", async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(
+          dayResponse(ctx.component.selectedDate(), {
+            unitsByType: [{ type: 'POND_LINED', count: 3 }],
+          }),
+        );
+      await ctx.fixture.whenStable();
+
+      ctx.component.backToToday();
+      ctx.fixture.detectChanges();
+
+      expect(bars(ctx)).toEqual(LIVE_BARS);
     });
   });
 

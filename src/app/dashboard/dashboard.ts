@@ -84,6 +84,10 @@ const DAY_QUERY = `
       fingerlingsRunning
       fingerlingsStocked
       members
+      unitsByType {
+        type
+        count
+      }
       historyStartsOn
       historyComplete
     }
@@ -288,14 +292,15 @@ export class Dashboard {
   readonly shownMembers = computed(() => this.day()?.members ?? this.totalMembers());
 
   /**
-   * What the Active Cycles table can show for the selected date.
+   * What a dated card can show for the selected date - read by the Active
+   * Cycles table and the Units by Type chart alike.
    *
-   * Keyed on `viewingToday()`, not on `day()`: away from today the table never
-   * falls back to the live rows. While a date loads `day()` still holds the
-   * PREVIOUS date, after a failure it is null, and a date before our records
-   * has no rows worth listing - in all three the table says so instead.
+   * Keyed on `viewingToday()`, not on `day()`: away from today these cards
+   * never fall back to the live data. While a date loads `day()` still holds
+   * the PREVIOUS date, after a failure it is null, and a date before our
+   * records has nothing worth drawing - in all three the card says so instead.
    */
-  readonly cycleTableState = computed<'rows' | 'loading' | 'failed' | 'noHistory'>(() => {
+  readonly dayViewState = computed<'rows' | 'loading' | 'failed' | 'noHistory'>(() => {
     if (this.viewingToday()) {
       return 'rows';
     }
@@ -363,6 +368,30 @@ export class Dashboard {
       const count = units.filter((u) => u.type === type).length;
       return { type, count, percent: Math.round((count / max) * 100) };
     });
+  });
+
+  /**
+   * The type bars, dated - today's live counts, or the selected date's.
+   *
+   * The backend leaves out a type with no unit that day, so every type in
+   * UNIT_TYPES is filled back in with 0: the card keeps its three rows on
+   * every date. Percent is against THAT date's largest type, not today's.
+   * Only drawn when `dayViewState()` is 'rows'.
+   */
+  readonly shownUnitsByType = computed(() => {
+    if (this.viewingToday()) {
+      return this.unitsByType();
+    }
+    const dated = this.day()?.unitsByType ?? [];
+    const counts = UNIT_TYPES.map(
+      (type) => dated.find((row) => row.type === type)?.count ?? 0,
+    );
+    const max = Math.max(1, ...counts);
+    return UNIT_TYPES.map((type, i) => ({
+      type,
+      count: counts[i],
+      percent: Math.round((counts[i] / max) * 100),
+    }));
   });
 
   unitTypeLabel(type: string): string {
