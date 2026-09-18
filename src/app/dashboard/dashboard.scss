@@ -16,6 +16,56 @@
   }
 }
 
+// ── A number slot with no number ─────────────────────────────────────────
+// What a tile, a summary row, the ring or the members count shows instead of
+// a figure for a date that is loading or that failed. Both live HERE and not
+// in _stat-tile.scss on purpose: the tile styles are shared with the
+// Production screen, which has no date picker and must not grow one's states.
+//
+// Sized in `em`, so one rule serves the 22px tile figure and the 0.9rem
+// summary row without either being told its own size.
+
+// In flight. A bar rather than a spinner: it occupies the number's place, so
+// the tile does not change height when the figure arrives. No new colour -
+// the fill is --surface-alt against the tile's --surface, and the sweep is
+// the same --border the card is drawn with, which keeps it legible on the
+// light theme's white and the dark theme's slate alike.
+.day-skeleton {
+  display: inline-block;
+  width: 2.4em;
+  height: 0.72em;
+  border-radius: 999px;
+  background-color: var(--surface-alt);
+  background-image: linear-gradient(90deg, transparent, var(--border), transparent);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: day-skeleton-sweep 1.3s ease-in-out infinite;
+}
+
+@keyframes day-skeleton-sweep {
+  from {
+    background-position: -100% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+// The sweep is the only thing moving on an otherwise still screen, so it is
+// the first thing to go. The bar stays: its job is holding the space.
+@media (prefers-reduced-motion: reduce) {
+  .day-skeleton {
+    animation: none;
+    background-image: none;
+  }
+}
+
+// Failed, or before our records begin. Muted rather than in ink: a dash is
+// the absence of data, and --on-surface is for data.
+.day-blank {
+  color: var(--muted);
+}
+
 // Shown when the account holds no farm. A state, not a failure - so it reads
 // as a panel rather than as the red .dash-status--error line above it.
 .dash-notice {

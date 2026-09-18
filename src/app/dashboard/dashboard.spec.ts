@@ -227,9 +227,11 @@ describe('Dashboard error surface', () => {
     const rows = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.type-list__row'),
     );
-    expect(rows.map((row) => row.querySelector('.type-list__label')?.textContent?.trim())).toEqual(
-      ['Tangi', 'Bwawa la kuchimbwa', 'Bwawa la kujengwa'],
-    );
+    expect(rows.map((row) => row.querySelector('.type-list__label')?.textContent?.trim())).toEqual([
+      'Tangi',
+      'Bwawa la kuchimbwa',
+      'Bwawa la kujengwa',
+    ]);
 
     // Only the populated type is drawn as data; the empty ones are muted and
     // their bars hold nothing.
@@ -398,7 +400,7 @@ describe('Dashboard date picker', () => {
     await ctx.fixture.whenStable();
     ctx.fixture.detectChanges();
 
-    expect(ctx.component.dayHasHistory()).toBe(false);
+    expect(ctx.component.dayViewState()).toBe('noHistory');
     const text = (ctx.fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Hakuna rekodi ya tarehe hii');
   });
@@ -437,7 +439,9 @@ describe('Dashboard date picker', () => {
 
   describe('Active Cycles table follows the selected date', () => {
     const rows = (ctx: { fixture: { nativeElement: HTMLElement } }) =>
-      Array.from(ctx.fixture.nativeElement.querySelectorAll<HTMLElement>('[data-testid="cycle-row"]'));
+      Array.from(
+        ctx.fixture.nativeElement.querySelectorAll<HTMLElement>('[data-testid="cycle-row"]'),
+      );
     const tableText = (ctx: { fixture: { nativeElement: HTMLElement } }) =>
       ctx.fixture.nativeElement.querySelector('.table-card')?.textContent ?? '';
 
@@ -447,13 +451,13 @@ describe('Dashboard date picker', () => {
       return past;
     }
 
-    it('lists today\'s running cycles on today', async () => {
+    it("lists today's running cycles on today", async () => {
       const ctx = await loaded();
 
       expect(rows(ctx).map((r) => r.textContent)).toEqual([expect.stringContaining('LIVE-T1')]);
     });
 
-    it('lists the cycles that were running on a past date - never today\'s', async () => {
+    it("lists the cycles that were running on a past date - never today's", async () => {
       const ctx = await loaded();
 
       ctx.component.selectDate(pastDate(3));
@@ -492,7 +496,7 @@ describe('Dashboard date picker', () => {
       expect(pill?.textContent?.trim()).toBe(ctx.component.t().statusActive);
     });
 
-    it('shows the empty message on a past date with no cycles, not today\'s rows', async () => {
+    it("shows the empty message on a past date with no cycles, not today's rows", async () => {
       const ctx = await loaded();
 
       ctx.component.selectDate(pastDate(3));
@@ -503,7 +507,9 @@ describe('Dashboard date picker', () => {
       ctx.fixture.detectChanges();
 
       expect(rows(ctx)).toHaveLength(0);
-      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-empty"]')).not.toBeNull();
+      expect(
+        ctx.fixture.nativeElement.querySelector('[data-testid="cycles-empty"]'),
+      ).not.toBeNull();
       expect(tableText(ctx)).not.toContain('LIVE-T1');
     });
 
@@ -515,12 +521,16 @@ describe('Dashboard date picker', () => {
 
       expect(ctx.component.dayLoading()).toBe(true);
       expect(rows(ctx)).toHaveLength(0);
-      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-loading"]')).not.toBeNull();
+      expect(
+        ctx.fixture.nativeElement.querySelector('[data-testid="cycles-loading"]'),
+      ).not.toBeNull();
       expect(tableText(ctx)).not.toContain('LIVE-T1');
-      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate()));
     });
 
-    it('does not show the previous date\'s rows while the next date loads', async () => {
+    it("does not show the previous date's rows while the next date loads", async () => {
       const ctx = await loaded();
 
       ctx.component.selectDate(pastDate(3));
@@ -537,7 +547,9 @@ describe('Dashboard date picker', () => {
 
       expect(rows(ctx)).toHaveLength(0);
       expect(tableText(ctx)).not.toContain('OLD-A');
-      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate()));
     });
 
     it('shows no rows after a past date fails to load', async () => {
@@ -546,12 +558,17 @@ describe('Dashboard date picker', () => {
       ctx.component.selectDate(pastDate(2));
       ctx.httpMock
         .expectOne(environment.graphqlUrl)
-        .flush({ errors: [{ message: 'nope', extensions: { errorCode: 'FORBIDDEN' } }], data: null });
+        .flush({
+          errors: [{ message: 'nope', extensions: { errorCode: 'FORBIDDEN' } }],
+          data: null,
+        });
       await ctx.fixture.whenStable();
       ctx.fixture.detectChanges();
 
       expect(rows(ctx)).toHaveLength(0);
-      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-failed"]')).not.toBeNull();
+      expect(
+        ctx.fixture.nativeElement.querySelector('[data-testid="cycles-failed"]'),
+      ).not.toBeNull();
       expect(tableText(ctx)).not.toContain('LIVE-T1');
     });
 
@@ -566,7 +583,9 @@ describe('Dashboard date picker', () => {
       ctx.fixture.detectChanges();
 
       expect(rows(ctx)).toHaveLength(0);
-      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-no-history"]')).not.toBeNull();
+      expect(
+        ctx.fixture.nativeElement.querySelector('[data-testid="cycles-no-history"]'),
+      ).not.toBeNull();
       expect(tableText(ctx)).not.toContain('LIVE-T1');
     });
 
@@ -574,7 +593,9 @@ describe('Dashboard date picker', () => {
       const ctx = await loaded();
 
       ctx.component.selectDate(pastDate(3));
-      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate()));
       await ctx.fixture.whenStable();
 
       ctx.component.backToToday();
@@ -666,20 +687,20 @@ describe('Dashboard date picker', () => {
 
       expect(bars(ctx)).toEqual([]);
       expect(has(ctx, 'types-loading')).toBe(true);
-      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate()));
     });
 
     it("does not keep the previous date's bars while the next date loads", async () => {
       const ctx = await loaded();
 
       ctx.component.selectDate(pastDate(3));
-      ctx.httpMock
-        .expectOne(environment.graphqlUrl)
-        .flush(
-          dayResponse(ctx.component.selectedDate(), {
-            unitsByType: [{ type: 'POND_EARTHEN', count: 4 }],
-          }),
-        );
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+        dayResponse(ctx.component.selectedDate(), {
+          unitsByType: [{ type: 'POND_EARTHEN', count: 4 }],
+        }),
+      );
       await ctx.fixture.whenStable();
 
       ctx.component.selectDate(pastDate(5));
@@ -687,7 +708,9 @@ describe('Dashboard date picker', () => {
 
       expect(bars(ctx)).toEqual([]);
       expect(has(ctx, 'types-loading')).toBe(true);
-      ctx.httpMock.expectOne(environment.graphqlUrl).flush(dayResponse(ctx.component.selectedDate()));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate()));
     });
 
     it('draws no bars after a past date fails to load', async () => {
@@ -696,7 +719,10 @@ describe('Dashboard date picker', () => {
       ctx.component.selectDate(pastDate(2));
       ctx.httpMock
         .expectOne(environment.graphqlUrl)
-        .flush({ errors: [{ message: 'nope', extensions: { errorCode: 'FORBIDDEN' } }], data: null });
+        .flush({
+          errors: [{ message: 'nope', extensions: { errorCode: 'FORBIDDEN' } }],
+          data: null,
+        });
       await ctx.fixture.whenStable();
       ctx.fixture.detectChanges();
 
@@ -727,23 +753,263 @@ describe('Dashboard date picker', () => {
       request.flush(dayResponse(ctx.component.selectedDate()));
     });
 
-    it("goes back to today's bars on \"back to today\"", async () => {
+    it('goes back to today\'s bars on "back to today"', async () => {
       const ctx = await loaded();
 
       ctx.component.selectDate(pastDate(3));
-      ctx.httpMock
-        .expectOne(environment.graphqlUrl)
-        .flush(
-          dayResponse(ctx.component.selectedDate(), {
-            unitsByType: [{ type: 'POND_LINED', count: 3 }],
-          }),
-        );
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+        dayResponse(ctx.component.selectedDate(), {
+          unitsByType: [{ type: 'POND_LINED', count: 3 }],
+        }),
+      );
       await ctx.fixture.whenStable();
 
       ctx.component.backToToday();
       ctx.fixture.detectChanges();
 
       expect(bars(ctx)).toEqual(LIVE_BARS);
+    });
+  });
+
+  /*
+   * Tiles, summary, ring and status bars - the eight `shown*` values that were
+   * still written `day()?.x ?? live`.
+   *
+   * That fallback reads as "the dated number, or the live one", but `day()` is
+   * ALSO empty while a date loads and after one fails, so it quietly answered
+   * with the wrong day: the previous date's numbers mid-load, today's after a
+   * failure. The table and the chart were fixed by keying on dayViewState;
+   * these assert the same of every single-number slot, which cannot say
+   * "Loading this date…" and so shows a skeleton or a dash instead.
+   */
+  describe('Tiles, summary and Units by Status follow the selected date', () => {
+    type Ctx = { fixture: { nativeElement: HTMLElement } };
+
+    /** A number slot: what it reads, and which of the three shapes it is in. */
+    const slot = (ctx: Ctx, testId: string) => {
+      const el = ctx.fixture.nativeElement.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+      return {
+        text: (el?.textContent ?? '').trim(),
+        loading: el?.querySelector('.day-skeleton') !== null,
+        blank: el?.querySelector('.day-blank') !== null,
+      };
+    };
+
+    const TILES = [
+      'tile-total-units',
+      'tile-active-units',
+      'tile-cycles-running',
+      'tile-fingerlings',
+    ];
+    const SUMMARY = ['side-total-units', 'side-active-units', 'side-volume'];
+
+    const statusBars = (ctx: Ctx) =>
+      Array.from(
+        ctx.fixture.nativeElement.querySelectorAll<HTMLElement>(
+          '[data-testid="units-by-status"] .mini-bars__row',
+        ),
+      ).map((row) => ({
+        count: row.querySelector('.mini-bars__count')?.textContent?.trim(),
+        width: row.querySelector<HTMLElement>('.mini-bars__fill')?.style.width,
+      }));
+
+    function pastDate(daysAgo: number): Date {
+      const past = new Date();
+      past.setDate(past.getDate() - daysAgo);
+      return past;
+    }
+
+    const GRAPHQL_FAILURE = {
+      errors: [{ message: 'nope', extensions: { errorCode: 'FORBIDDEN' } }],
+      data: null,
+    };
+
+    // The live fixture: 2 units, 1 ACTIVE / 1 IDLE, one running cycle of 500.
+    const LIVE_TILES = ['2', '1', '1', '500'];
+    const LIVE_BARS = [
+      { count: '1', width: '100%' },
+      { count: '1', width: '100%' },
+      { count: '0', width: '0%' },
+    ];
+    const BLANK_BARS = [
+      { count: '—', width: '0%' },
+      { count: '—', width: '0%' },
+      { count: '—', width: '0%' },
+    ];
+
+    it("shows today's live numbers on today", async () => {
+      const ctx = await loaded();
+
+      expect(TILES.map((id) => slot(ctx, id).text)).toEqual(LIVE_TILES);
+      expect(SUMMARY.map((id) => slot(ctx, id).text)).toEqual(['2', '1', '15']);
+      expect(slot(ctx, 'ring-value').text).toBe('50%');
+      expect(statusBars(ctx)).toEqual(LIVE_BARS);
+    });
+
+    it('switches every slot to the chosen date', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate(), { cyclesRunning: 4 }));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      // 7 existing, 4 active, 4 running, 900 stocked - none of them the live 2.
+      expect(TILES.map((id) => slot(ctx, id).text)).toEqual(['7', '4', '4', '900']);
+      expect(SUMMARY.map((id) => slot(ctx, id).text)).toEqual(['7', '4', '70']);
+      expect(slot(ctx, 'ring-value').text).toBe('57%');
+      expect(statusBars(ctx)).toEqual([
+        { count: '4', width: '100%' },
+        { count: '3', width: '75%' },
+        { count: '0', width: '0%' },
+      ]);
+    });
+
+    it("shows a skeleton, not the previous date's numbers, while the next date loads", async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate(), { unitsExisting: 7 }));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      ctx.component.selectDate(pastDate(5));
+      ctx.fixture.detectChanges();
+
+      for (const id of [...TILES, ...SUMMARY, 'ring-value']) {
+        expect(slot(ctx, id)).toEqual({ text: '', loading: true, blank: false });
+      }
+      // The gauge empties too - a 57% arc is a claim about the old date.
+      const ring = (ctx.fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.ring');
+      expect(ring?.style.getPropertyValue('--percent')).toBe('0');
+      expect(statusBars(ctx)).toEqual(BLANK_BARS);
+
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate()));
+    });
+
+    it("shows a dash, not today's numbers, after a past date fails", async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(2));
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(GRAPHQL_FAILURE);
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      for (const id of [...TILES, ...SUMMARY, 'ring-value']) {
+        expect(slot(ctx, id)).toEqual({ text: '—', loading: false, blank: true });
+      }
+      expect(statusBars(ctx)).toEqual(BLANK_BARS);
+    });
+
+    it('shows a dash rather than zeros for a date before our records', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(2000));
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+        dayResponse(ctx.component.selectedDate(), {
+          unitsExisting: 0,
+          unitsActive: 0,
+          unitsIdle: 0,
+          totalVolumeM3: 0,
+          historyComplete: false,
+        }),
+      );
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      // A zero here would claim the farm was empty. We simply have no record.
+      for (const id of [...TILES, ...SUMMARY, 'ring-value']) {
+        expect(slot(ctx, id)).toEqual({ text: '—', loading: false, blank: true });
+      }
+      expect(statusBars(ctx)).toEqual(BLANK_BARS);
+    });
+
+    it("ignores a stale answer: A's response landing after B's leaves B on screen", async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      const dateA = ctx.component.selectedDate();
+      ctx.component.selectDate(pastDate(5));
+      const dateB = ctx.component.selectedDate();
+
+      const pending = ctx.httpMock.match(environment.graphqlUrl);
+      expect(pending.length).toBe(2);
+
+      // B answers first...
+      pending[1].flush(dayResponse(dateB, { unitsExisting: 55 }));
+      await ctx.fixture.whenStable();
+      // ...then A's slower answer arrives for a date nobody is looking at.
+      pending[0].flush(dayResponse(dateA, { unitsExisting: 99 }));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(ctx.component.selectedDate()).toBe(dateB);
+      expect(slot(ctx, 'tile-total-units').text).toBe('55');
+    });
+
+    it("ignores a stale FAILURE: A's error does not blank out the date that loaded", async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.component.selectDate(pastDate(5));
+      const dateB = ctx.component.selectedDate();
+
+      const pending = ctx.httpMock.match(environment.graphqlUrl);
+      pending[1].flush(dayResponse(dateB, { unitsExisting: 55 }));
+      await ctx.fixture.whenStable();
+      pending[0].flush(GRAPHQL_FAILURE);
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(ctx.component.dayError()).toBeNull();
+      expect(slot(ctx, 'tile-total-units').text).toBe('55');
+    });
+
+    it('restores the live numbers on "back to today"', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate()));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      ctx.component.backToToday();
+      ctx.fixture.detectChanges();
+
+      expect(TILES.map((id) => slot(ctx, id).text)).toEqual(LIVE_TILES);
+      expect(SUMMARY.map((id) => slot(ctx, id).text)).toEqual(['2', '1', '15']);
+      expect(slot(ctx, 'ring-value').text).toBe('50%');
+      expect(statusBars(ctx)).toEqual(LIVE_BARS);
+    });
+
+    it('keeps the strip line agreeing with the cards it explains', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.fixture.detectChanges();
+
+      // Mid-load the line must not read "Showing <date>" over skeletons.
+      const line = () =>
+        ctx.fixture.nativeElement.querySelector('.mini-cal__state')?.textContent ?? '';
+      expect(line()).toContain('Inapakia tarehe hii');
+      expect(slot(ctx, 'tile-total-units').loading).toBe(true);
+
+      ctx.httpMock
+        .expectOne(environment.graphqlUrl)
+        .flush(dayResponse(ctx.component.selectedDate()));
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      expect(line()).toContain('Unaona tarehe');
+      expect(slot(ctx, 'tile-total-units').text).toBe('7');
     });
   });
 
