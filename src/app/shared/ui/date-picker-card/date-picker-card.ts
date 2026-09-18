@@ -199,10 +199,21 @@ export class DatePickerCard {
   /** The line under the strip. Null hides it, which is what today looks like. */
   state = input<string | null>(null);
 
+  /**
+   * Which day the strip rings as "today", as YYYY-MM-DD.
+   *
+   * Defaults to the BROWSER's day, which is what every caller meant before
+   * this input existed. Daily Tasks passes the FARM's day instead: it resolves
+   * dates in Africa/Nairobi because the backend does, and a laptop in another
+   * timezone - or anyone's laptop for a few hours either side of midnight -
+   * would otherwise have the strip ringing one day while the screen's own
+   * "is this today?" checks meant another.
+   */
+  today = input(isoDate(new Date()));
+
   picked = output<Date>();
   back = output<void>();
 
-  private readonly today = new Date();
   private readonly weekAnchor = signal(new Date());
 
   readonly weekDates = computed(() => {
@@ -229,7 +240,7 @@ export class DatePickerCard {
   }
 
   isToday(date: Date): boolean {
-    return isoDate(date) === isoDate(this.today);
+    return isoDate(date) === this.today();
   }
 
   isSelected(date: Date): boolean {

@@ -5,31 +5,9 @@
       <p class="page-subtitle">{{ t().subtitle }}</p>
     </div>
 
-    <!-- The picker is NOT permission-branched. Every role that can open
-           this screen can move it, including back into the past: a worker
-           checking whether yesterday's evening feed was recorded is asking a
-           legitimate question. No `max` either - a future day is pickable and
-           then EXPLAINED, which is more use than a box that silently refuses
-           to move. -->
-    <div class="tasks__date" data-panel="date-bar">
-      <label class="tasks__date-label" for="tasks-date">{{ t().dateLabel }}</label>
-      <app-button variant="secondary" [attr.aria-label]="t().prevDay" (clicked)="shiftDay(-1)">
-        &lsaquo;
-      </app-button>
-      <input
-        id="tasks-date"
-        class="text-input tasks__date-input"
-        type="date"
-        [value]="date()"
-        (change)="onDateChange($event)"
-      />
-      <app-button variant="secondary" [attr.aria-label]="t().nextDay" (clicked)="shiftDay(1)">
-        &rsaquo;
-      </app-button>
-      @if (date() !== today) {
-        <app-button variant="secondary" (clicked)="goToToday()">{{ t().today }}</app-button>
-      }
-    </div>
+    <!-- The picker moved to the rail, below the day summary: it is the same
+           week-strip Production and the logging screens use, so a date is
+           picked the same way everywhere. See the rail below. -->
   </header>
 
   <!-- Above the list, not inside a row: it explains the whole sheet, and
@@ -330,6 +308,29 @@
               <strong>{{ row.value }}</strong>
             </div>
           }
+        </div>
+
+        <!-- The picker, directly under the summary it moves.
+             NOT permission-branched: every role that can open this screen can
+             move it, including back into the past - a worker checking whether
+             yesterday's evening feed was recorded is asking a legitimate
+             question. `today` is the FARM's day, not the browser's, so the
+             ring on the strip and this screen's own "is it today?" checks
+             cannot disagree - see DailyTasks.today. -->
+        <div class="side-card" data-rail="date">
+          <app-date-picker-card
+            [title]="t().railWeekTitle"
+            [weekdayLabels]="t().weekdayLabels"
+            [selected]="date()"
+            [today]="today"
+            [previousLabel]="t().weekPrevious"
+            [nextLabel]="t().weekNext"
+            [selectLabel]="t().daySelect"
+            [backLabel]="t().dayBackToToday"
+            [state]="dayState()"
+            (picked)="onDatePicked($event)"
+            (back)="goToToday()"
+          />
         </div>
 
         <!-- Only for today: "next" on a past or future day is not a question
