@@ -425,6 +425,42 @@ describe('DailyTasks', () => {
       expect(railCard(fixture, 'date')?.querySelectorAll('.cal__day').length).toBe(7);
     });
 
+    it('offers no future day on the strip, and clicking one fetches nothing', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      // By the ISO date the label ENDS with, never the label's words - the
+      // suite runs in Swahili, and matching on "Show date" quietly selected
+      // nothing at all.
+      const isoOf = (day: HTMLButtonElement) =>
+        /\d{4}-\d{2}-\d{2}$/.exec(day.getAttribute('aria-label') ?? '')?.[0] ?? '';
+      const strip = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.cal__day'),
+      ];
+      const future = strip.filter((day) => isoOf(day) > component.today);
+      expect(strip.length).toBe(7);
+
+      // The strip always draws the week HOLDING today, so there is a future
+      // day to prove something about on six weekdays out of seven. On a
+      // Sunday there is none, and this test would otherwise pass by finding
+      // nothing - so say so out loud instead.
+      if (future.length === 0) {
+        expect(isoOf(strip[6])).toBe(component.today);
+        return;
+      }
+
+      // The disabled days are EXACTLY the days after the farm's today.
+      expect(strip.filter((day) => day.disabled).map(isoOf)).toEqual(future.map(isoOf));
+      for (const day of future) {
+        day.click();
+      }
+      fixture.detectChanges();
+
+      expect(component.date()).toBe(component.today);
+      // The real proof: no request was made for a day that has not happened.
+      httpMock.verify();
+    });
+
     it("rings the FARM's today, not the browser's", async () => {
       const { fixture, component, httpMock } = setup(READER);
       await load(fixture, httpMock);

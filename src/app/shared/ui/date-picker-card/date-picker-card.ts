@@ -47,6 +47,7 @@ export function isoDate(date: Date): string {
           class="cal__arrow"
           [attr.aria-label]="nextLabel()"
           [attr.title]="nextLabel()"
+          [disabled]="nextWeekBlocked()"
           (click)="shiftWeek(1)"
         >
           ›
@@ -61,9 +62,11 @@ export function isoDate(date: Date): string {
           class="cal__day"
           [class.cal__day--today]="isToday(day)"
           [class.cal__day--selected]="isSelected(day)"
+          [class.cal__day--future]="isFuture(day)"
+          [disabled]="isFuture(day)"
           [attr.aria-pressed]="isSelected(day)"
           [attr.aria-label]="selectLabel() + ' ' + isoOf(day)"
-          (click)="picked.emit(day)"
+          (click)="pick(day)"
         >
           <span class="cal__weekday">{{ weekdayLabels()[i] }}</span>
           <span class="cal__date">{{ day.getDate() }}</span>
@@ -111,13 +114,21 @@ export function isoDate(date: Date): string {
       line-height: 1;
       cursor: pointer;
     }
-    .cal__arrow:hover {
+    .cal__arrow:hover:not(:disabled) {
       color: var(--brand-dark);
       border-color: var(--brand);
     }
     .cal__arrow:focus-visible {
       outline: 2px solid var(--brand);
       outline-offset: 1px;
+    }
+    /* Nowhere forward to go: the next week is entirely future. Shaded rather
+       than hidden, so the control keeps its place and the strip does not
+       change width when it comes back. */
+    .cal__arrow:disabled {
+      background: var(--surface-alt);
+      color: var(--muted);
+      cursor: not-allowed;
     }
 
     .cal {
@@ -155,6 +166,21 @@ export function isoDate(date: Date): string {
        screen at once and must not look the same. */
     .cal__day--selected {
       border-color: var(--brand);
+    }
+
+    /* A day that has not happened. Shaded and not clickable: every screen on
+       this strip answers "what happened on this day", and no day after the
+       caller's today has an answer. Both themes get this from tokens - the
+       card's own --surface-alt behind the number, the label colour for the
+       number itself - so the day reads as switched off on white and on slate
+       without a value of its own. */
+    .cal__day--future {
+      background: var(--surface-alt);
+      cursor: not-allowed;
+    }
+    .cal__day--future .cal__date,
+    .cal__day--future .cal__weekday {
+      color: var(--muted);
     }
 
     .cal__weekday {
@@ -227,11 +253,56 @@ export class DatePickerCard {
     });
   });
 
-  /** Browsing, not choosing: the shown date does not move with the strip. */
+  /**
+   * A day that has not happened yet, by the CALLER's today.
+   *
+   * String comparison, because both sides are YYYY-MM-DD and that sorts
+   * chronologically - the same test every screen on this strip already makes
+   * against its own date fields.
+   */
+  isFuture(date: Date): boolean {
+    return isoDate(date) > this.today();
+  }
+
+  /**
+   * There is nowhere forward to go: every day of the next week is future.
+   *
+   * Keyed on the visible week's SUNDAY. Once that reaches today, paging
+   * forward could only land on days nothing can be asked about. `‹` is never
+   * blocked - the past is always readable.
+   */
+  readonly nextWeekBlocked = computed(() => isoDate(this.weekDates()[6]) >= this.today());
+
+  /**
+   * Browsing, not choosing: the shown date does not move with the strip.
+   *
+   * A forward move while blocked is a no-op rather than a silent jump into
+   * an all-future week. The `›` button is disabled, so this only fires if
+   * something calls it directly - and the rule should hold at whichever door
+   * it is entered by.
+   */
   shiftWeek(weeks: number): void {
+    if (weeks > 0 && this.nextWeekBlocked()) {
+      return;
+    }
     const moved = new Date(this.weekAnchor());
     moved.setDate(moved.getDate() + weeks * 7);
     this.weekAnchor.set(moved);
+  }
+
+  /**
+   * The click, guarded.
+   *
+   * `[disabled]` already stops the button, so this is the second lock: the
+   * template could be changed, and `pick` is reachable from a test or a
+   * host. A future day must never reach the caller - emitting one would have
+   * the screen fetch a day it is about to refuse to draw.
+   */
+  pick(date: Date): void {
+    if (this.isFuture(date)) {
+      return;
+    }
+    this.picked.emit(date);
   }
 
   /** Brings the strip back to today's week - called when the screen resets. */

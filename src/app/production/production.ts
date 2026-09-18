@@ -191,8 +191,14 @@ export class Production {
   // The card STYLES are shared rather than copied: see _side-card.scss.
 
   // ── The date being looked at ───────────────────────────────────────────
-  readonly selectedDate = signal(isoDate(new Date()));
-  readonly viewingToday = computed(() => this.selectedDate() === isoDate(new Date()));
+  // The FARM's day, not the browser's - the same `today()` the event form's
+  // [max] refuses by. These disagreed: the form capped a date in Africa/
+  // Nairobi while the strip and `viewingToday` read the laptop's clock, so
+  // off EAT (and for a few hours either side of midnight anywhere) the
+  // calendar rang one day while the form refused another. Now the shading,
+  // the "Back to today" target and the form's cap are one date.
+  readonly selectedDate = signal(today());
+  readonly viewingToday = computed(() => this.selectedDate() === today());
   readonly day = signal<DashboardDay | null>(null);
   readonly dayLoading = signal(false);
   readonly dayError = signal<ApiError | null>(null);
@@ -377,7 +383,7 @@ export class Production {
   }
 
   backToToday(): void {
-    this.selectedDate.set(isoDate(new Date()));
+    this.selectedDate.set(today());
     this.day.set(null);
     this.dayError.set(null);
     this.datePicker()?.resetWeek();
