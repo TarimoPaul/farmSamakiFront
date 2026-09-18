@@ -6,6 +6,7 @@ import { DailyTasks } from './daily-tasks';
 import { DAILY_TASKS_I18N } from './daily-tasks.i18n';
 import { LanguageService, Lang } from '../core/services/language';
 import { CycleSelectionService } from '../core/services/cycle-selection';
+import { DatePickerCard } from '../shared/ui/date-picker-card/date-picker-card';
 import { environment } from '../../environments/environment';
 
 /**
@@ -234,6 +235,10 @@ const text = (fixture: ComponentFixture<DailyTasks>) =>
 const panel = (fixture: ComponentFixture<DailyTasks>, name: string) =>
   (fixture.nativeElement as HTMLElement).querySelector(`[data-panel="${name}"]`);
 
+/** A card in the right rail, by its `data-rail` name. */
+const railCard = (fixture: ComponentFixture<DailyTasks>, name: string) =>
+  (fixture.nativeElement as HTMLElement).querySelector(`.module-rail [data-rail="${name}"]`);
+
 const all = (fixture: ComponentFixture<DailyTasks>, testId: string) => [
   ...(fixture.nativeElement as HTMLElement).querySelectorAll(`[data-testid="${testId}"]`),
 ];
@@ -280,11 +285,13 @@ async function pickDate(
   date: string,
   tasks: object = TASKS,
 ) {
-  const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-    '#tasks-date',
-  )!;
-  input.value = date;
-  input.dispatchEvent(new Event('change'));
+  // Through the component's own handler, as the rail's week-strip calls it.
+  // The strip only draws one week at a time, so a date outside the week on
+  // screen has no button to click - and the point of these tests is the day
+  // the sheet then asks for, not which button was pressed. The strip's own
+  // buttons are covered in "the rail's week-strip" below.
+  const [year, month, day] = date.split('-').map(Number);
+  fixture.componentInstance.onDatePicked(new Date(year, month - 1, day));
   fixture.detectChanges();
 
   const req = gql(httpMock, 'FarmDailyTasks');
@@ -395,8 +402,45 @@ describe('DailyTasks', () => {
 
       await load(fixture, httpMock);
 
-      expect(panel(fixture, 'date-bar')).toBeTruthy();
+      expect(railCard(fixture, 'date')?.querySelector('app-date-picker-card')).toBeTruthy();
       expect(markButtons(fixture).length).toBe(0);
+    });
+
+    it('is the SHARED week-strip, in the rail under the day summary', async () => {
+      const { fixture, httpMock } = setup(READER);
+
+      await load(fixture, httpMock);
+
+      // The native date input is gone - one picker across the app, not two.
+      expect(panel(fixture, 'date-bar')).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('#tasks-date')).toBeNull();
+
+      // Directly after the summary card, which is what it moves.
+      const cards = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll('.module-rail [data-rail]'),
+      ].map((card) => card.getAttribute('data-rail'));
+      expect(cards.slice(0, 2)).toEqual(['summary', 'date']);
+
+      // Seven days, and the whole week is reachable by keyboard.
+      expect(railCard(fixture, 'date')?.querySelectorAll('.cal__day').length).toBe(7);
+    });
+
+    it("rings the FARM's today, not the browser's", async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      // The strip is handed DailyTasks.today, which is Africa/Nairobi - the
+      // same day its own `date() === today` checks mean. A browser-local
+      // default would disagree for anyone off EAT, and for everyone for a few
+      // hours either side of midnight.
+      //
+      // NOTE: on a machine already in EAT the two strings are equal anyway, so
+      // this asserts the WIRING and cannot fail there. That the input actually
+      // moves the ring is proved zone-independently in date-picker-card.spec.
+      const picker = fixture.debugElement.query(
+        (node) => node.componentInstance instanceof DatePickerCard,
+      ).componentInstance as DatePickerCard;
+      expect(picker.today()).toBe(component.today);
     });
 
     it('re-reads the sheet for a past day', async () => {
@@ -412,19 +456,48 @@ describe('DailyTasks', () => {
       httpMock.verify();
     });
 
-    it('ignores a cleared box - there is no such day to ask about', async () => {
+    it('picks a day by clicking the strip, and the whole sheet follows', async () => {
       const { fixture, component, httpMock } = setup(READER);
       await load(fixture, httpMock);
 
-      const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
-        '#tasks-date',
-      )!;
-      input.value = '';
-      input.dispatchEvent(new Event('change'));
+      // The real button for the day before today, chosen off the strip.
+      const yesterday = shiftDays(component.today, -1);
+      const button = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.cal__day'),
+      ].find((day) => (day.getAttribute('aria-label') ?? '').endsWith(yesterday));
+      button!.click();
       fixture.detectChanges();
 
-      expect(component.date()).toBe(component.today);
+      const request = gql(httpMock, 'FarmDailyTasks');
+      expect(variablesOf(request)).toEqual({ date: yesterday });
+      request.flush(TASKS);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.date()).toBe(yesterday);
+      // The summary and progress-by-unit are computed off the sheet, so they
+      // move with it rather than needing their own wiring.
+      expect(component.summary().find((row) => row.label === 'Kazi zote')?.value).toBe('4');
+      expect(railCard(fixture, 'by-unit')?.textContent).toContain('DEV-B2');
       httpMock.verify();
+    });
+
+    it('clears a stale mark error and a half-filled close form on a day change', async () => {
+      const { fixture, component, httpMock } = setup(MARKER);
+      await load(fixture, httpMock);
+
+      // Both belong to the day being left: an error about yesterday's tick and
+      // a close form opened on one of its rows mean nothing on another day.
+      component.markError.set('something failed');
+      closeLinks(fixture)[0].click();
+      fixture.detectChanges();
+      expect(component.closingTaskId()).not.toBeNull();
+
+      await pickDate(fixture, httpMock, shiftDays(component.today, -1));
+
+      expect(component.markError()).toBeNull();
+      expect(component.closingTaskId()).toBeNull();
+      expect(component.closeError()).toBeNull();
     });
   });
 
@@ -482,7 +555,7 @@ describe('DailyTasks', () => {
       // Read-only, not blinded: the record is all still there.
       expect(all(fixture, 'task-row').length).toBe(4);
       expect(text(fixture)).toContain('imefanywa na Juma, 07:14');
-      expect(panel(fixture, 'date-bar')).toBeTruthy();
+      expect(railCard(fixture, 'date')?.querySelector('app-date-picker-card')).toBeTruthy();
     });
 
     it('ticks only non-feeding tasks; outstanding FEEDING tasks get record + close instead', async () => {
@@ -834,22 +907,19 @@ describe('DailyTasks', () => {
       expect(text(fixture)).toContain(DAILY_TASKS_I18N.sw.filterEmptyDone);
     });
 
-    it('moves one day back and forward with the arrow buttons', async () => {
+    it('asks for the day that was picked, and comes back to today', async () => {
       const { fixture, component, httpMock } = setup(READER);
       await load(fixture, httpMock);
 
-      component.shiftDay(-1);
-      fixture.detectChanges();
-      const back = gql(httpMock, 'FarmDailyTasks');
-      expect(variablesOf(back)).toEqual({ date: shiftDays(component.today, -1) });
-      back.flush(TASKS);
-      await fixture.whenStable();
+      const yesterday = shiftDays(component.today, -1);
+      const back = await pickDate(fixture, httpMock, yesterday);
+      expect(variablesOf(back)).toEqual({ date: yesterday });
 
-      component.shiftDay(1);
+      component.goToToday();
       fixture.detectChanges();
-      const forward = gql(httpMock, 'FarmDailyTasks');
-      expect(variablesOf(forward)).toEqual({ date: component.today });
-      forward.flush(TASKS);
+      const home = gql(httpMock, 'FarmDailyTasks');
+      expect(variablesOf(home)).toEqual({ date: component.today });
+      home.flush(TASKS);
       httpMock.verify();
     });
 

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../core/services/auth';
 import { DailyTasksService } from '../core/services/daily-tasks';
@@ -16,6 +16,7 @@ import { PERMISSION } from '../core/models/permissions';
 import { apiErrorMessage } from '../core/i18n/error-messages';
 import { HasPermission } from '../shared/directives/has-permission';
 import { Button } from '../shared/ui/button/button';
+import { DatePickerCard, isoDate } from '../shared/ui/date-picker-card/date-picker-card';
 import { EmptyState } from '../shared/ui/empty-state/empty-state';
 import { StatusBadge } from '../shared/ui/status-badge/status-badge';
 import { Toast } from '../shared/ui/toast/toast';
@@ -96,7 +97,7 @@ const DATE_LOCALE = { sw: 'sw-TZ', en: 'en-GB' } as const;
 @Component({
   selector: 'app-daily-tasks',
   standalone: true,
-  imports: [HasPermission, Button, EmptyState, StatusBadge, Toast],
+  imports: [HasPermission, Button, DatePickerCard, EmptyState, StatusBadge, Toast],
   templateUrl: './daily-tasks.html',
   styleUrl: './daily-tasks.scss',
 })
@@ -111,6 +112,7 @@ export class DailyTasks {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly datePicker = viewChild(DatePickerCard);
 
   readonly CLOSURE_REASONS = TASK_CLOSURE_REASONS;
   readonly isClosed = isClosedTask;
@@ -387,28 +389,40 @@ export class DailyTasks {
   }
 
   /**
-   * The picker.
+   * The picker - the same rail week-strip Production and the logging screens
+   * use, rather than this screen's own native date input.
    *
    * NOT gated, and not limited to today: a worker checking whether yesterday
    * evening's feed was actually recorded is asking a legitimate question, and
-   * so is an owner reading back a week. An empty box - the browser's "clear"
-   * - is ignored rather than sent, because there is no such day to ask about.
+   * so is an owner reading back a week.
+   *
+   * NOTE for the future-date task: the strip always draws the whole Mon-Sun
+   * week, so the rest of the current week is now one VISIBLE click away. The
+   * old input was no stricter - it carried no `max` either, and its › button
+   * walked forward a day at a time - but a future day used to take a
+   * deliberate step and now simply sits there. `isFuture()` and the backend's
+   * refusal are unchanged; blocking it is the next commit, not this one.
    */
-  onDateChange(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    if (value) {
-      this.moveTo(value);
-    }
+  onDatePicked(date: Date): void {
+    this.moveTo(isoDate(date));
   }
 
   goToToday(): void {
     this.moveTo(this.today);
+    // The strip owns its week, so it has to be told to come back with us -
+    // otherwise "Back to today" moves the date while the strip stays on the
+    // week somebody paged to.
+    this.datePicker()?.resetWeek();
   }
 
-  /** The ‹ / › buttons beside the picker: one day back or forward. */
-  shiftDay(days: number): void {
-    this.moveTo(shiftIsoDate(this.date(), days));
-  }
+  /**
+   * The line under the strip, which is also what carries the Back-to-today
+   * button: null on today hides both, which is the whole point - on today
+   * there is nothing to explain and nowhere to go back to.
+   */
+  readonly dayState = computed<string | null>(() =>
+    this.date() === this.today ? null : `${this.t().dayViewing} ${this.date()}.`,
+  );
 
   /** A different day: an error or an open close-picker was about the old one. */
   private moveTo(date: string): void {
@@ -692,12 +706,6 @@ function matchesFilter(task: DailyTaskStatus, filter: TaskFilter): boolean {
 /** A YYYY-MM-DD from a query param, or null for anything else. */
 function isoDateOrNull(value: string | null): string | null {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
-}
-
-/** YYYY-MM-DD moved by `days`. Done in UTC, so no timezone can shift the day. */
-function shiftIsoDate(date: string, days: number): string {
-  const [year, month, day] = date.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
 /**

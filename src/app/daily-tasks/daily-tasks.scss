@@ -27,25 +27,9 @@
   flex-wrap: wrap;
 }
 
-/* The picker sits in the header rather than in the card, because it governs
-   the whole sheet - including the empty state and the error panel, which
-   replace the card entirely. */
-.tasks__date {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.tasks__date-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--on-surface);
-}
-
-.tasks__date-input {
-  width: auto;
-}
+/* The picker's own styles used to live here, for a date input in the header.
+   It is the shared week-strip in the rail now (see DatePickerCard), which
+   brings its own - so the header keeps only the title. */
 
 /* A future day: a notice, not an error. Nothing has failed - the day simply
    has not happened, and the sheet is still worth reading. */

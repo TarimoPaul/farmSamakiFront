@@ -12,12 +12,19 @@ export const DAILY_TASKS_I18N = {
     loading: 'Inapakia...',
     retry: 'Jaribu tena',
 
-    dateLabel: 'Tarehe',
     /** Rudi leo kwa mbofyo mmoja baada ya kuangalia siku za nyuma. */
     today: 'Leo',
     progressLabel: 'Zimefanyika',
-    prevDay: 'Siku iliyopita',
-    nextDay: 'Siku inayofuata',
+
+    // Kalenda ya rail - ileile ya Uzalishaji na dashibodi. weekdayLabels ni
+    // Jumatatu->Jumapili, mpangilio ule ule ambao DatePickerCard inachora wiki.
+    railWeekTitle: 'Chagua tarehe',
+    weekdayLabels: ['Jtat', 'Jnne', 'Jtan', 'Alh', 'Ijm', 'Jmos', 'Jpil'],
+    weekPrevious: 'Wiki iliyopita',
+    weekNext: 'Wiki ijayo',
+    daySelect: 'Onyesha tarehe',
+    dayBackToToday: 'Rudi leo',
+    dayViewing: 'Unaona tarehe',
 
     filterLabel: 'Chuja kazi',
     filterAll: 'Zote',
@@ -107,12 +114,17 @@ export const DAILY_TASKS_I18N = {
     loading: 'Loading...',
     retry: 'Try again',
 
-    dateLabel: 'Date',
     /** One click back to today after looking at past days. */
     today: 'Today',
     progressLabel: 'Done',
-    prevDay: 'Previous day',
-    nextDay: 'Next day',
+
+    railWeekTitle: 'Pick a date',
+    weekdayLabels: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+    weekPrevious: 'Previous week',
+    weekNext: 'Next week',
+    daySelect: 'Show date',
+    dayBackToToday: 'Back to today',
+    dayViewing: 'Showing',
 
     filterLabel: 'Filter tasks',
     filterAll: 'All',
