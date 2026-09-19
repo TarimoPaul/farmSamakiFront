@@ -404,38 +404,49 @@ td {
   // Below 1280px the rail stops being a box: its cards become items of the
   // .dash-layout grid, so each can be placed on its own.
   //
-  // The date picker (side-card--lead) goes to the TOP. It is the one control
-  // that changes every number on this screen, and it used to be hidden on a
-  // laptop and last on a phone - under the tiles, the chart and the table it
-  // was moving. The same rule as the module screens' rail (_module-rail.scss).
+  // The date picker (side-card--picker) comes straight AFTER the main column,
+  // under Active Cycles - the user's order (2026-09-19): Units by Type leads
+  // the screen (see .chart-card below), and the picker follows the numbers
+  // it moves rather than sitting above them. It used to be hidden on a
+  // laptop and last of all on a phone, under every other rail card too.
   //
   // The other cards are dropped on a laptop, where the tables need the width
-  // (that decision stands), and come back under the main column on a phone.
+  // (that decision stands), and come back after the picker on a phone.
   @media (max-width: 1280px) {
     display: contents;
 
     > .side-card {
       align-self: start;
+      order: 1;
     }
 
-    > .side-card--lead {
-      order: -1;
+    > .side-card--picker {
+      order: 0;
     }
   }
 
   // The laptop band only. Hidden with a range rather than hidden-then-shown,
   // so on a phone each card keeps its own display (the ring card is a flex).
   @media (min-width: 861px) and (max-width: 1280px) {
-    > .side-card:not(.side-card--lead) {
+    > .side-card:not(.side-card--picker) {
       display: none;
     }
+  }
+}
+
+// Units by Type leads the main column below 1280px, above the tiles: the
+// user's order (2026-09-19). A flex column, so `order` moves it without
+// touching the desktop, where it stays under the tiles.
+@media (max-width: 1280px) {
+  .dash-layout__main > .chart-card {
+    order: -1;
   }
 }
 
 // Across the whole row on a phone, where the rest of the rail goes two across.
 @media (max-width: 860px) {
   .dash-layout__main,
-  .dash-side > .side-card--lead {
+  .dash-side > .side-card--picker {
     grid-column: 1 / -1;
   }
 }
