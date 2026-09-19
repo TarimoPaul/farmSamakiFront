@@ -393,14 +393,124 @@
   flex-wrap: wrap;
 }
 
+/* A phone: this is the screen somebody opens one-handed at the tank.
+ *
+ * It used to be the desktop row, wrapped: the badge and the button fell to a
+ * second line wherever they happened to land, "close without record" floated
+ * under a button of its own width, and every late row carried a red edge -
+ * twelve red bars on a morning sheet read as a page of errors. Now each row
+ * is laid out on purpose, as a grid:
+ *
+ *     ○  Kulisha - Asubuhi                07:00
+ *        Muda umepita              [Haijafanyika]
+ *        [      Rekodi ulishaji      ]  Funga bila rekodi
+ *
+ * The body's lines become grid items (display: contents), so the badge can
+ * sit beside them instead of under them. Late is said by the red TIME and the
+ * words "Muda umepita" - never by colour alone - and the red edge is kept for
+ * the desktop, where it was signed off. */
 @media (max-width: 640px) {
-  /* The badge and the button drop under the task name rather than squeezing
-     it: this is the screen somebody opens one-handed at the tank. */
   .task {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+    column-gap: 0.65rem;
+    row-gap: 0.3rem;
+    align-items: center;
+    padding: 0.8rem 0.5rem;
+  }
+
+  .task__tick {
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .task__body {
-    flex-basis: calc(100% - 2rem);
+    display: contents;
+  }
+
+  /* The name across the row, its time pushed to the far end. */
+  .task__name {
+    grid-column: 2 / 4;
+    grid-row: 1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  .task__time {
+    flex: none;
+    margin-left: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Every line under the name: who, when, why, late - in the middle column. */
+  .task__by,
+  .task__closed-by,
+  .task__closure,
+  .task__passed,
+  .task__meta {
+    grid-column: 2;
+  }
+
+  /* The backend's word, beside the first of those lines rather than on a row
+     of its own. The lines after it - the closure reason, notes - run under
+     the badge too, or a long badge ("Imefungwa bila rekodi") squeezed them
+     into a narrow column. */
+  app-status-badge {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .task__closure,
+  .task__meta {
+    grid-column: 2 / 4;
+  }
+
+  .task--passed {
+    box-shadow: none;
+
+    .task__time {
+      color: var(--color-danger);
+    }
+  }
+
+  /* The one thing to do, across the row - every button the same width, on
+     one line - and the escape hatch under its right end, small, as the path
+     this screen does not want taken. Beside the button it squeezed "Record
+     feeding" onto two lines. */
+  .task__action {
+    grid-column: 2 / 4;
+    align-items: stretch;
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+  }
+
+  .task__close-link {
+    align-self: flex-end;
+    padding: 0.35rem 0;
+    white-space: nowrap;
+  }
+
+  /* One line per segment, count included: "Outstanding 18" used to break its
+     count onto a second line while "All 18" did not (the 400px filter debt).
+     Widths follow the words rather than three equal thirds, so the longest
+     label gets the room and no count is ever cut. */
+  .tasks__filter-option {
+    flex: 1 1 auto;
+    padding: 0.5rem 0.45rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  /* The fourth segment ("Zimefungwa", only on a day with a closed task) does
+     not fit a phone's row in either language: two by two instead. */
+  .tasks__filter:has(> .tasks__filter-option:nth-child(4)) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }

@@ -205,6 +205,7 @@
                           @if (canLogFeeding() && task.cycleId !== null) {
                             <app-button
                               data-testid="record-feeding"
+                            block
                               [disabled]="isFuture()"
                               (clicked)="recordFeeding(task)"
                             >
@@ -223,6 +224,7 @@
                         } @else {
                           <app-button
                             data-testid="mark-done"
+                            block
                             [disabled]="isFuture()"
                             [loading]="markingTaskId() === task.taskId"
                             (clicked)="markDone(task)"
