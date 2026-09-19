@@ -290,8 +290,10 @@
 
     <!-- The date picker. Paging the strip does NOT change the numbers - only
          clicking a day does, which is why the arrows and the days are separate
-         controls rather than one "current week" state. -->
-    <div class="side-card">
+         controls rather than one "current week" state.
+         side-card--lead: below 1280px it leaves the rail for the top of the
+         screen, above the numbers it moves - see .dash-side. -->
+    <div class="side-card side-card--lead">
       <div class="mini-cal__head">
         <h3>{{ t().sideThisWeek }}</h3>
         <span class="mini-cal__nav">

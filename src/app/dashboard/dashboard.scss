@@ -337,16 +337,21 @@ td {
   grid-template-rows: minmax(0, 1fr);
   gap: 1.25rem;
 
+  // One column, and rows sized by their content again: the date picker now
+  // comes out of the rail to sit ABOVE the main column (see .dash-side), and
+  // a capped first row would give it the whole screen's height.
   @media (max-width: 1280px) {
-    grid-template-columns: 1fr;
+    flex: none;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    align-content: start;
   }
 
-  // A phone or tablet: the rail comes back BELOW the main column (see
-  // .dash-side), so the rows are sized by their content again and the page
-  // scrolls - capping the row here would clip the rail off the bottom.
+  // A phone or tablet: the rest of the rail comes back BELOW the main column,
+  // two across where the width allows and one where not. The main column and
+  // the picker span the row.
   @media (max-width: 860px) {
-    flex: none;
-    grid-template-rows: auto;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 1rem;
   }
 }
@@ -396,20 +401,42 @@ td {
   min-height: 0;
   overflow-y: auto;
 
-  // Dropped on a laptop, where the grid above collapses to one column.
+  // Below 1280px the rail stops being a box: its cards become items of the
+  // .dash-layout grid, so each can be placed on its own.
+  //
+  // The date picker (side-card--lead) goes to the TOP. It is the one control
+  // that changes every number on this screen, and it used to be hidden on a
+  // laptop and last on a phone - under the tiles, the chart and the table it
+  // was moving. The same rule as the module screens' rail (_module-rail.scss).
+  //
+  // The other cards are dropped on a laptop, where the tables need the width
+  // (that decision stands), and come back under the main column on a phone.
   @media (max-width: 1280px) {
-    display: none;
+    display: contents;
+
+    > .side-card {
+      align-self: start;
+    }
+
+    > .side-card--lead {
+      order: -1;
+    }
   }
 
-  // ...but NOT on a phone or tablet. The rail holds the date picker - the one
-  // control that changes every number on this screen - so hiding it there
-  // took the feature away rather than the clutter. It returns under the main
-  // column, its cards two across where the width allows and one where not.
-  @media (max-width: 860px) {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    align-items: start;
-    overflow: visible;
+  // The laptop band only. Hidden with a range rather than hidden-then-shown,
+  // so on a phone each card keeps its own display (the ring card is a flex).
+  @media (min-width: 861px) and (max-width: 1280px) {
+    > .side-card:not(.side-card--lead) {
+      display: none;
+    }
+  }
+}
+
+// Across the whole row on a phone, where the rest of the rail goes two across.
+@media (max-width: 860px) {
+  .dash-layout__main,
+  .dash-side > .side-card--lead {
+    grid-column: 1 / -1;
   }
 }
 
