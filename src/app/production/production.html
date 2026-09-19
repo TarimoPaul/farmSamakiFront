@@ -314,13 +314,16 @@
       </div>
 
       <!-- The rail. Dropped below 1280px, where the tables need every pixel -
-           the same width at which the dashboard drops its own. -->
+           the same width at which the dashboard drops its own - all but the
+           intro card's buttons, which lead the screen there (side-card--lead,
+           see _module-rail.scss): they are the only way to start a unit or
+           a cycle. -->
       <aside class="module-rail">
         <!-- FIRST, because it is the card that says where you are and what
              this screen is for - and it carries the two things you can start
              here. The buttons used to float over the bottom-right corner,
              where they sat on top of the rail and belonged to nothing. -->
-        <div class="side-card side-card--intro">
+        <div class="side-card side-card--intro side-card--lead">
           <h3>{{ t().introTitle }}</h3>
           <p class="intro__body">{{ t().introBody }}</p>
           <ol class="intro__steps">

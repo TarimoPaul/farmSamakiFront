@@ -316,8 +316,10 @@
              yesterday's evening feed was recorded is asking a legitimate
              question. `today` is the FARM's day, not the browser's, so the
              ring on the strip and this screen's own "is it today?" checks
-             cannot disagree - see DailyTasks.today. -->
-        <div class="side-card" data-rail="date">
+             cannot disagree - see DailyTasks.today.
+             side-card--lead: below 1280px it is the one rail card kept, and it
+             moves above the sheet - it is the only way to open another day. -->
+        <div class="side-card side-card--lead" data-rail="date">
           <app-date-picker-card
             [title]="t().railWeekTitle"
             [weekdayLabels]="t().weekdayLabels"

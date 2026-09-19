@@ -32,8 +32,73 @@
   flex-direction: column;
   gap: 1rem;
 
+  // Below 1280px the rail used to go WHOLE, and with it two things that are
+  // not summary at all: the create buttons (Production, Farms, Roles, Members,
+  // Approvals) and Daily Tasks' day picker, which moves the sheet itself.
+  // Neither exists anywhere else on those screens, so a phone could not start
+  // a cycle or open yesterday's tasks.
+  //
+  // So the summary still goes - that decision stands - but a card marked
+  // `side-card--lead` stays, and the rail moves ABOVE the work to carry it:
+  // it is what you act with, and on a phone the top is where the thumb starts.
+  // A rail with nothing to lead with is gone as before - and a lead intro card
+  // counts only with a button in it: *appHasPermission can leave Production's
+  // with none, and an empty rail would still cost the grid a gap.
   @media (max-width: 1280px) {
-    display: none;
+    order: -1;
+    gap: 0.75rem;
+
+    > :not(.side-card--lead),
+    > .side-card--intro.side-card--lead:not(:has(app-button)) {
+      display: none;
+    }
+
+    &:not(
+        :has(
+            > .side-card--lead:not(.side-card--intro),
+            > .side-card--intro.side-card--lead app-button
+          )
+      ) {
+      display: none;
+    }
+  }
+}
+
+// A lead intro card, above the work: only its buttons. The title, body and
+// steps explain the screen beside the work; on top of it they would push the
+// table a screen down to say what the table is. The card's chrome goes too,
+// so the buttons read as the screen's toolbar rather than a card of their own.
+@media (max-width: 1280px) {
+  .side-card--intro.side-card--lead {
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+
+    h3,
+    .intro__body,
+    .intro__steps {
+      display: none;
+    }
+
+    .intro__actions {
+      justify-content: flex-end;
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    // Their own width on a laptop, where half of 900px each would be a bar.
+    .intro__actions app-button {
+      flex: 0 0 auto;
+    }
+  }
+}
+
+// A phone: back to equal shares of the row, where the thumb can reach both.
+@media (max-width: 480px) {
+  .side-card--intro.side-card--lead .intro__actions app-button {
+    flex: 1 1 0;
   }
 }
 
