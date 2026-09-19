@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { WaterQuality } from './water-quality';
 import { LanguageService, Lang } from '../core/services/language';
+import { CycleSelectionService } from '../core/services/cycle-selection';
 import { environment } from '../../environments/environment';
 
 const CYCLES = {
@@ -93,6 +94,22 @@ const VALIDATION = {
   ],
 };
 
+/** Two cycles running: nothing to choose FOR the user, so the picker asks. */
+const TWO_CYCLES = {
+  data: {
+    cycles: [
+      CYCLES.data.cycles[0],
+      {
+        ...CYCLES.data.cycles[0],
+        cycleId: '12',
+        speciesName: 'Kambale',
+        stockingDate: '2026-09-15',
+        unit: { unitId: '31', code: 'P1', type: 'POND_EARTHEN' },
+      },
+    ],
+  },
+};
+
 const TOKEN_KEY = 'samakiFarm.token';
 const PERMISSIONS_KEY = 'samakiFarm.permissions';
 const SELECTED_CYCLE_KEY = 'samakiFarm.selectedCycleId';
@@ -154,26 +171,80 @@ describe('WaterQuality', () => {
   });
 
   describe('the cycle it records against', () => {
-    it('asks for nothing at all when no cycle has been chosen', async () => {
+    // Chosen HERE since 2026-09-19: a worker at the tank used to be sent to
+    // Production and back before the first reading.
+    it('with nothing chosen and several cycles running, offers the picker and chooses nothing', async () => {
       const { fixture, httpMock } = setup(['view_dashboard', 'log_water_quality']);
 
       fixture.detectChanges();
+      gql(httpMock, 'query Cycles').flush(TWO_CYCLES);
       await fixture.whenStable();
       fixture.detectChanges();
 
-      expect(panel(fixture, 'no-cycle')).toBeTruthy();
+      expect(panel(fixture, 'no-cycle')?.textContent).toContain('Chagua mzunguko hapo juu');
       expect(panel(fixture, 'log-form')).toBeNull();
-      httpMock.expectNone((r) => r.url === environment.graphqlUrl);
+      const picker = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+        '[data-testid="cycle-picker"]',
+      )!;
+      expect(Array.from(picker.options).map((o) => o.textContent?.trim())).toEqual([
+        'Chagua mzunguko…',
+        'Kitengo P1 · Kambale · imepandwa 15 Sep',
+        'Kitengo T1 · Sato · imepandwa 1 Ago',
+      ]);
+      expect(TestBed.inject(CycleSelectionService).selectedCycleId()).toBeNull();
+      // Nothing cycle-scoped was asked for - there is no cycle to ask about.
+      httpMock.verify();
     });
 
-    it('names the cycle and its unit once one is selected', async () => {
+    it('records against the cycle picked in the picker - the one every screen shares', async () => {
+      const { fixture, httpMock } = setup(['view_dashboard', 'log_water_quality']);
+      fixture.detectChanges();
+      gql(httpMock, 'query Cycles').flush(TWO_CYCLES);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const picker = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+        '[data-testid="cycle-picker"]',
+      )!;
+      picker.value = '12';
+      picker.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      expect(TestBed.inject(CycleSelectionService).selectedCycleId()).toBe(12);
+      gql(httpMock, 'query Cycles').flush(TWO_CYCLES);
+      await fixture.whenStable();
+      const logs = gql(httpMock, 'WaterQualityLogs');
+      expect((logs.request.body as { variables: unknown }).variables).toEqual({ cycleId: 12 });
+      logs.flush(READINGS);
+    });
+
+    it('with nothing chosen and ONE cycle running, takes that one - there is nothing to choose', async () => {
+      const { fixture, component, httpMock } = setup(['view_dashboard', 'log_water_quality']);
+
+      fixture.detectChanges();
+      gql(httpMock, 'query Cycles').flush(CYCLES);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(CycleSelectionService).selectedCycleId()).toBe(9);
+      // The shared selection changed, so the screen reloads for it.
+      await load(fixture, httpMock);
+      expect(component.cycle()?.cycleId).toBe('9');
+      expect(panel(fixture, 'log-form')).toBeTruthy();
+    });
+
+    it('names the chosen cycle in the picker - unit, fish and stocking date', async () => {
       const { fixture, component, httpMock } = setup(['view_dashboard'], { cycleId: '9' });
 
       await load(fixture, httpMock);
 
       expect(component.cycle()?.cycleId).toBe('9');
-      expect(panel(fixture, 'context')?.textContent).toContain('T1');
-      expect(panel(fixture, 'context')?.textContent).toContain('Sato');
+      const picker = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+        '[data-testid="cycle-picker"]',
+      )!;
+      expect(picker.selectedOptions[0].textContent?.trim()).toBe(
+        'Kitengo T1 · Sato · imepandwa 1 Ago',
+      );
       httpMock.verify();
     });
 

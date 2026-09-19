@@ -169,6 +169,22 @@ const TOKEN_KEY = 'samakiFarm.token';
 const PERMISSIONS_KEY = 'samakiFarm.permissions';
 const SELECTED_CYCLE_KEY = 'samakiFarm.selectedCycleId';
 
+/** Two cycles running: nothing to choose FOR the user, so the picker asks. */
+const TWO_CYCLES = {
+  data: {
+    cycles: [
+      CYCLES.data.cycles[0],
+      {
+        ...CYCLES.data.cycles[0],
+        cycleId: '12',
+        speciesName: 'Kambale',
+        stockingDate: '2026-09-15',
+        unit: { unitId: '31', code: 'P1', type: 'POND_EARTHEN' },
+      },
+    ],
+  },
+};
+
 const FEEDER = ['view_dashboard', 'log_feeding'];
 const FEEDER_WITH_STOCK = ['view_dashboard', 'log_feeding', 'view_feed_stock'];
 
@@ -265,30 +281,62 @@ describe('Feeding', () => {
   });
 
   describe('the cycle it feeds', () => {
-    it('asks for nothing at all when no cycle has been chosen', async () => {
+    // Chosen HERE since 2026-09-19: a feeder at the tank used to be sent to
+    // Production and back before the first feeding.
+    it('with nothing chosen and several cycles running, offers the picker and chooses nothing', async () => {
       const { fixture, httpMock } = setup(FEEDER_WITH_STOCK);
 
       fixture.detectChanges();
+      gql(httpMock, 'query Cycles').flush(TWO_CYCLES);
       await fixture.whenStable();
       fixture.detectChanges();
 
-      expect(panel(fixture, 'no-cycle')).toBeTruthy();
+      expect(panel(fixture, 'no-cycle')?.textContent).toContain('Chagua mzunguko hapo juu');
       expect(panel(fixture, 'log-form')).toBeNull();
-      httpMock.expectNone((r) => r.url === environment.graphqlUrl);
+      expect(panel(fixture, 'picker')?.querySelector('[data-testid="cycle-picker"]')).toBeTruthy();
+      expect(TestBed.inject(CycleSelectionService).selectedCycleId()).toBeNull();
+      httpMock.verify();
     });
 
-    it('names the cycle and its unit once one is selected', async () => {
+    it('with nothing chosen and ONE cycle running, takes that one - there is nothing to choose', async () => {
+      const { fixture, component, httpMock } = setup(FEEDER_WITH_STOCK);
+
+      fixture.detectChanges();
+      gql(httpMock, 'query Cycles').flush(CYCLES);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(TestBed.inject(CycleSelectionService).selectedCycleId()).toBe(9);
+      await load(fixture, httpMock);
+      expect(component.cycle()?.cycleId).toBe('9');
+    });
+
+    it('shows an age of 0 months - fingerlings - rather than hiding it', async () => {
+      const { fixture, httpMock } = setup(FEEDER_WITH_STOCK, { cycleId: '9' });
+
+      await load(fixture, httpMock, {
+        feedTypes: { data: { feedTypesForCycle: { ...FEED_TYPES.data.feedTypesForCycle, cycleAgeMonths: 0 } } },
+      });
+
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="cycle-age"]')?.textContent,
+      ).toContain('0 miezi');
+    });
+
+    it('names the chosen cycle in the picker, and the age the server counted under it', async () => {
       const { fixture, component, httpMock } = setup(FEEDER_WITH_STOCK, { cycleId: '9' });
 
       await load(fixture, httpMock);
 
       expect(component.cycle()?.cycleId).toBe('9');
-      expect(panel(fixture, 'context')?.textContent).toContain('T1');
-      expect(panel(fixture, 'context')?.textContent).toContain('Sato');
+      const picker = panel(fixture, 'picker')!.querySelector<HTMLSelectElement>(
+        '[data-testid="cycle-picker"]',
+      )!;
+      expect(picker.selectedOptions[0].textContent?.trim()).toContain('Kitengo T1 · Sato');
       // The age the SERVER counted, shown rather than recomputed - it is what
       // the dropdown's filtering was based on.
       expect(component.cycleAgeMonths()).toBe(2);
-      expect(panel(fixture, 'context')?.textContent).toContain('2 miezi');
+      expect(panel(fixture, 'picker')?.textContent).toContain('2 miezi');
       httpMock.verify();
     });
 
@@ -766,6 +814,14 @@ describe('Feeding', () => {
       httpMock.verify();
     });
 
+    it('offers no picker for a task - the task names its cycle', async () => {
+      const { fixture, httpMock } = setup(FEEDER, { queryParams: TASK_PARAMS });
+      await loadForTask(fixture, httpMock);
+
+      expect(panel(fixture, 'picker')).toBeNull();
+      expect(panel(fixture, 'context')?.textContent).toContain('T1');
+    });
+
     it("names the task, sends taskId with the task's date, and returns to the sheet", async () => {
       const { fixture, component, httpMock } = setup(FEEDER, { queryParams: TASK_PARAMS });
       const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
@@ -844,7 +900,11 @@ describe('Feeding', () => {
       fixture.detectChanges();
 
       expect(component.taskContext).toBeNull();
-      // No stored selection either, so: pick a cycle - and no request at all.
+      // No stored selection either, so: an ordinary visit's picker, asking.
+      gql(httpMock, 'query Cycles').flush(TWO_CYCLES);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(panel(fixture, 'picker')).toBeTruthy();
       expect(panel(fixture, 'no-cycle')).toBeTruthy();
       httpMock.verify();
     });

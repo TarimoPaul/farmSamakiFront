@@ -13,8 +13,9 @@ export const FEEDING_I18N = {
     retry: 'Jaribu tena',
 
     noCycleTitle: 'Hujachagua mzunguko',
-    noCycleMessage:
-      'Kulisha ni kwa mzunguko mmoja. Nenda kwenye Uzalishaji, chagua mzunguko, kisha urudi hapa.',
+    noCyclePick: 'Kulisha ni kwa mzunguko mmoja. Chagua mzunguko hapo juu ili kuanza kurekodi.',
+    noActiveCycle:
+      'Shamba hili halina mzunguko unaoendelea. Anzisha mzunguko kwenye Uzalishaji kwanza.',
     goToProduction: 'Nenda kwenye Uzalishaji',
 
     contextLabel: 'Unalisha',
@@ -75,7 +76,7 @@ export const FEEDING_I18N = {
     // yake, hivyo tarehe inachuja kilichopo tayari.
     introTitle: 'Malisho',
     introBody: 'Kulisha kwa mzunguko uliouchagua - kiasi, aina ya chakula, na salio lililobaki.',
-    introStep1: 'Chagua mzunguko kwenye Uzalishaji - ndio unaolishwa hapa.',
+    introStep1: 'Chagua mzunguko juu ya skrini hii - ndio unaolishwa.',
     introStep2: 'Chagua chakula - orodha inaonyesha kinachofaa UMRI wa samaki hawa pekee.',
     introStep3: 'Rekodi kiasi kwa kilo. Salio la stoo linapungua lenyewe.',
     railWeekTitle: 'Chagua tarehe',
@@ -108,8 +109,8 @@ export const FEEDING_I18N = {
     retry: 'Try again',
 
     noCycleTitle: 'No cycle selected',
-    noCycleMessage:
-      'A feeding belongs to one cycle. Go to Production, pick a cycle, then come back here.',
+    noCyclePick: 'A feeding belongs to one cycle. Choose one above to start recording.',
+    noActiveCycle: 'This farm has no cycle running. Start one on Production first.',
     goToProduction: 'Go to Production',
 
     contextLabel: 'Feeding',
@@ -167,7 +168,7 @@ export const FEEDING_I18N = {
     introTitle: 'Feeding',
     introBody:
       'The feedings for the cycle you selected - how much, which feed, and what is left in store.',
-    introStep1: 'Select a cycle on Production - it is the one fed here.',
+    introStep1: 'Choose a cycle at the top of this screen - it is the one fed.',
     introStep2: 'Pick a feed - the list only offers what suits the AGE of these fish.',
     introStep3: 'Record the amount in kilograms. The stock balance follows by itself.',
     railWeekTitle: 'Pick a date',

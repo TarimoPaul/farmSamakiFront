@@ -6,12 +6,10 @@ export const WATER_QUALITY_I18N = {
     retry: 'Jaribu tena',
 
     noCycleTitle: 'Hujachagua mzunguko',
-    noCycleMessage:
-      'Vipimo vya maji ni vya mzunguko mmoja. Nenda kwenye Uzalishaji, chagua mzunguko, kisha urudi hapa.',
+    noCyclePick: 'Vipimo vya maji ni vya mzunguko mmoja. Chagua mzunguko hapo juu ili kuanza kurekodi.',
+    noActiveCycle:
+      'Shamba hili halina mzunguko unaoendelea. Anzisha mzunguko kwenye Uzalishaji kwanza.',
     goToProduction: 'Nenda kwenye Uzalishaji',
-
-    contextLabel: 'Unarekodi kwa',
-    contextUnit: 'Kitengo',
 
     formTitle: 'Rekodi kipimo',
     formHint:
@@ -32,7 +30,7 @@ export const WATER_QUALITY_I18N = {
     introTitle: 'Ubora wa Maji',
     introBody:
       'Vipimo vya maji vya mzunguko uliouchagua - ndio ushahidi wa kwa nini samaki walikua au hawakukua.',
-    introStep1: 'Chagua mzunguko kwenye Uzalishaji - ndio unaopimwa hapa.',
+    introStep1: 'Chagua mzunguko juu ya skrini hii - ndio unaopimwa.',
     introStep2: 'Rekodi kipimo: pH, joto, oksijeni, amonia. Kisichopimwa kinaachwa wazi.',
     introStep3: 'Tumia kalenda kuona vilivyopimwa siku yoyote iliyopita.',
     railWeekTitle: 'Chagua tarehe',
@@ -72,12 +70,9 @@ export const WATER_QUALITY_I18N = {
     retry: 'Try again',
 
     noCycleTitle: 'No cycle selected',
-    noCycleMessage:
-      'A water reading belongs to one cycle. Go to Production, pick a cycle, then come back here.',
+    noCyclePick: 'A water reading belongs to one cycle. Choose one above to start recording.',
+    noActiveCycle: 'This farm has no cycle running. Start one on Production first.',
     goToProduction: 'Go to Production',
-
-    contextLabel: 'Recording for',
-    contextUnit: 'Unit',
 
     formTitle: 'Record a reading',
     formHint:
@@ -96,7 +91,7 @@ export const WATER_QUALITY_I18N = {
     introTitle: 'Water Quality',
     introBody:
       'The water readings for the cycle you selected - the evidence for why the fish grew, or did not.',
-    introStep1: 'Select a cycle on Production - it is the one measured here.',
+    introStep1: 'Choose a cycle at the top of this screen - it is the one measured.',
     introStep2:
       'Record a reading: pH, temperature, oxygen, ammonia. Anything unmeasured is left blank.',
     introStep3: 'Use the calendar to see what was measured on any past day.',
