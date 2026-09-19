@@ -308,6 +308,17 @@ export class AppShell {
   readonly activeFarmId = computed(() => this.authService.currentUser()?.farmId ?? null);
 
   /**
+   * The phone header's farm name - of the farm the backend is APPLYING, so it
+   * can never name one that is not in use. Null until my-farms answers, when
+   * it failed, and for ROOT before it picks: the header then says "Chagua
+   * shamba…" to ROOT and the brand to anyone else.
+   */
+  readonly activeFarmName = computed(() => {
+    const id = this.activeFarmId();
+    return this.farms().find((farm) => farm.farmId === id)?.name ?? null;
+  });
+
+  /**
    * The farm list, for the switcher - `GET /api/auth/my-farms`, not
    * `GET /api/farms`. The latter needs `manage_farms`, which a member of two
    * farms does not hold; my-farms answers each caller with exactly the farms
@@ -329,7 +340,10 @@ export class AppShell {
    */
   private farmsRequested = false;
   private readonly loadFarms = effect(() => {
-    if (!this.canSelectFarm() || this.farmsRequested) {
+    // EVERY account now, not only one with farms to switch between: the
+    // phone header names the farm you are in, and /me carries its id but not
+    // its name. One request per session, and my-farms needs no permission.
+    if (!this.currentUser() || this.farmsRequested) {
       return;
     }
     this.farmsRequested = true;

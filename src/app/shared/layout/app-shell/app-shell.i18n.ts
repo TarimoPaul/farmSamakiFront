@@ -42,6 +42,10 @@ export const SHELL_I18N = {
     tabbarLabel: 'Skrini kuu',
     tabDailyTasks: 'Kazi',
     tabMore: 'Zaidi',
+    themeToDark: 'Tumia mandhari ya giza',
+    themeToLight: 'Tumia mandhari ya mwanga',
+    themeDark: 'Giza',
+    themeLight: 'Mwanga',
     // Vichwa vya makundi ya nav. Vinafuata `module`/`group_name` za backend
     // (seed/permissions.csv) ili sidebar na skrini ya Nafasi na Ruhusa
     // zipange vitu kwa namna moja.
@@ -86,6 +90,10 @@ export const SHELL_I18N = {
     tabbarLabel: 'Main screens',
     tabDailyTasks: 'Tasks',
     tabMore: 'More',
+    themeToDark: 'Switch to dark theme',
+    themeToLight: 'Switch to light theme',
+    themeDark: 'Dark',
+    themeLight: 'Light',
     groupProduction: 'Production',
     groupFeed: 'Feed',
     groupFinance: 'Finance',

@@ -64,16 +64,54 @@ describe('AppShell farm switcher', () => {
     TestBed.resetTestingModule();
   });
 
-  it('is hidden - and costs no request - for an account that may not select a farm', () => {
-    // A member of ONE farm. They work in it and have nothing to switch to.
+  it('is hidden for an account that may not select a farm, whose farm is still NAMED', () => {
+    // A member of ONE farm. They work in it and have nothing to switch to -
+    // but the phone header names it, and /me carries only its id, so my-farms
+    // is asked once (it needs no permission). Never /farms.
     signIn({ canSelectFarm: false, farmId: 19 });
     const { fixture, element, httpMock } = setup();
 
     fixture.detectChanges();
+    httpMock.expectOne(MY_FARMS_URL).flush({
+      success: true,
+      data: [{ farmId: 19, name: 'Shamba la Kwanza', role: 'WORKER' }],
+    });
+    fixture.detectChanges();
 
     expect(element.querySelector('.dash-farm__select')).toBeNull();
-    httpMock.expectNone(MY_FARMS_URL);
+    expect(element.querySelector('.dash-place__select')).toBeNull();
+    expect(element.querySelector('.dash-place__name')!.textContent?.trim()).toBe(
+      'Shamba la Kwanza',
+    );
     httpMock.expectNone(`${environment.apiUrl}/farms`);
+    httpMock.verify();
+  });
+
+  it('names the brand in the phone header when the farm list fails', () => {
+    signIn({ canSelectFarm: false, farmId: 19 });
+    const { fixture, element, httpMock } = setup();
+
+    fixture.detectChanges();
+    httpMock.expectOne(MY_FARMS_URL).flush(null, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(element.querySelector('.dash-place__name')!.textContent?.trim()).toBe('Samaki Farm');
+  });
+
+  it('makes the phone header name the switcher, for an account with farms to switch', () => {
+    signIn({ canSelectFarm: true, farmId: 2 });
+    const { fixture, element, httpMock } = setup();
+
+    fixture.detectChanges();
+    httpMock.expectOne(MY_FARMS_URL).flush(FARMS_RESPONSE);
+    fixture.detectChanges();
+
+    expect(element.querySelector('.dash-place__name')!.textContent?.trim()).toBe(
+      'Shamba la Majaribio',
+    );
+    const select = element.querySelector<HTMLSelectElement>('.dash-place__select')!;
+    expect(select.getAttribute('aria-label')).toBe('Shamba unalofanyia kazi');
+    expect(select.value).toBe('2');
   });
 
   it('offers a member of two farms their own farms, from my-farms rather than /farms', () => {
@@ -1309,6 +1347,27 @@ describe('AppShell phone tab bar', () => {
     TestBed.resetTestingModule();
     const profile = await setupAt('/profile');
     expect(profile.active()).toEqual(['Zaidi']);
+  });
+
+  it('carries theme and log out at the drawer\'s foot, named in words', async () => {
+    signIn({ canSelectFarm: false, farmId: 19 });
+    const { fixture, element } = await setupAt('/dashboard');
+    const theme = TestBed.inject(ThemeService);
+    const before = theme.theme();
+
+    const [themeButton, logoutButton] = Array.from(
+      element.querySelectorAll<HTMLButtonElement>('.sidebar__prefs .sidebar__pref'),
+    );
+    // One word on it; the full phrase, which contains the word, is its name.
+    expect(themeButton.textContent?.trim()).toBe(before === 'dark' ? 'Mwanga' : 'Giza');
+    expect(themeButton.getAttribute('aria-label')).toBe(
+      before === 'dark' ? 'Tumia mandhari ya mwanga' : 'Tumia mandhari ya giza',
+    );
+    expect(logoutButton.textContent?.trim()).toBe('Toka');
+
+    themeButton.click();
+    fixture.detectChanges();
+    expect(theme.theme()).not.toBe(before);
   });
 
   it('opens the drawer from "Zaidi", named by the word on it', async () => {

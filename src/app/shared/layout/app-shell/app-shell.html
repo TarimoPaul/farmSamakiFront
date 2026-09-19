@@ -413,6 +413,55 @@
           }
         </div>
       </a>
+
+      <!-- Phone drawer only: the two account controls the phone header gave
+           up for the farm's name. They live next to the profile, the other
+           thing about YOU rather than about the farm. The desktop keeps them
+           on the topbar. -->
+      <div class="sidebar__prefs">
+        <!-- One word on the button, so the pair fits one row of the drawer;
+             the full phrase is its name, and contains the word. -->
+        <button
+          type="button"
+          class="sidebar__pref"
+          [attr.aria-label]="themeService.theme() === 'dark' ? t().themeToLight : t().themeToDark"
+          (click)="themeService.toggle()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            @if (themeService.theme() === 'dark') {
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            } @else {
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            }
+          </svg>
+          {{ themeService.theme() === 'dark' ? t().themeLight : t().themeDark }}
+        </button>
+        <button type="button" class="sidebar__pref" (click)="logout()">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          {{ t().logout }}
+        </button>
+      </div>
     </aside>
 
     <!-- Main content -->
@@ -420,6 +469,69 @@
          tabbed into or read out, so keyboard focus stays with the drawer. -->
     <main class="dash-main" [attr.inert]="drawerOpen() ? '' : null">
       <header class="dash-topbar">
+        <!-- Phone only (below 860px): WHERE you are, the way the reference's
+             "221B Baker Street ⌄" is - the farm, and under it the farm's date
+             and time. Chosen with the user 2026-09-19.
+
+             For an account with farms to switch between, the name IS the
+             switcher: the real <select> is laid invisibly over it, so a tap
+             opens the phone's own picker. For anyone else it is just the name.
+             The desktop keeps its farm chip and clock chip, hidden here. -->
+        <div class="dash-place">
+          <span class="dash-place__icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 21h18" />
+              <path d="M5 21V8l7-4 7 4v13" />
+              <path d="M10 21v-6h4v6" />
+            </svg>
+          </span>
+          <div class="dash-place__text">
+            @if (canSelectFarm()) {
+              <label class="dash-place__farm">
+                <span class="dash-place__name" aria-hidden="true">{{
+                  activeFarmName() ?? t().farmSwitcherNone
+                }}</span>
+                <svg
+                  class="dash-place__chevron"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+                <select
+                  class="dash-place__select"
+                  [attr.aria-label]="t().farmSwitcher"
+                  (change)="selectFarm($event)"
+                >
+                  <option value="" [selected]="activeFarmId() === null">
+                    {{ t().farmSwitcherNone }}
+                  </option>
+                  @for (farm of farms(); track farm.farmId) {
+                    <option [value]="farm.farmId" [selected]="farm.farmId === activeFarmId()">
+                      {{ farm.name }}
+                    </option>
+                  }
+                </select>
+              </label>
+            } @else {
+              <span class="dash-place__name">{{ activeFarmName() ?? t().brandName }}</span>
+            }
+            <app-topbar-clock variant="line" />
+          </div>
+        </div>
+
         <!-- Finds a screen and opens it - Ctrl/⌘+K from anywhere. It is handed
              the permission-filtered nav, so it cannot offer what the guards
              would refuse. See CommandPalette. -->

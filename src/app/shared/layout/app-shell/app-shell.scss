@@ -704,6 +704,54 @@ a.nav-item {
   display: none;
 }
 
+// Theme and log out, at the drawer's foot - the phone header gave them up.
+// Hidden on a desktop, where both are on the topbar.
+.sidebar__prefs {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .sidebar__prefs {
+    flex: none;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .sidebar__pref {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    svg {
+      flex: none;
+      width: 17px;
+      height: 17px;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    &:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+  }
+}
+
 @media (max-width: 860px) {
 
   .dash-scrim {
@@ -868,6 +916,114 @@ a.nav-item {
   .dash-content ::ng-deep > router-outlet {
     display: none;
   }
+}
+
+// ── The phone header ─────────────────────────────────────────────────────
+// Below 860px the topbar stops being a card of six controls and becomes a
+// header, like the reference's: WHERE you are on the left (the farm, and the
+// farm's date and time under it), search and SW|EN on the right. The clock
+// chip and farm chip give way to the place block; theme and log out move to
+// the drawer's foot (.sidebar__prefs). Chosen with the user 2026-09-19.
+.dash-place {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .dash-topbar {
+    padding: 0.15rem 0.1rem 0.1rem 0.25rem;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .dash-place {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  // Prefixed for the weight: .dash-farm and .dash-logout set their own
+  // display further down this file, and would win a tie.
+  .dash-topbar {
+    .dash-actions > app-topbar-clock,
+    .dash-farm,
+    .dash-actions > app-theme-toggle,
+    .dash-logout {
+      display: none;
+    }
+  }
+}
+
+.dash-place__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.dash-place__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.dash-place__farm {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+
+  // The ring goes round the name, which is what a finger aimed at.
+  &:focus-within {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+.dash-place__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--on-surface);
+}
+
+.dash-place__chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+// Laid invisibly over the name and chevron: a tap lands on the real select,
+// so the phone's own picker opens - the same trick the farm chip uses.
+.dash-place__select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
 // Everything right of the search, pushed to the end as one group.
