@@ -187,6 +187,16 @@ export class DailyTasks {
    */
   readonly isFuture = computed(() => this.date() > this.today);
 
+  /**
+   * Is a loaded, non-empty sheet on screen? The rail's counted cards - summary,
+   * next, by-unit - are drawn only then. The picker beside them is drawn
+   * always: it is the one way to another day, and an empty, failed or loading
+   * day must not take it away.
+   */
+  readonly sheetShown = computed(
+    () => !this.loading() && !this.loadError() && this.tasks().length > 0,
+  );
+
   readonly doneCount = computed(() => this.tasks().filter((task) => task.done).length);
   readonly closedCount = computed(() => this.tasks().filter(isClosedTask).length);
   /** Neither done nor closed - the only rows reminders still chase. */

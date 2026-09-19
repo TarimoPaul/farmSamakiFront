@@ -394,6 +394,56 @@ describe('DailyTasks', () => {
       expect(text(fixture)).toContain('Huna ruhusa ya kuona taarifa hizi');
       expect(text(fixture)).toContain('Jaribu tena');
     });
+
+    // The picker used to be drawn only beside a loaded, non-empty sheet, so an
+    // empty or failed day - reached from a link with ?date= - left no way to
+    // another day, not even back to today (seen on a farm with no cycle).
+    it('keeps the picker, and a way back to today, beside an empty day', async () => {
+      // Any past day: what matters is that it is not today.
+      const { fixture, httpMock } = setup(READER, { queryParams: { date: '2026-01-05' } });
+
+      await load(fixture, httpMock, { data: { farmDailyTasks: [] } });
+
+      expect(panel(fixture, 'empty')).toBeTruthy();
+      expect(railCard(fixture, 'date')?.querySelector('app-date-picker-card')).toBeTruthy();
+      expect(text(fixture)).toContain(DAILY_TASKS_I18N.sw.dayBackToToday);
+      // Counted cards would be zeros saying nothing - they wait for a sheet.
+      expect(railCard(fixture, 'summary')).toBeNull();
+      expect(railCard(fixture, 'by-unit')).toBeNull();
+    });
+
+    it('keeps the picker beside a failed day', async () => {
+      const { fixture, httpMock } = setup(READER);
+
+      fixture.detectChanges();
+      gql(httpMock, 'FarmDailyTasks').flush(FORBIDDEN);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(all(fixture, 'load-error')).toHaveLength(1);
+      expect(railCard(fixture, 'date')?.querySelector('app-date-picker-card')).toBeTruthy();
+      expect(railCard(fixture, 'summary')).toBeNull();
+    });
+
+    it('keeps the picker while a new day loads, without the old day\'s counts', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+      expect(railCard(fixture, 'summary')).toBeTruthy();
+
+      component.onDatePicked(new Date(2026, 0, 5));
+      fixture.detectChanges();
+
+      // Asked, not yet answered.
+      expect(component.loading()).toBe(true);
+      expect(railCard(fixture, 'date')?.querySelector('app-date-picker-card')).toBeTruthy();
+      expect(railCard(fixture, 'summary')).toBeNull();
+      expect(railCard(fixture, 'by-unit')).toBeNull();
+
+      gql(httpMock, 'FarmDailyTasks').flush(TASKS);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(railCard(fixture, 'summary')).toBeTruthy();
+    });
   });
 
   describe('the date picker', () => {
