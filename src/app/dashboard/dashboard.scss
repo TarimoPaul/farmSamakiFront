@@ -497,6 +497,9 @@ td {
   border: 1px solid transparent;
   border-radius: 10px;
   background: none;
+  // Said, not inherited: a <button> takes the browser's own ButtonText, which
+  // is black - so in dark mode every day but today was black on the dark card.
+  color: var(--on-surface);
   font: inherit;
   cursor: pointer;
 
