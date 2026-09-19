@@ -601,9 +601,10 @@ td {
   // .dash-layout grid, so each can be placed on its own.
   //
   // The date picker (side-card--picker) comes straight AFTER the main column,
-  // under Active Cycles - the user's order (2026-09-19): Units by Type leads
-  // the screen (see .chart-card below), and the picker follows the numbers
-  // it moves rather than sitting above them. It used to be hidden on a
+  // under Active Cycles - the user's order (2026-09-19): "Leo", the tiles,
+  // Units by Type, Active Cycles, then the picker, which follows the numbers
+  // it moves rather than sitting above them. The main column keeps its own
+  // source order at every width; only the rail's cards are re-placed. It used to be hidden on a
   // laptop and last of all on a phone, under every other rail card too.
   //
   // The other cards are dropped on a laptop, where the tables need the width
@@ -627,20 +628,6 @@ td {
     > .side-card:not(.side-card--picker) {
       display: none;
     }
-  }
-}
-
-// Units by Type leads the main column below 1280px, above the tiles: the
-// user's order (2026-09-19). A flex column, so `order` moves it without
-// touching the desktop, where it stays under the tiles.
-@media (max-width: 1280px) {
-  .dash-layout__main > .chart-card {
-    order: -1;
-  }
-
-  // ...and "Leo" above even that: first at every width (the user's call).
-  .dash-layout__main > .today-card {
-    order: -2;
   }
 }
 
