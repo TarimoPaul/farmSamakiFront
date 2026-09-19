@@ -300,6 +300,15 @@ export class Dashboard {
    * the PREVIOUS date, after a failure it is null, and a date before our
    * records has nothing worth drawing - in all three the card says so instead.
    */
+  /**
+   * On a phone the Active Cycles card shows this many rows until "Ona zote"
+   * is pressed - the user's call (2026-09-19): below it sits the date picker,
+   * and a long farm's cycles pushed it a screen or more out of reach. The
+   * desktop table always shows every row; the limit is CSS, below 860px.
+   */
+  readonly cyclesPreview = 3;
+  readonly cyclesExpanded = signal(false);
+
   readonly dayViewState = computed<'rows' | 'loading' | 'failed' | 'noHistory'>(() => {
     if (this.viewingToday()) {
       return 'rows';

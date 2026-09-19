@@ -72,6 +72,62 @@
   box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
 }
 
+// The title on the left and, where a card has one, its action on the right -
+// the reference's "Popular Services ... See all ›".
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+// "Ona zote (6) ›" - phone only. On a desktop the table shows every row and
+// there is nothing to open.
+.cycles-toggle {
+  display: none;
+  flex: none;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--brand-dark);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--brand-soft);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+}
+
+@media (max-width: 860px) {
+  .cycles-toggle {
+    display: block;
+  }
+
+  // Rows past the preview wait for "Ona zote". Hidden, not removed, so the
+  // count on the button and the rows behind it can never disagree.
+  .table-card:not(.table-card--expanded) .cycle-row--extra {
+    display: none;
+  }
+
+  // The last row SHOWN closes the card like a last row: its rule was drawn
+  // for a row below it that is now hidden.
+  .table-card:not(.table-card--expanded) tr:has(+ .cycle-row--extra) {
+    &,
+    td {
+      border-bottom: 0;
+    }
+  }
+}
+
 .card-heading h2 {
   margin: 0;
   font-size: 1rem;

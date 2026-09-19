@@ -474,6 +474,52 @@ describe('Dashboard date picker', () => {
       expect(ctx.component.shownCyclesRunning()).toBe(rows(ctx).length);
     });
 
+    it('offers no "Ona zote" when every cycle already fits the phone preview', async () => {
+      const ctx = await loaded();
+
+      expect(rows(ctx)).toHaveLength(1);
+      expect(ctx.fixture.nativeElement.querySelector('[data-testid="cycles-toggle"]')).toBeNull();
+    });
+
+    it('holds rows past the first three for "Ona zote", counts them, and opens them in place', async () => {
+      const ctx = await loaded();
+
+      ctx.component.selectDate(pastDate(3));
+      ctx.httpMock.expectOne(environment.graphqlUrl).flush(
+        dayResponse(ctx.component.selectedDate(), {
+          cyclesRunning: 5,
+          cycles: ['A', 'B', 'C', 'D', 'E'].map((code, i) => cycleRow(String(i), `OLD-${code}`)),
+        }),
+      );
+      await ctx.fixture.whenStable();
+      ctx.fixture.detectChanges();
+
+      // Every row is in the DOM - the phone hides the extras with CSS - so
+      // the count on the button and the rows behind it are one list.
+      expect(rows(ctx)).toHaveLength(5);
+      expect(rows(ctx).map((r) => r.classList.contains('cycle-row--extra'))).toEqual([
+        false,
+        false,
+        false,
+        true,
+        true,
+      ]);
+
+      const element = ctx.fixture.nativeElement as HTMLElement;
+      const toggle = element.querySelector<HTMLButtonElement>('[data-testid="cycles-toggle"]')!;
+      const card = element.querySelector('.table-card')!;
+      expect(toggle.textContent?.trim()).toBe('Ona zote (5) ›');
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(card.classList.contains('table-card--expanded')).toBe(false);
+
+      toggle.click();
+      ctx.fixture.detectChanges();
+
+      expect(card.classList.contains('table-card--expanded')).toBe(true);
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      expect(toggle.textContent?.trim()).toBe('Onyesha chache');
+    });
+
     it('shows a since-harvested cycle as Active on a date it was running', async () => {
       const ctx = await loaded();
 

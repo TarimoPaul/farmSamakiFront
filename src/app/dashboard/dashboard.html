@@ -192,12 +192,31 @@
         }
       </section>
 
-      <section class="table-card">
+      <section class="table-card" [class.table-card--expanded]="cyclesExpanded()">
         <div class="card-heading">
           <div>
             <h2>{{ t().tableTitle }}</h2>
             <p>{{ t().tableSubtitle }}</p>
           </div>
+          <!-- Phone only (see .cycles-toggle): the first three cycles, then
+               "Ona zote" opens the rest IN PLACE, the reference's "See all ›".
+               In place rather than a link to Production because this list
+               follows the picked date, and Production shows today only. -->
+          @if (dayViewState() === 'rows' && shownCycles().length > cyclesPreview) {
+            <button
+              type="button"
+              class="cycles-toggle"
+              data-testid="cycles-toggle"
+              [attr.aria-expanded]="cyclesExpanded()"
+              (click)="cyclesExpanded.set(!cyclesExpanded())"
+            >
+              @if (cyclesExpanded()) {
+                {{ t().seeLess }}
+              } @else {
+                {{ t().seeAll }} ({{ shownCycles().length }}) ›
+              }
+            </button>
+          }
         </div>
 
         <!-- The table follows the SAME date as the tiles. Away from today it
@@ -227,11 +246,11 @@
               </tr>
             </thead>
             <tbody>
-              @for (cycle of shownCycles(); track cycle.cycleId) {
+              @for (cycle of shownCycles(); track cycle.cycleId; let i = $index) {
                 <!-- data-label: on a phone each row is stacked into a small
                      card, and the header row is gone - so every cell names
                      itself (see the table block in dashboard.scss). -->
-                <tr data-testid="cycle-row">
+                <tr data-testid="cycle-row" [class.cycle-row--extra]="i >= cyclesPreview">
                   <td [attr.data-label]="t().colUnit">{{ cycle.unit.code }}</td>
                   <td [attr.data-label]="t().colSpecies">{{ cycle.speciesName }}</td>
                   <td [attr.data-label]="t().colStockingDate">{{ cycle.stockingDate }}</td>
