@@ -37,8 +37,11 @@ export const SHELL_I18N = {
     farmSwitcherNone: 'Chagua shamba…',
     collapseNav: 'Kunja menyu',
     expandNav: 'Panua menyu',
-    openNav: 'Fungua menyu',
     closeNav: 'Funga menyu',
+    // Tab bar ya simu. Maandishi mafupi: tabo tano zinagawana 375px.
+    tabbarLabel: 'Skrini kuu',
+    tabDailyTasks: 'Kazi',
+    tabMore: 'Zaidi',
     // Vichwa vya makundi ya nav. Vinafuata `module`/`group_name` za backend
     // (seed/permissions.csv) ili sidebar na skrini ya Nafasi na Ruhusa
     // zipange vitu kwa namna moja.
@@ -79,8 +82,10 @@ export const SHELL_I18N = {
     farmSwitcherNone: 'Select a farm…',
     collapseNav: 'Collapse menu',
     expandNav: 'Expand menu',
-    openNav: 'Open menu',
     closeNav: 'Close menu',
+    tabbarLabel: 'Main screens',
+    tabDailyTasks: 'Tasks',
+    tabMore: 'More',
     groupProduction: 'Production',
     groupFeed: 'Feed',
     groupFinance: 'Finance',

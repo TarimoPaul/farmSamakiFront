@@ -1,3 +1,260 @@
+<!-- The nav icons, once: the sidebar and the phone tab bar draw the same
+     entries, and two copies of fifteen SVGs would drift the first time one
+     was touched. The context is the entry's `icon`. -->
+<ng-template #navIcon let-icon>
+  @switch (icon) {
+    @case ('grid') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="3" y="3" width="7" height="7" />
+        <rect x="14" y="3" width="7" height="7" />
+        <rect x="14" y="14" width="7" height="7" />
+        <rect x="3" y="14" width="7" height="7" />
+      </svg>
+    }
+    @case ('farm') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M3 21h18" />
+        <path d="M5 21V8l7-4 7 4v13" />
+        <path d="M10 21v-6h4v6" />
+      </svg>
+    }
+    @case ('box') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+        />
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    }
+    @case ('cycle') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="23 4 23 10 17 10" />
+        <polyline points="1 20 1 14 7 14" />
+        <path
+          d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+        />
+      </svg>
+    }
+    @case ('fish') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M22 12c-2.6 3.7-6.2 5.6-9.6 5.6S6.1 15.7 4 12c2.1-3.7 5-5.6 8.4-5.6S19.4 8.3 22 12z"
+        />
+        <path d="M4 12L1.5 8.5v7L4 12z" />
+        <circle cx="17.5" cy="10.5" r="1" />
+      </svg>
+    }
+    @case ('feed') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    }
+    @case ('drop') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+      </svg>
+    }
+    @case ('users') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    }
+    @case ('check') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="8.5" cy="7" r="4" />
+        <path d="M17 11l2 2 4-4" />
+      </svg>
+    }
+    @case ('shield') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+    }
+    @case ('list') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="9" y1="6" x2="20" y2="6" />
+        <line x1="9" y1="12" x2="20" y2="12" />
+        <line x1="9" y1="18" x2="20" y2="18" />
+        <circle cx="4.5" cy="6" r="1.5" />
+        <circle cx="4.5" cy="12" r="1.5" />
+        <circle cx="4.5" cy="18" r="1.5" />
+      </svg>
+    }
+    @case ('cart') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="9" cy="20" r="1.5" />
+        <circle cx="18" cy="20" r="1.5" />
+        <path
+          d="M2 3h2.5l2.4 11.2a1.5 1.5 0 0 0 1.5 1.3h8.9a1.5 1.5 0 0 0 1.5-1.2L21 7H5.2"
+        />
+      </svg>
+    }
+    @case ('tasks') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"
+        />
+        <rect x="9" y="2" width="6" height="4" rx="1" />
+        <polyline points="9 12 11 14 15 10" />
+        <line x1="9" y1="18" x2="15" y2="18" />
+      </svg>
+    }
+    @case ('briefcase') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="2" y="7" width="20" height="14" rx="2" />
+        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+        <line x1="2" y1="13" x2="22" y2="13" />
+      </svg>
+    }
+    @case ('receipt') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z" />
+        <line x1="9" y1="7" x2="15" y2="7" />
+        <line x1="9" y1="11" x2="15" y2="11" />
+        <line x1="9" y1="15" x2="13" y2="15" />
+      </svg>
+    }
+    @case ('chart') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="3 17 9 11 13 15 21 7" />
+        <polyline points="15 7 21 7 21 13" />
+      </svg>
+    }
+    @case ('gear') {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        />
+      </svg>
+    }
+  }
+</ng-template>
+
 <div
   class="dash-page"
   [class.dash-page--rail]="collapsed()"
@@ -97,260 +354,6 @@
             }
 
             @for (item of group.items; track item.key) {
-              <ng-template #icon>
-                @switch (item.icon) {
-                  @case ('grid') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <rect x="3" y="3" width="7" height="7" />
-                      <rect x="14" y="3" width="7" height="7" />
-                      <rect x="14" y="14" width="7" height="7" />
-                      <rect x="3" y="14" width="7" height="7" />
-                    </svg>
-                  }
-                  @case ('farm') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M3 21h18" />
-                      <path d="M5 21V8l7-4 7 4v13" />
-                      <path d="M10 21v-6h4v6" />
-                    </svg>
-                  }
-                  @case ('box') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path
-                        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-                      />
-                      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                      <line x1="12" y1="22.08" x2="12" y2="12" />
-                    </svg>
-                  }
-                  @case ('cycle') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polyline points="23 4 23 10 17 10" />
-                      <polyline points="1 20 1 14 7 14" />
-                      <path
-                        d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-                      />
-                    </svg>
-                  }
-                  @case ('fish') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path
-                        d="M22 12c-2.6 3.7-6.2 5.6-9.6 5.6S6.1 15.7 4 12c2.1-3.7 5-5.6 8.4-5.6S19.4 8.3 22 12z"
-                      />
-                      <path d="M4 12L1.5 8.5v7L4 12z" />
-                      <circle cx="17.5" cy="10.5" r="1" />
-                    </svg>
-                  }
-                  @case ('feed') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                    </svg>
-                  }
-                  @case ('drop') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-                    </svg>
-                  }
-                  @case ('users') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg>
-                  }
-                  @case ('check') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                      <circle cx="8.5" cy="7" r="4" />
-                      <path d="M17 11l2 2 4-4" />
-                    </svg>
-                  }
-                  @case ('shield') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                  }
-                  @case ('list') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <line x1="9" y1="6" x2="20" y2="6" />
-                      <line x1="9" y1="12" x2="20" y2="12" />
-                      <line x1="9" y1="18" x2="20" y2="18" />
-                      <circle cx="4.5" cy="6" r="1.5" />
-                      <circle cx="4.5" cy="12" r="1.5" />
-                      <circle cx="4.5" cy="18" r="1.5" />
-                    </svg>
-                  }
-                  @case ('cart') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <circle cx="9" cy="20" r="1.5" />
-                      <circle cx="18" cy="20" r="1.5" />
-                      <path
-                        d="M2 3h2.5l2.4 11.2a1.5 1.5 0 0 0 1.5 1.3h8.9a1.5 1.5 0 0 0 1.5-1.2L21 7H5.2"
-                      />
-                    </svg>
-                  }
-                  @case ('tasks') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path
-                        d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"
-                      />
-                      <rect x="9" y="2" width="6" height="4" rx="1" />
-                      <polyline points="9 12 11 14 15 10" />
-                      <line x1="9" y1="18" x2="15" y2="18" />
-                    </svg>
-                  }
-                  @case ('briefcase') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <rect x="2" y="7" width="20" height="14" rx="2" />
-                      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-                      <line x1="2" y1="13" x2="22" y2="13" />
-                    </svg>
-                  }
-                  @case ('receipt') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z" />
-                      <line x1="9" y1="7" x2="15" y2="7" />
-                      <line x1="9" y1="11" x2="15" y2="11" />
-                      <line x1="9" y1="15" x2="13" y2="15" />
-                    </svg>
-                  }
-                  @case ('chart') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <polyline points="3 17 9 11 13 15 21 7" />
-                      <polyline points="15 7 21 7 21 13" />
-                    </svg>
-                  }
-                  @case ('gear') {
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="3" />
-                      <path
-                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-                      />
-                    </svg>
-                  }
-                }
-              </ng-template>
-
               <!-- The label is HIDDEN, never removed: collapsed, `.nav-item__label`
                is clipped to a pixel, so the entry still has its accessible
                name for screen readers and the title carries it for the mouse. -->
@@ -361,7 +364,7 @@
                   [attr.title]="navTitle(item)"
                   [routerLink]="item.route"
                 >
-                  <ng-container [ngTemplateOutlet]="icon" />
+                  <ng-container [ngTemplateOutlet]="navIcon" [ngTemplateOutletContext]="{ $implicit: item.icon }" />
                   <span class="nav-item__label">{{ t()[item.key] }}</span>
                 </a>
               } @else {
@@ -370,7 +373,7 @@
                   [attr.title]="navTitle(item)"
                   aria-disabled="true"
                 >
-                  <ng-container [ngTemplateOutlet]="icon" />
+                  <ng-container [ngTemplateOutlet]="navIcon" [ngTemplateOutletContext]="{ $implicit: item.icon }" />
                   <span class="nav-item__label">{{ t()[item.key] }}</span>
                 </span>
               }
@@ -417,31 +420,6 @@
          tabbed into or read out, so keyboard focus stays with the drawer. -->
     <main class="dash-main" [attr.inert]="drawerOpen() ? '' : null">
       <header class="dash-topbar">
-        <!-- Phone-only: the sidebar is off-canvas below 860px, and this is the
-             only way back to it. Hidden from the accessibility tree on wider
-             screens, where the sidebar is on screen already. -->
-        <button
-          #menuButton
-          type="button"
-          class="dash-menu"
-          [attr.aria-label]="t().openNav"
-          [attr.aria-expanded]="drawerOpen()"
-          (click)="openMenu()"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="4" y1="7" x2="20" y2="7" />
-            <line x1="4" y1="12" x2="20" y2="12" />
-            <line x1="4" y1="17" x2="20" y2="17" />
-          </svg>
-        </button>
-
         <!-- Finds a screen and opens it - Ctrl/⌘+K from anywhere. It is handed
              the permission-filtered nav, so it cannot offer what the guards
              would refuse. See CommandPalette. -->
@@ -523,6 +501,58 @@
       <div class="dash-content">
         <ng-content></ng-content>
       </div>
+
+      <!-- Phone only (below 860px): the screens a day is spent on, one tap
+           each, where the thumb already is. Chosen with the user 2026-09-19.
+           Each tab is a nav entry, so a revoked permission takes it away
+           exactly as it does in the sidebar - see tabs().
+
+           "Zaidi" is the old topbar ☰, moved: it opens the same drawer, with
+           every other screen and the profile in it, and focus comes back to
+           it when the drawer shuts. It is lit when the screen on show is not
+           one of the tabs, so the bar always says where you are. -->
+      <nav class="tabbar" [attr.aria-label]="t().tabbarLabel">
+        @for (tab of tabs(); track tab.item.key) {
+          <a
+            class="tabbar__item"
+            [class.tabbar__item--active]="isActive(tab.item)"
+            [attr.aria-current]="isActive(tab.item) ? 'page' : null"
+            [routerLink]="tab.item.route"
+          >
+            <span class="tabbar__icon">
+              <ng-container [ngTemplateOutlet]="navIcon" [ngTemplateOutletContext]="{ $implicit: tab.item.icon }" />
+            </span>
+            <span class="tabbar__label">{{ t()[tab.label] }}</span>
+          </a>
+        }
+        <button
+          #menuButton
+          type="button"
+          class="tabbar__item dash-menu"
+          [class.tabbar__item--active]="moreActive()"
+          [attr.aria-expanded]="drawerOpen()"
+          (click)="openMenu()"
+        >
+          <span class="tabbar__icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </span>
+          <!-- The visible word IS the name: "Zaidi" said aloud and "Fungua
+               menyu" on screen would be two names for one button. -->
+          <span class="tabbar__label">{{ t().tabMore }}</span>
+        </button>
+      </nav>
     </main>
   </div>
 </div>

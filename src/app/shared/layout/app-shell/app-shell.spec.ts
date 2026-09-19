@@ -571,7 +571,7 @@ describe('AppShell mobile drawer', () => {
     TestBed.resetTestingModule();
   });
 
-  it('opens from the topbar and closes from the scrim', () => {
+  it('opens from the tab bar\'s "Zaidi" and closes from the scrim', () => {
     signIn({ canSelectFarm: false, farmId: 19 });
     const { fixture, element } = setup();
     fixture.detectChanges();
@@ -1231,5 +1231,98 @@ describe('routes put every signed-in screen under the shell', () => {
     expect((shell.children ?? []).every((child) => (child.canActivate ?? []).length > 0)).toBe(
       true,
     );
+  });
+});
+
+describe('AppShell phone tab bar', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  async function setupAt(url: string) {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter(
+          ['dashboard', 'daily-tasks', 'production', 'feeding', 'water-quality', 'profile'].map(
+            (path) => ({ path, children: [] }),
+          ),
+        ),
+      ],
+    });
+    const fixture = TestBed.createComponent(AppShell);
+    await TestBed.inject(Router).navigateByUrl(url);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    return {
+      fixture,
+      element,
+      labels: () =>
+        Array.from(element.querySelectorAll('.tabbar__item')).map((tab) =>
+          tab.textContent?.trim(),
+        ),
+      active: () =>
+        Array.from(element.querySelectorAll('.tabbar__item--active')).map((tab) =>
+          tab.textContent?.trim(),
+        ),
+    };
+  }
+
+  it('offers the four day screens and "Zaidi", in the chosen order', async () => {
+    signIn({ canSelectFarm: false, farmId: 19 });
+    const { element, labels } = await setupAt('/dashboard');
+
+    expect(labels()).toEqual(['Dashibodi', 'Kazi', 'Uzalishaji', 'Malisho', 'Zaidi']);
+    expect(
+      Array.from(element.querySelectorAll<HTMLAnchorElement>('a.tabbar__item')).map((tab) =>
+        tab.getAttribute('href'),
+      ),
+    ).toEqual(['/dashboard', '/daily-tasks', '/production', '/feeding']);
+  });
+
+  it('drops a tab the account may not open, exactly as the sidebar does', async () => {
+    // No view_dashboard: /daily-tasks' guard would refuse, so no "Kazi" tab.
+    signIn({ canSelectFarm: false, farmId: 19 });
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(['manage_farms']));
+    const { labels } = await setupAt('/dashboard');
+
+    expect(labels()).toEqual(['Dashibodi', 'Uzalishaji', 'Malisho', 'Zaidi']);
+  });
+
+  it('lights the tab of the screen on show, and marks it as the current page', async () => {
+    signIn({ canSelectFarm: false, farmId: 19 });
+    const { element, active } = await setupAt('/daily-tasks');
+
+    expect(active()).toEqual(['Kazi']);
+    expect(element.querySelector('a.tabbar__item--active')!.getAttribute('aria-current')).toBe(
+      'page',
+    );
+  });
+
+  it('lights "Zaidi" on a screen with no tab of its own', async () => {
+    signIn({ canSelectFarm: false, farmId: 19 });
+    const water = await setupAt('/water-quality');
+    expect(water.active()).toEqual(['Zaidi']);
+
+    TestBed.resetTestingModule();
+    const profile = await setupAt('/profile');
+    expect(profile.active()).toEqual(['Zaidi']);
+  });
+
+  it('opens the drawer from "Zaidi", named by the word on it', async () => {
+    signIn({ canSelectFarm: false, farmId: 19 });
+    const { fixture, element } = await setupAt('/dashboard');
+
+    const more = element.querySelector<HTMLButtonElement>('button.tabbar__item')!;
+    expect(more.hasAttribute('aria-label')).toBe(false);
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+
+    more.click();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(SidebarService).drawerOpen()).toBe(true);
+    expect(more.getAttribute('aria-expanded')).toBe('true');
   });
 });
