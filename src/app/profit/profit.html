@@ -183,10 +183,13 @@
               </thead>
               <tbody>
                 @for (row of report.cycles; track row.cycleId) {
+                  <!-- data-label: on a phone each row is a card and the header
+                       row is gone, so every cell names itself (see profit.scss).
+                       The cycle is the card's title and needs no label. -->
                   <tr data-testid="cycle-row" [attr.data-cycle-id]="row.cycleId">
-                    <td>{{ row.label }}</td>
-                    <td>{{ row.actualHarvestDate ?? '—' }}</td>
-                    <td class="num">
+                    <td class="cycle-table__name">{{ row.label }}</td>
+                    <td [attr.data-label]="t().colHarvestDate">{{ row.actualHarvestDate ?? '—' }}</td>
+                    <td class="num" [attr.data-label]="t().colRevenue">
                       {{ money(row.revenue) }}
                       @if (!row.revenueRecorded) {
                         <span
@@ -199,7 +202,7 @@
                         >
                       }
                     </td>
-                    <td class="num">
+                    <td class="num" [attr.data-label]="t().colFingerling">
                       {{ money(row.fingerlingCost) }}
                       @if (!row.fingerlingCostRecorded) {
                         <span
@@ -212,11 +215,16 @@
                         >
                       }
                     </td>
-                    <td class="num">{{ money(row.cycleOperationalCost) }}</td>
-                    <td class="num" [class.money--loss]="isLoss(row.cycleNetProfit)" data-testid="cycle-row-net">
+                    <td class="num" [attr.data-label]="t().colOperational">{{ money(row.cycleOperationalCost) }}</td>
+                    <td
+                      class="num"
+                      [class.money--loss]="isLoss(row.cycleNetProfit)"
+                      [attr.data-label]="t().colNet"
+                      data-testid="cycle-row-net"
+                    >
                       {{ money(row.cycleNetProfit) }}
                     </td>
-                    <td>
+                    <td class="cycle-table__action">
                       <app-button variant="secondary" (clicked)="viewCycle(row.cycleId)">
                         {{ t().viewCycle }}
                       </app-button>

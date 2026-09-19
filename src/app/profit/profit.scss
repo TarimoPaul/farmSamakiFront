@@ -233,6 +233,79 @@
   }
 }
 
+/* A phone: a card per cycle, one field per line - label left, value right -
+   the same shape as every shared list (see DataTable). Scrolled sideways, the
+   money columns this report exists for were cut off at the card's edge with
+   nothing to say they were there. */
+@media (max-width: 640px) {
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  .cycle-table {
+    &,
+    tbody,
+    tr,
+    td {
+      display: block;
+    }
+
+    /* Hidden, not removed: the cells carry their names now, but the header
+       is still there for anything reading the table as a table. */
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    tbody tr {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      padding: 0.8rem 0.2rem;
+      border-bottom: 1px solid var(--border);
+
+      &:last-child {
+        border-bottom: 0;
+      }
+    }
+
+    td {
+      padding: 0;
+      border: 0;
+      white-space: normal;
+    }
+
+    td[data-label] {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      text-align: right;
+
+      &::before {
+        content: attr(data-label);
+        flex: none;
+        text-align: left;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+    }
+
+    .cycle-table__name {
+      margin-bottom: 0.15rem;
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+
+    .cycle-table__action {
+      margin-top: 0.35rem;
+    }
+  }
+}
+
 .flag {
   margin-left: 0.3rem;
   color: var(--warning, #d98e04);
