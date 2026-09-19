@@ -17,7 +17,7 @@ interface Row {
 class Host {
   columns: DataTableColumn<Row>[] = [
     { label: 'Jina', value: (row) => row.name },
-    { label: 'Eneo', value: (row) => row.place },
+    { label: 'Eneo la shamba', shortLabel: 'Eneo', value: (row) => row.place },
   ];
   rows: Row[] = [{ id: 1, name: 'Shamba Jipya', place: 'Dodoma' }];
   key = (row: Row) => row.id;
@@ -33,8 +33,11 @@ describe('DataTable on a phone', () => {
       (fixture.nativeElement as HTMLElement).querySelectorAll('tbody td'),
     );
 
-    // The row number carries no label: it is hidden on a phone.
+    // The row number carries no label: it is hidden on a phone. A column's
+    // shortLabel is what the phone says; the desktop header keeps the full one.
     expect(cells.map((cell) => cell.getAttribute('data-label'))).toEqual([null, 'Jina', 'Eneo']);
+    const headers = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('thead th'));
+    expect(headers.map((th) => th.textContent?.trim())).toEqual(['#', 'Jina', 'Eneo la shamba']);
     expect(cells.map((cell) => cell.classList.contains('data-table__cell--lead'))).toEqual([
       false,
       true,

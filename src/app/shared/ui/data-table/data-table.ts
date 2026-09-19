@@ -13,6 +13,12 @@ export interface DataTableColumn<T> {
   value: (row: T) => string;
   /** Rendered dimmer - for a placeholder standing in for missing data. */
   muted?: (row: T) => boolean;
+  /**
+   * The label a phone shows in front of the value, where a row's fields run
+   * on one line and "Mavuno yanayotarajiwa" would take a line to itself.
+   * Omitted, the full `label` is used. The desktop header always says `label`.
+   */
+  shortLabel?: string;
 }
 
 /**
@@ -78,7 +84,7 @@ export interface DataTableColumn<T> {
                 <td
                   [class.data-table__cell--muted]="column.muted?.(row)"
                   [class.data-table__cell--lead]="first"
-                  [attr.data-label]="column.label"
+                  [attr.data-label]="column.shortLabel ?? column.label"
                 >
                   {{ column.value(row) }}
                 </td>
@@ -203,23 +209,32 @@ export interface DataTableColumn<T> {
         overflow: hidden;
         clip-path: inset(50%);
       }
-      /* One field per line, label left and value right - the user's call,
-         2026-09-19. Two across with each label ABOVE its value cost two lines
-         a field, and a long label ("Mavuno yanayotarajiwa") broke over two
-         more. No radius: a rounded row bent its separator up at both ends. */
+      /* Every field on ONE running line under the name - the user's call,
+         2026-09-19, to spend the least height a row can:
+             P1                                              ⋮
+             Aina Kambale · Imepandwa 2026-09-15 · Vifaranga 200 ·
+             Mavuno 2027-02-15 · Hali ACTIVE
+         Each value keeps its short label, quiet, in front of it: without
+         them two dates in a row would be two guesses. The line wraps where
+         the width runs out, never inside a field. No radius: a rounded row
+         bent its separator up at both ends. */
       .data-table tbody tr {
         display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-        padding: 0.8rem 0.6rem;
-        border-bottom: 1px solid var(--border);
-      }
-      .data-table td[data-label] {
-        display: flex;
+        flex-wrap: wrap;
         align-items: baseline;
-        justify-content: space-between;
-        gap: 1rem;
-        text-align: right;
+        gap: 0.15rem 1.1rem;
+        padding: 0.75rem 0.6rem;
+        border-bottom: 1px solid var(--border);
+        line-height: 1.5;
+      }
+      /* Each field one piece - its label and its value - so the line wraps
+         BETWEEN fields: inline, "Mavuno" ended one line and "yanayotarajiwa
+         2027-02-15" began the next, and a date broke at its hyphen. A gap,
+         not a dot, between them: a dot at the end of a wrapped line hung
+         there pointing at nothing. A field longer than the line still wraps. */
+      .data-table td[data-label] {
+        max-width: 100%;
+        font-weight: 600;
       }
       .data-table tbody tr:last-child {
         border-bottom: 0;
@@ -232,22 +247,18 @@ export interface DataTableColumn<T> {
         font-size: 0.85rem;
         overflow-wrap: anywhere;
       }
-      /* The label, quiet and on the left; the value keeps the ink. */
+      /* The label, quiet, just in front of its value; the value keeps the ink. */
       .data-table td[data-label]::before {
-        content: attr(data-label);
-        flex: none;
-        max-width: 55%;
-        text-align: left;
+        content: attr(data-label) ' ';
         font-size: 0.8rem;
         font-style: normal;
-        font-weight: 500;
+        font-weight: 400;
         color: var(--muted);
       }
-      /* The row's name: the card's title, large, and needs no label saying so. */
+      /* The row's name: its own line, large, and needs no label saying so. */
       .data-table td.data-table__cell--lead {
-        display: block;
-        margin-bottom: 0.15rem;
-        text-align: left;
+        flex-basis: 100%;
+        margin-bottom: 0.1rem;
         font-size: 0.98rem;
         font-weight: 800;
       }
@@ -262,8 +273,9 @@ export interface DataTableColumn<T> {
       /* Worded buttons (Approvals, Production's events) along the foot of the
          card, where they have the width. */
       .data-table td.data-table__actions {
+        flex-basis: 100%;
         width: auto;
-        margin-top: 0.3rem;
+        margin-top: 0.5rem;
         text-align: left;
         white-space: normal;
       }

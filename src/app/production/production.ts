@@ -740,11 +740,20 @@ export class Production {
     const ready = this.readyCycleIds();
     return [
       { label: t.colCycleUnit, value: (cycle) => cycle.unit.code },
-      { label: t.colCycleSpecies, value: (cycle) => cycle.speciesName },
-      { label: t.colCycleStocked, value: (cycle) => cycle.stockingDate },
+      {
+        label: t.colCycleSpecies,
+        shortLabel: t.colCycleSpeciesShort,
+        value: (cycle) => cycle.speciesName,
+      },
+      {
+        label: t.colCycleStocked,
+        shortLabel: t.colCycleStockedShort,
+        value: (cycle) => cycle.stockingDate,
+      },
       { label: t.colCycleFingerlings, value: (cycle) => String(cycle.fingerlingsCount) },
       {
         label: t.colCycleExpected,
+        shortLabel: t.colCycleExpectedShort,
         // The badge is part of the CELL because that is where the date it
         // refers to is. It says the prediction has come due and nothing more;
         // a column cannot mutate anything, which is exactly the property this
