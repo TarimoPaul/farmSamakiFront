@@ -31,6 +31,8 @@ import {
   groupTasksByUnit,
   isClosedTask,
   nextOutstandingTask,
+  twinGroups,
+  twinLabel,
 } from '../core/daily-task-sheet';
 
 const UNKNOWN_FAILURE = new ApiError({
@@ -264,11 +266,52 @@ export class DailyTasks {
       return null;
     }
     const where = pick.group.unitCode ? `${t.unitLabel} ${pick.group.unitCode}` : t.noUnit;
+    const twin = this.groupTwinLabel(pick.group);
     return {
       task: pick.task,
-      label: `${where} · ${pick.group.speciesName ?? t.noSpecies}`,
+      label: `${where} · ${pick.group.speciesName ?? t.noSpecies}${twin ? ` · ${twin}` : ''}`,
     };
   });
+
+  // ── Twin cycles ────────────────────────────────────────────────────────
+  //
+  // Two cycles of the same fish in one tank make two groups with the same
+  // heading ("Kitengo P1 · Kambale"). What tells them apart is when the fish
+  // went in - "imepandwa 15 Sep" - so that is added to THEIR headings only.
+  //
+  // The dates are asked for only when the sheet has twins, which is rare:
+  // every other sheet costs no extra request. A failed ask leaves the map
+  // empty, and the twins are told apart by their place, "(1)" and "(2)".
+
+  readonly twins = computed(() => twinGroups(this.groups()));
+  readonly stockingDates = signal<ReadonlyMap<number, string>>(new Map());
+  private stockingDatesRequested = false;
+
+  private readonly resetStockingDates = effect(() => {
+    // Another farm has other cycles.
+    this.farmSelection.selectedFarmId();
+    this.stockingDates.set(new Map());
+    this.stockingDatesRequested = false;
+  });
+
+  private readonly loadStockingDates = effect(() => {
+    if (this.twins().size === 0 || this.stockingDatesRequested) {
+      return;
+    }
+    this.stockingDatesRequested = true;
+    this.dailyTasksService.cycleStockingDates().subscribe({
+      next: (dates) => this.stockingDates.set(dates),
+      error: () => this.stockingDates.set(new Map()),
+    });
+  });
+
+  /** "imepandwa 15 Sep" for a twin group, null for every other. */
+  groupTwinLabel(group: TaskGroup): string | null {
+    return twinLabel(group, this.twins(), this.stockingDates(), {
+      stocked: this.t().stockedOn,
+      locale: DATE_LOCALE[this.languageService.lang()],
+    });
+  }
 
   /**
    * The tasks, grouped by the unit they happen in and sorted the way the day

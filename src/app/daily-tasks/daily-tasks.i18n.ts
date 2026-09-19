@@ -52,6 +52,8 @@ export const DAILY_TASKS_I18N = {
     unitLabel: 'Kitengo',
     noUnit: 'Bila kitengo',
     noSpecies: 'Bila aina ya samaki',
+    // Kutofautisha mizunguko miwili ya samaki wale wale kwenye kitengo kimoja.
+    stockedOn: 'imepandwa',
 
     statusDone: 'Imefanyika',
     statusOutstanding: 'Haijafanyika',
@@ -152,6 +154,7 @@ export const DAILY_TASKS_I18N = {
     unitLabel: 'Unit',
     noUnit: 'No unit',
     noSpecies: 'No species',
+    stockedOn: 'stocked',
 
     statusDone: 'Done',
     statusOutstanding: 'Outstanding',

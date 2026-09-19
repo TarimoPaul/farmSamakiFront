@@ -62,6 +62,23 @@ export class DailyTasksService {
   }
 
   /**
+   * Every cycle's stocking date, by cycle id - to tell apart two cycles of
+   * the same fish in one tank, whose tasks are otherwise named alike (see
+   * twinLabel). `cycles` is a `view_dashboard` read, the same code the sheet
+   * itself needs, and only the two fields are asked for.
+   */
+  cycleStockingDates(): Observable<Map<number, string>> {
+    return this.graphql
+      .query<{ cycles: { cycleId: string; stockingDate: string }[] }>(CYCLE_STOCKING_DATES)
+      .pipe(
+        map(
+          (data) =>
+            new Map(data.cycles.map((cycle) => [Number(cycle.cycleId), cycle.stockingDate])),
+        ),
+      );
+  }
+
+  /**
    * One cycle's tasks for `date` - used by Feeding to name the task it is
    * recording for ("Kulisha - Jioni", not just "a feeding task").
    */
@@ -122,6 +139,12 @@ const CYCLE_DAILY_TASKS = `
 const CLOSE_TASK_WITHOUT_RECORD = `
   mutation CloseTaskWithoutRecord($input: CloseTaskWithoutRecordInput!) {
     closeTaskWithoutRecord(input: $input) { ${TASK_FIELDS} }
+  }
+`;
+
+const CYCLE_STOCKING_DATES = `
+  query CycleStockingDates {
+    cycles { cycleId stockingDate }
   }
 `;
 

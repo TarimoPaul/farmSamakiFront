@@ -24,6 +24,8 @@ import {
   isClosedTask,
   isOutstandingTask,
   nextOutstandingTask,
+  twinGroups,
+  twinLabel,
 } from '../core/daily-task-sheet';
 
 const DASHBOARD_QUERY = `
@@ -494,15 +496,25 @@ export class Dashboard {
     if (!tasks) {
       return null;
     }
-    const pick = nextOutstandingTask(groupTasksByUnit(tasks), this.todayNowTime());
+    const groups = groupTasksByUnit(tasks);
+    const pick = nextOutstandingTask(groups, this.todayNowTime());
     if (!pick) {
       return null;
     }
     const t = this.t();
     const where = pick.group.unitCode ? `${t.todayUnit} ${pick.group.unitCode}` : t.todayNoUnit;
+    // Two cycles of this fish in this unit: say which, as Daily Tasks does.
+    // The stocking dates are already on the page, from DASHBOARD_QUERY.
+    const twin = twinLabel(
+      pick.group,
+      twinGroups(groups),
+      new Map(this.cycles().map((cycle) => [Number(cycle.cycleId), cycle.stockingDate])),
+      { stocked: t.todayStocked, locale: this.languageService.lang() === 'sw' ? 'sw-TZ' : 'en-GB' },
+    );
+    const withSpecies = pick.group.speciesName ? `${where} · ${pick.group.speciesName}` : where;
     return {
       task: pick.task,
-      where: pick.group.speciesName ? `${where} · ${pick.group.speciesName}` : where,
+      where: twin ? `${withSpecies} · ${twin}` : withSpecies,
     };
   });
 

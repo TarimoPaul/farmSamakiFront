@@ -184,6 +184,16 @@
   color: var(--muted);
 }
 
+/* "imepandwa 15 Sep": what tells a twin cycle apart, in the heading's own
+   ink but not its capitals - it is a date, not a name. */
+.task-group__twin {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--on-surface);
+  // Wraps as one piece on a phone, never between the day and the month.
+  white-space: nowrap;
+}
+
 .task-group__count {
   flex: none;
   text-transform: none;
