@@ -23,6 +23,61 @@
     } @else if (errorMessage()) {
       <p class="dash-status dash-status--error">{{ errorMessage() }}</p>
     } @else {
+      <!-- "Leo": what is left to do today, and the next thing - the
+           reference's hero banner, first on the screen. Always the farm's
+           TODAY, whatever the week strip shows. Hidden, not an error, when
+           its own request fails - see Dashboard.loadToday. -->
+      @if (!todayFailed()) {
+        <section class="today-card" data-testid="today-card" aria-labelledby="today-title">
+          <div class="today-card__head">
+            <h2 id="today-title">{{ t().todayTitle }}</h2>
+            @if (todayTasks() && todayTotal() > 0) {
+              <span class="today-card__count" data-testid="today-count">
+                <strong>{{ todayDone() }}</strong> / {{ todayTotal() }}
+              </span>
+            }
+          </div>
+
+          @if (todayTasks() === null) {
+            <p class="today-card__line">{{ t().loading }}</p>
+          } @else if (todayTotal() === 0) {
+            <p class="today-card__line">{{ t().todayNone }}</p>
+          } @else {
+            <div
+              class="today-card__bar"
+              role="progressbar"
+              [attr.aria-valuenow]="todayPercent()"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-label]="t().todayTitle"
+            >
+              <span class="today-card__fill" [style.width.%]="todayPercent()"></span>
+            </div>
+            <p class="today-card__line" data-testid="today-meta">
+              {{ todayDone() }} {{ t().todayDone }}
+              @if (todayClosed() > 0) {
+                · {{ todayClosed() }} {{ t().todayClosed }}
+              }
+              @if (todayOverdue() > 0) {
+                · <span class="today-card__overdue">{{ todayOverdue() }} {{ t().todayOverdue }}</span>
+              }
+            </p>
+
+            @if (todayNext(); as next) {
+              <div class="today-card__next" data-testid="today-next">
+                <span class="today-card__next-label">{{ t().todayNext }}</span>
+                <strong>{{ next.task.taskType }} · {{ next.task.scheduledTime }}</strong>
+                <span class="today-card__next-where">{{ next.where }}</span>
+              </div>
+            } @else {
+              <p class="today-card__line">{{ t().todayAllDone }}</p>
+            }
+          }
+
+          <a class="today-card__open" routerLink="/daily-tasks">{{ t().todayOpen }} ›</a>
+        </section>
+      }
+
       <!-- Tile anatomy: a thin brand accent on the top edge, a brand-tinted
              icon-chip with the label beside it, the number below. All four
              chips are the same - the ICON tells the tiles apart, never a

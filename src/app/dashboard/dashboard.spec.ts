@@ -8,6 +8,9 @@ import { FarmSelectionService } from '../core/services/farm-selection';
 import { LanguageService } from '../core/services/language';
 import { ERROR_CODE } from '../core/models/error-codes';
 import { environment } from '../../environments/environment';
+import { Observable, of, throwError } from 'rxjs';
+import { DailyTasksService } from '../core/services/daily-tasks';
+import { DailyTaskStatus } from '../core/models/daily-task';
 
 /** Captured from the running backend: a no-role member querying the dashboard. */
 const FORBIDDEN_RESPONSE = {
@@ -41,9 +44,20 @@ const PERMISSIONS_KEY = 'samakiFarm.permissions';
 // this screen rendered its own <app-shell> - but the shell is a layout route
 // now and is no part of this component. Only navigateByUrl is stubbed; that is
 // the one thing these tests assert about.
-function setup() {
+//
+// DailyTasksService is FAKED: the "Leo" card makes its own request, and the
+// real one would be a second pending GraphQL call beside every
+// `expectOne(graphqlUrl)` below. By default today has no tasks; the card's
+// own tests hand in a sheet, or a failure, through `todayTasks`.
+function setup(todayTasks: Observable<DailyTaskStatus[]> = of([])) {
+  const farmTasks = vi.fn((_date: string) => todayTasks);
   TestBed.configureTestingModule({
-    providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      provideRouter([]),
+      { provide: DailyTasksService, useValue: { farmTasks } },
+    ],
   });
   const navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
   const fixture = TestBed.createComponent(Dashboard);
@@ -52,6 +66,7 @@ function setup() {
     fixture,
     component: fixture.componentInstance,
     httpMock: TestBed.inject(HttpTestingController),
+    farmTasks,
   };
 }
 
@@ -811,5 +826,126 @@ describe('Dashboard date picker', () => {
     expect(ctx.component.selectedDate()).toBe(chosen);
     expect(ctx.component.dayError()).not.toBeNull();
     expect(ctx.component.day()).toBeNull();
+  });
+});
+
+describe('Dashboard "Leo" card', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  function task(
+    taskId: string,
+    scheduledTime: string,
+    extra: Partial<DailyTaskStatus> = {},
+  ): DailyTaskStatus {
+    return {
+      taskId,
+      cycleId: 1,
+      unitCode: 'P1',
+      speciesName: 'Sato',
+      taskType: 'Kulisha',
+      scheduledTime,
+      frequency: 'DAILY',
+      assignedRoleName: null,
+      date: '2026-09-19',
+      status: 'OUTSTANDING',
+      done: false,
+      completedAt: null,
+      completedByName: null,
+      notes: null,
+      taskKind: 'FEEDING',
+      feedingLogId: null,
+      closureReason: null,
+      closureNote: null,
+      ...extra,
+    };
+  }
+
+  const EMPTY_DASHBOARD = { data: { productionUnits: [], cycles: [] } };
+
+  async function open(todayTasks: Observable<DailyTaskStatus[]>, nowTime = '12:00') {
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(['view_dashboard']));
+    const ctx = setup(todayTasks);
+    ctx.fixture.detectChanges();
+    ctx.httpMock.expectOne(environment.graphqlUrl).flush(EMPTY_DASHBOARD);
+    await ctx.fixture.whenStable();
+    ctx.component.todayNowTime.set(nowTime);
+    ctx.fixture.detectChanges();
+    const element = ctx.fixture.nativeElement as HTMLElement;
+    const card = element.querySelector('[data-testid="today-card"]');
+    const text = (selector: string) =>
+      (card?.querySelector(selector)?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    return { ...ctx, element, card, text };
+  }
+
+  it('asks for the farm\'s today, and counts done, closed and overdue apart', async () => {
+    const ctx = await open(
+      of([
+        task('1', '07:00', { done: true, status: 'DONE' }),
+        task('2', '08:00'), // outstanding, before 12:00: overdue
+        task('3', '17:00'), // outstanding, still ahead: next
+        task('4', '09:00', { status: 'CLOSED_NO_RECORD' }),
+      ]),
+    );
+
+    expect(ctx.farmTasks).toHaveBeenCalledTimes(1);
+    expect(ctx.farmTasks.mock.calls[0][0]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // Done only is progress; closed is its own number.
+    expect(ctx.text('[data-testid="today-count"]')).toBe('1 / 4');
+    expect(ctx.text('[data-testid="today-meta"]')).toBe(
+      '1 zimefanyika · 1 zimefungwa · 1 muda umepita',
+    );
+    expect(ctx.component.todayPercent()).toBe(25);
+  });
+
+  it('names the same next task Daily Tasks would: the earliest still ahead', async () => {
+    const ctx = await open(
+      of([task('2', '08:00'), task('3', '17:00'), task('5', '14:00', { unitCode: 'T2' })]),
+    );
+
+    expect(ctx.text('[data-testid="today-next"] strong')).toBe('Kulisha · 14:00');
+    expect(ctx.text('.today-card__next-where')).toBe('Kitengo T2 · Sato');
+  });
+
+  it('falls back to the earliest late one once nothing is ahead', async () => {
+    const ctx = await open(of([task('2', '08:00'), task('3', '10:00')]), '20:00');
+
+    expect(ctx.text('[data-testid="today-next"]')).toContain('Kulisha · 08:00');
+  });
+
+  it('says so when every task has been dealt with', async () => {
+    const ctx = await open(
+      of([
+        task('1', '07:00', { done: true, status: 'DONE' }),
+        task('4', '09:00', { status: 'CLOSED_NO_RECORD' }),
+      ]),
+    );
+
+    expect(ctx.card?.querySelector('[data-testid="today-next"]')).toBeNull();
+    expect(ctx.card?.textContent).toContain('Kazi zote za leo zimeshughulikiwa.');
+  });
+
+  it('says there is nothing today, with no count, on an empty day', async () => {
+    const ctx = await open(of([]));
+
+    expect(ctx.card?.textContent).toContain('Hakuna kazi zilizopangwa leo.');
+    expect(ctx.card?.querySelector('[data-testid="today-count"]')).toBeNull();
+  });
+
+  it('opens Daily Tasks', async () => {
+    const ctx = await open(of([task('3', '17:00')]));
+
+    expect(ctx.card?.querySelector('a.today-card__open')?.getAttribute('href')).toBe(
+      '/daily-tasks',
+    );
+  });
+
+  it('is simply absent when its own request fails - the dashboard carries on', async () => {
+    const ctx = await open(throwError(() => new Error('refused')));
+
+    expect(ctx.card).toBeNull();
+    expect(ctx.element.querySelector('.stat-grid')).not.toBeNull();
   });
 });

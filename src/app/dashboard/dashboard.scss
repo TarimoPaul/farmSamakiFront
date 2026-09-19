@@ -72,6 +72,146 @@
   box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
 }
 
+// ── The "Leo" card ───────────────────────────────────────────────────────
+// First on the screen at every width: today's tasks, and the next one. The
+// same white card as its neighbours, told apart by a brand stripe down its
+// left edge and the one solid brand button on the dashboard - the reference's
+// hero, in this app's colours. The bar is DONE only, in --color-active, as on
+// Daily Tasks; closed is a number, never progress.
+.today-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.05rem 1.25rem 1.15rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
+
+  // The stripe as an overlay the tile's way (see .tile::before), so it
+  // follows the rounded corners rather than meeting them square.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border-left: 5px solid var(--color-brand);
+    pointer-events: none;
+  }
+}
+
+.today-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--on-surface);
+  }
+}
+
+.today-card__count {
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+
+  strong {
+    font-size: 1.35rem;
+    color: var(--on-surface);
+  }
+}
+
+.today-card__bar {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.today-card__fill {
+  display: block;
+  height: 100%;
+  background: var(--color-active);
+  transition: width 0.25s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.today-card__line {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.today-card__overdue {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.today-card__next {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  background: var(--surface-alt);
+
+  strong {
+    font-size: 0.95rem;
+    color: var(--on-surface);
+  }
+}
+
+.today-card__next-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.today-card__next-where {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+// The dashboard's one solid brand button: --brand-strong holds white text in
+// both themes (see styles.scss).
+.today-card__open {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 1rem;
+  border-radius: var(--radius);
+  background: var(--brand-strong);
+  color: var(--brand-contrast);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+}
+
+// A phone: the button across the card, where the thumb can take it.
+@media (max-width: 480px) {
+  .today-card__open {
+    align-self: stretch;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
 // The title on the left and, where a card has one, its action on the right -
 // the reference's "Popular Services ... See all ›".
 .card-heading {
@@ -496,6 +636,11 @@ td {
 @media (max-width: 1280px) {
   .dash-layout__main > .chart-card {
     order: -1;
+  }
+
+  // ...and "Leo" above even that: first at every width (the user's call).
+  .dash-layout__main > .today-card {
+    order: -2;
   }
 }
 
