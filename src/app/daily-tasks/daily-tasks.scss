@@ -116,8 +116,12 @@
   background: var(--surface-muted, rgba(0, 0, 0, 0.05));
 }
 
+/* Widths follow the words rather than equal shares, and every label stays on
+   one line with its count: the longest label gets the room, and no count is
+   ever cut or pushed onto a second line. */
 .tasks__filter-option {
-  flex: 1;
+  flex: 1 1 auto;
+  white-space: nowrap;
   padding: 0.45rem 0.75rem;
   border: 0;
   border-radius: var(--radius);
@@ -192,16 +196,62 @@
   list-style: none;
 }
 
+/* One task, laid out as a grid at every width (the user's call, 2026-09-19 -
+ * it was a wrapping flex row, and the phone's rework was asked for here too):
+ *
+ *     ○  Kulisha - Asubuhi  07:00      [Haijafanyika]   [ Rekodi ulishaji ]
+ *        Muda umepita                                     Funga bila rekodi
+ *
+ * The body's lines become grid items (display: contents), so the name, the
+ * lines under it, the badge and the action each have a column of their own
+ * and line up from row to row. The action column is one fixed width, so
+ * every button on the sheet is the same size. The phone re-places the same
+ * parts into three rows - see the block at the foot of this file. */
 .task {
-  display: flex;
+  display: grid;
+  /* The action column is FIXED, wide enough for the escape hatch and the
+     button side by side: every row is its own grid, so a column that grew
+     with its contents would push each row's badge to a different place. */
+  grid-template-columns: 1.25rem minmax(0, 1fr) auto 19rem;
+  column-gap: 0.9rem;
+  row-gap: 0.2rem;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.7rem 0.6rem;
+  padding: 0.75rem 0.6rem;
   border-bottom: 1px solid var(--border);
 
   &:last-child {
     border-bottom: none;
   }
+}
+
+.task__body {
+  display: contents;
+}
+
+.task__tick {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.task__name {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* Every line under the name: who, when, why, late. */
+.task__by,
+.task__closed-by,
+.task__closure,
+.task__passed,
+.task__meta {
+  grid-column: 2;
+}
+
+/* The backend's word, level with the name. */
+app-status-badge {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
 }
 
 .task--done {
@@ -234,14 +284,6 @@
   margin: 0 auto;
 }
 
-.task__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  flex: 1;
-  min-width: 0;
-}
-
 .task__name {
   font-size: 0.9rem;
   font-weight: 600;
@@ -262,11 +304,17 @@
   color: var(--color-active);
 }
 
-/* Time gone by and still undone: danger on the edge and the line, never the
+/* Time gone by and still undone: danger on the TIME and the line, never the
    badge - the badge is the backend's word. Red, not amber: amber is reserved
-   for "closed without a record", and the two must never look alike. */
-.task--passed {
-  box-shadow: inset 3px 0 0 var(--color-danger);
+   for "closed without a record", and the two must never look alike.
+
+   There used to be a red edge down the row as well. On a morning sheet that
+   was most rows - a page of red bars that read as errors - so it went
+   (2026-09-19); the red time and the words "Muda umepita" still say it, and
+   never by colour alone. */
+.task--passed .task__time {
+  color: var(--color-danger);
+  font-weight: 600;
 }
 
 .task__passed {
@@ -307,17 +355,31 @@
   color: var(--muted);
 }
 
+/* The one thing to do, right-aligned in its column: every button one width,
+   and the escape hatch small, BEFORE it on the same line. Under the button it
+   made a feeding row taller than a water row and pushed "Muda umepita" away
+   from the name. Centred across the row's first two lines. */
 .task__action {
-  flex: none;
+  grid-column: 4;
+  grid-row: 1 / span 2;
+  align-self: center;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.3rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.9rem;
+
+  app-button {
+    flex: none;
+    width: 11rem;
+  }
 }
 
 /* The escape hatch is a link, and a small one: the button beside it is the
-   path this screen wants taken. */
+   path this screen wants taken. First in the line, though last in the DOM,
+   so the button keeps the far edge on every row. */
 .task__close-link {
+  order: -1;
+  white-space: nowrap;
   padding: 0;
   border: 0;
   background: none;
@@ -393,45 +455,25 @@
   flex-wrap: wrap;
 }
 
-/* A phone: this is the screen somebody opens one-handed at the tank.
- *
- * It used to be the desktop row, wrapped: the badge and the button fell to a
- * second line wherever they happened to land, "close without record" floated
- * under a button of its own width, and every late row carried a red edge -
- * twelve red bars on a morning sheet read as a page of errors. Now each row
- * is laid out on purpose, as a grid:
+/* A phone: this is the screen somebody opens one-handed at the tank. The
+ * same grid as above, re-placed into three rows so nothing is squeezed:
  *
  *     ○  Kulisha - Asubuhi                07:00
  *        Muda umepita              [Haijafanyika]
- *        [      Rekodi ulishaji      ]  Funga bila rekodi
- *
- * The body's lines become grid items (display: contents), so the badge can
- * sit beside them instead of under them. Late is said by the red TIME and the
- * words "Muda umepita" - never by colour alone - and the red edge is kept for
- * the desktop, where it was signed off. */
+ *        [          Rekodi ulishaji          ]
+ *                               Funga bila rekodi
+ */
 @media (max-width: 640px) {
   .task {
-    display: grid;
     grid-template-columns: 1.25rem minmax(0, 1fr) auto;
     column-gap: 0.65rem;
     row-gap: 0.3rem;
-    align-items: center;
     padding: 0.8rem 0.5rem;
-  }
-
-  .task__tick {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .task__body {
-    display: contents;
   }
 
   /* The name across the row, its time pushed to the far end. */
   .task__name {
     grid-column: 2 / 4;
-    grid-row: 1;
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -447,23 +489,12 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Every line under the name: who, when, why, late - in the middle column. */
-  .task__by,
-  .task__closed-by,
-  .task__closure,
-  .task__passed,
-  .task__meta {
-    grid-column: 2;
-  }
-
-  /* The backend's word, beside the first of those lines rather than on a row
-     of its own. The lines after it - the closure reason, notes - run under
-     the badge too, or a long badge ("Imefungwa bila rekodi") squeezed them
-     into a narrow column. */
+  /* The badge beside the first line under the name, not on a row of its own.
+     The lines after it - the closure reason, notes - run under the badge
+     too, or a long badge ("Imefungwa bila rekodi") squeezed them into a
+     narrow column. */
   app-status-badge {
-    grid-column: 3;
     grid-row: 2;
-    justify-self: end;
   }
 
   .task__closure,
@@ -471,40 +502,30 @@
     grid-column: 2 / 4;
   }
 
-  .task--passed {
-    box-shadow: none;
-
-    .task__time {
-      color: var(--color-danger);
-    }
-  }
-
-  /* The one thing to do, across the row - every button the same width, on
-     one line - and the escape hatch under its right end, small, as the path
-     this screen does not want taken. Beside the button it squeezed "Record
-     feeding" onto two lines. */
+  /* The action across the row, below everything else: the button full width,
+     the escape hatch under its right end - there is no room beside it. */
   .task__action {
     grid-column: 2 / 4;
+    grid-row: auto;
+    flex-direction: column;
     align-items: stretch;
     gap: 0.35rem;
     margin-top: 0.25rem;
+
+    app-button {
+      width: auto;
+    }
   }
 
   .task__close-link {
+    order: 0;
     align-self: flex-end;
     padding: 0.35rem 0;
-    white-space: nowrap;
   }
 
-  /* One line per segment, count included: "Outstanding 18" used to break its
-     count onto a second line while "All 18" did not (the 400px filter debt).
-     Widths follow the words rather than three equal thirds, so the longest
-     label gets the room and no count is ever cut. */
   .tasks__filter-option {
-    flex: 1 1 auto;
     padding: 0.5rem 0.45rem;
     font-size: 0.8rem;
-    white-space: nowrap;
   }
 
   /* The fourth segment ("Zimefungwa", only on a day with a closed task) does
