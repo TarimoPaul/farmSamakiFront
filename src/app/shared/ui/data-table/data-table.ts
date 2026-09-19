@@ -203,13 +203,23 @@ export interface DataTableColumn<T> {
         overflow: hidden;
         clip-path: inset(50%);
       }
-      /* No radius: a rounded row bent its own separator up at both ends. */
+      /* One field per line, label left and value right - the user's call,
+         2026-09-19. Two across with each label ABOVE its value cost two lines
+         a field, and a long label ("Mavuno yanayotarajiwa") broke over two
+         more. No radius: a rounded row bent its separator up at both ends. */
       .data-table tbody tr {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 0.55rem 0.9rem;
-        padding: 0.85rem 0.6rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        padding: 0.8rem 0.6rem;
         border-bottom: 1px solid var(--border);
+      }
+      .data-table td[data-label] {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        text-align: right;
       }
       .data-table tbody tr:last-child {
         border-bottom: 0;
@@ -222,20 +232,22 @@ export interface DataTableColumn<T> {
         font-size: 0.85rem;
         overflow-wrap: anywhere;
       }
+      /* The label, quiet and on the left; the value keeps the ink. */
       .data-table td[data-label]::before {
         content: attr(data-label);
-        display: block;
-        margin-bottom: 0.1rem;
-        font-size: 0.62rem;
+        flex: none;
+        max-width: 55%;
+        text-align: left;
+        font-size: 0.8rem;
         font-style: normal;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+        font-weight: 500;
         color: var(--muted);
       }
-      /* The row's name: across the card, large, and needs no label saying so. */
+      /* The row's name: the card's title, large, and needs no label saying so. */
       .data-table td.data-table__cell--lead {
-        grid-column: 1 / -1;
+        display: block;
+        margin-bottom: 0.15rem;
+        text-align: left;
         font-size: 0.98rem;
         font-weight: 800;
       }
@@ -250,24 +262,30 @@ export interface DataTableColumn<T> {
       /* Worded buttons (Approvals, Production's events) along the foot of the
          card, where they have the width. */
       .data-table td.data-table__actions {
-        grid-column: 1 / -1;
         width: auto;
+        margin-top: 0.3rem;
         text-align: left;
         white-space: normal;
       }
       /* A ⋮ menu beside the name instead, top right - where a card's menu is
          looked for, and one tap from the thumb. */
-      /* Out of the grid, so the cells below still go two across. */
+      /* Out of the flow, top right, so it takes no line of its own. */
       .data-table tr:has(> td.data-table__actions app-action-menu) {
         position: relative;
       }
+      /* The name's line as tall as the ⋮ button beside it, so the first field
+         starts below the button rather than under it. */
       .data-table tr:has(> td.data-table__actions app-action-menu) td.data-table__cell--lead {
+        display: flex;
+        align-items: center;
+        min-height: var(--control-h, 36px);
         padding-right: 3rem;
       }
       .data-table tr:has(> td.data-table__actions app-action-menu) td.data-table__actions {
         position: absolute;
-        top: 0.55rem;
+        top: 0.8rem;
         right: 0.4rem;
+        margin: 0;
       }
       /* Selection and hover light the whole card, not each cell apart. */
       .data-table__row--selectable:hover td,
