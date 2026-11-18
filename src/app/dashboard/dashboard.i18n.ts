@@ -57,6 +57,9 @@ export const DASHBOARD_I18N = {
     dayBackToToday: 'Rudi leo',
     dayLoading: 'Inapakia tarehe hii…',
     dayNoHistory: 'Hakuna rekodi ya tarehe hii. Rekodi za shamba hili zinaanza',
+    // Sentensi KAMILI, tofauti na dayNoHistory inayohitaji tarehe mwishoni:
+    // hii ni lebo ya kisomaji skrini kwa mstari mmoja (—) ndani ya tile.
+    dayNoRecord: 'Hakuna rekodi ya tarehe hii.',
     dayFailed: 'Imeshindikana kupakia tarehe hii.',
     daySelect: 'Onyesha tarehe',
     sideActiveRing: 'Vitengo Vinavyofanya Kazi',
@@ -118,6 +121,7 @@ export const DASHBOARD_I18N = {
     dayBackToToday: 'Back to today',
     dayLoading: 'Loading this date…',
     dayNoHistory: 'No record of this date. Records for this farm start',
+    dayNoRecord: 'No record of this date.',
     dayFailed: 'Could not load this date.',
     daySelect: 'Show date',
     sideActiveRing: 'Active Units',

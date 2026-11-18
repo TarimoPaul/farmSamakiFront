@@ -118,6 +118,19 @@ function isoDate(date: Date): string {
 
 const UNIT_STATUSES = ['ACTIVE', 'IDLE', 'MAINTENANCE'] as const;
 
+/**
+ * One bar in the rail's "Units by Status".
+ *
+ * `count` is nullable because a date that is still loading, or that failed,
+ * has no count to give - and the bar must show that rather than the count it
+ * happened to be holding.
+ */
+interface StatusBar {
+  status: (typeof UNIT_STATUSES)[number];
+  count: number | null;
+  percent: number;
+}
+
 /** The semantic colour a status takes - `--color-<tone>` in src/styles.scss. */
 export type StatusTone = 'active' | 'done' | 'idle' | 'danger' | 'neutral';
 
@@ -241,15 +254,6 @@ export class Dashboard {
   readonly dayLoading = signal(false);
   readonly dayError = signal<ApiError | null>(null);
 
-  /**
-   * The date has records behind it.
-   *
-   * When false, every number in `day()` is a zero that means "we have no
-   * record of that day" rather than "the farm was empty" - so the screen says
-   * so instead of rendering the zeros. See DashboardDay.historyComplete.
-   */
-  readonly dayHasHistory = computed(() => this.day()?.historyComplete !== false);
-
   readonly totalUnits = computed(() => this.units().length);
   readonly activeUnits = computed(() => this.units().filter((u) => u.status === 'ACTIVE').length);
   readonly activeCycles = computed(() => this.cycles().filter((c) => c.status === 'ACTIVE'));
@@ -271,45 +275,16 @@ export class Dashboard {
   // more importantly, so no card can be left behind. Wiring each card to its
   // own conditional was the version that would eventually show one card's
   // Tuesday next to another card's today.
-  //
-  // `day()` null = today, and today's numbers come from the live query rather
-  // than from a second answer about the same day.
-  readonly shownTotalUnits = computed(() => this.day()?.unitsExisting ?? this.totalUnits());
-  readonly shownActiveUnits = computed(() => this.day()?.unitsActive ?? this.activeUnits());
-  readonly shownCyclesRunning = computed(
-    () => this.day()?.cyclesRunning ?? this.activeCycles().length,
-  );
-  readonly shownVolumeM3 = computed(() => this.day()?.totalVolumeM3 ?? this.totalVolumeM3());
 
   /**
-   * HIFADHI, not intake: the count of fingerlings inside the cycles that were
-   * running. `fingerlingsStocked` is the other thing - what went in THAT day -
-   * and this tile has always shown the first, so it keeps showing the first.
-   */
-  readonly shownFingerlings = computed(
-    () => this.day()?.fingerlingsRunning ?? this.totalFingerlings(),
-  );
-
-  readonly shownActivePercent = computed(() => {
-    const dated = this.day();
-    if (!dated) {
-      return this.activePercent();
-    }
-    return dated.unitsExisting === 0
-      ? 0
-      : Math.round((dated.unitsActive / dated.unitsExisting) * 100);
-  });
-
-  readonly shownMembers = computed(() => this.day()?.members ?? this.totalMembers());
-
-  /**
-   * What a dated card can show for the selected date - read by the Active
-   * Cycles table and the Units by Type chart alike.
+   * What ANY dated card can show for the selected date - the tiles, the
+   * summary, the ring, the status bars, the Active Cycles table and the Units
+   * by Type chart all read this one gate.
    *
-   * Keyed on `viewingToday()`, not on `day()`: away from today these cards
-   * never fall back to the live data. While a date loads `day()` still holds
-   * the PREVIOUS date, after a failure it is null, and a date before our
-   * records has nothing worth drawing - in all three the card says so instead.
+   * Keyed on `viewingToday()`, not on `day()`: away from today nothing here
+   * falls back to the live data. While a date loads `day()` still holds the
+   * PREVIOUS date, after a failure it is null, and a date before our records
+   * has nothing worth drawing - in all three the card says so instead.
    */
   /**
    * On a phone the Active Cycles card shows this many rows until "Ona zote"
@@ -334,8 +309,103 @@ export class Dashboard {
     if (!dated) {
       return 'loading';
     }
+    /*
+     * The answer is about the date that is SELECTED, or it is not an answer.
+     *
+     * Nothing cancels an in-flight `dashboardOnDate`, so clicking date A then
+     * date B can land A's response second: `dayLoading` is already false and
+     * `day()` holds A, which used to read as 'rows' and draw A's numbers under
+     * B's highlight. `DashboardDay.date` is echoed back by the backend for
+     * exactly this check (see the model) and nothing was making it. A response
+     * for another date leaves the screen loading - B's is still coming.
+     */
+    if (dated.date !== this.selectedDate()) {
+      return 'loading';
+    }
     return dated.historyComplete ? 'rows' : 'noHistory';
   });
+
+  /**
+   * One number for the selected date: today's live figure, that date's
+   * figure, or NULL when this date has no number to show.
+   *
+   * Null is the whole point. Every slot on this screen used to be written
+   * `day()?.x ?? live`, and that hands back TODAY's number whenever `day()`
+   * is empty - which is precisely while a date is loading and after one has
+   * failed. A tile answered a question about Tuesday with Friday's count, and
+   * did it silently. Going through `dayViewState` is what makes a tile, the
+   * summary beside it and the table below it incapable of being on different
+   * dates.
+   */
+  private datedNumber(
+    fromDay: (day: DashboardDay) => number,
+    live: () => number | null,
+  ): number | null {
+    if (this.viewingToday()) {
+      return live();
+    }
+    if (this.dayViewState() !== 'rows') {
+      return null;
+    }
+    const dated = this.day();
+    return dated ? fromDay(dated) : null;
+  }
+
+  readonly shownTotalUnits = computed(() =>
+    this.datedNumber(
+      (d) => d.unitsExisting,
+      () => this.totalUnits(),
+    ),
+  );
+  readonly shownActiveUnits = computed(() =>
+    this.datedNumber(
+      (d) => d.unitsActive,
+      () => this.activeUnits(),
+    ),
+  );
+  readonly shownCyclesRunning = computed(() =>
+    this.datedNumber(
+      (d) => d.cyclesRunning,
+      () => this.activeCycles().length,
+    ),
+  );
+  readonly shownVolumeM3 = computed(() =>
+    this.datedNumber(
+      (d) => d.totalVolumeM3,
+      () => this.totalVolumeM3(),
+    ),
+  );
+
+  /**
+   * HIFADHI, not intake: the count of fingerlings inside the cycles that were
+   * running. `fingerlingsStocked` is the other thing - what went in THAT day -
+   * and this tile has always shown the first, so it keeps showing the first.
+   */
+  readonly shownFingerlings = computed(() =>
+    this.datedNumber(
+      (d) => d.fingerlingsRunning,
+      () => this.totalFingerlings(),
+    ),
+  );
+
+  readonly shownActivePercent = computed(() =>
+    this.datedNumber(
+      (d) => (d.unitsExisting === 0 ? 0 : Math.round((d.unitsActive / d.unitsExisting) * 100)),
+      () => this.activePercent(),
+    ),
+  );
+
+  /**
+   * Members, which is null for a SECOND reason: on today it comes from a REST
+   * call that is allowed to fail quietly (see totalMembers). Both nulls render
+   * the same dash, and neither is ever another date's count.
+   */
+  readonly shownMembers = computed(() =>
+    this.datedNumber(
+      (d) => d.members,
+      () => this.totalMembers(),
+    ),
+  );
 
   /**
    * The table's rows: today's live ACTIVE cycles, or the cycles that were
@@ -362,11 +432,23 @@ export class Dashboard {
    * no code path in the backend has ever written that status (the CHECK in V1
    * allows it, CycleService never sets it). The row is kept rather than hidden
    * so the bars do not change shape when the date changes.
+   *
+   * That is also why loading and failure keep all three rows here instead of
+   * swapping in the one-line message the table and the chart use: this card is
+   * three labels wide in a narrow rail, and the strip below it is already
+   * saying which date is loading or failed. A `null` count draws an empty
+   * track and a dash - never the previous date's bars.
    */
-  readonly shownUnitsByStatus = computed(() => {
+  readonly shownUnitsByStatus = computed<StatusBar[]>(() => {
+    if (this.dayViewState() !== 'rows') {
+      return UNIT_STATUSES.map((status) => ({ status, count: null, percent: 0 }));
+    }
+    if (this.viewingToday()) {
+      return this.unitsByStatus();
+    }
     const dated = this.day();
     if (!dated) {
-      return this.unitsByStatus();
+      return UNIT_STATUSES.map((status) => ({ status, count: null, percent: 0 }));
     }
     const counts: Record<(typeof UNIT_STATUSES)[number], number> = {
       ACTIVE: dated.unitsActive,
@@ -403,9 +485,7 @@ export class Dashboard {
       return this.unitsByType();
     }
     const dated = this.day()?.unitsByType ?? [];
-    const counts = UNIT_TYPES.map(
-      (type) => dated.find((row) => row.type === type)?.count ?? 0,
-    );
+    const counts = UNIT_TYPES.map((type) => dated.find((row) => row.type === type)?.count ?? 0);
     const max = Math.max(1, ...counts);
     return UNIT_TYPES.map((type, i) => ({
       type,
@@ -617,21 +697,38 @@ export class Dashboard {
     this.dayLoading.set(true);
     this.dayError.set(null);
 
-    this.graphqlService
-      .query<DashboardDayData>(DAY_QUERY, { date: this.selectedDate() })
-      .subscribe({
-        next: (data) => {
-          this.day.set(data.dashboardOnDate);
-          this.dayLoading.set(false);
-        },
-        error: (err: unknown) => {
-          // The date stays selected: dropping silently back to today would
-          // leave the strip highlighting a day the numbers are not about.
-          this.dayError.set(isApiError(err) ? err : UNKNOWN_FAILURE);
-          this.day.set(null);
-          this.dayLoading.set(false);
-        },
-      });
+    /*
+     * The date THIS request is about, held for its own answer to be checked
+     * against.
+     *
+     * Nothing cancels the previous request, so two can be in flight and the
+     * last to ARRIVE used to win regardless of which was asked for last:
+     * click date A then date B quickly and A's slower answer overwrites B's,
+     * leaving A's numbers under B's highlight. An answer to a question no
+     * longer being asked is dropped - including a failure, which would
+     * otherwise blank out the date that did load.
+     */
+    const requested = this.selectedDate();
+
+    this.graphqlService.query<DashboardDayData>(DAY_QUERY, { date: requested }).subscribe({
+      next: (data) => {
+        if (requested !== this.selectedDate()) {
+          return;
+        }
+        this.day.set(data.dashboardOnDate);
+        this.dayLoading.set(false);
+      },
+      error: (err: unknown) => {
+        if (requested !== this.selectedDate()) {
+          return;
+        }
+        // The date stays selected: dropping silently back to today would
+        // leave the strip highlighting a day the numbers are not about.
+        this.dayError.set(isApiError(err) ? err : UNKNOWN_FAILURE);
+        this.day.set(null);
+        this.dayLoading.set(false);
+      },
+    });
   }
 
   statusLabel(status: string): string {

@@ -4,6 +4,31 @@
      cannot reach through a router-outlet, and the shell is a layout route as
      of the move that ended the flash on every navigation - so the column that
      only ever belonged to this one screen lives with it. -->
+<!-- Every single-number slot on this screen, defined ONCE: the four tiles, the
+     three summary rows and the members count all render through here.
+     A tile cannot say "Loading this date…" the way the table does - it is one
+     number, not a list - so the three non-answers get a shape each: a skeleton
+     while the date is in flight, a dash once it has failed or fallen before
+     our records. What it must NEVER do is keep the number it already had, and
+     one definition is what makes that true of all nine slots at once rather
+     than of the eight somebody remembered to change.
+     `value` is null exactly when `dayViewState()` is not 'rows' - except for
+     members, whose own REST call is allowed to fail on today too; that is the
+     last branch, and it keeps the plain hyphen it has always shown. -->
+<ng-template #dayValue let-value>
+  @if (value !== null) {
+    {{ value | number }}
+  } @else if (dayViewState() === 'loading') {
+    <span class="day-skeleton" role="img" [attr.aria-label]="t().dayLoading"></span>
+  } @else if (dayViewState() === 'failed') {
+    <span class="day-blank" role="img" [attr.aria-label]="t().dayFailed">—</span>
+  } @else if (dayViewState() === 'noHistory') {
+    <span class="day-blank" role="img" [attr.aria-label]="t().dayNoRecord">—</span>
+  } @else {
+    <span class="day-blank">-</span>
+  }
+</ng-template>
+
 <div class="dash-layout">
   <div class="dash-layout__main">
     @if (loading()) {
@@ -103,7 +128,9 @@
             </span>
             <span class="tile__label">{{ t().statTotalUnits }}</span>
           </div>
-          <span class="tile__value">{{ shownTotalUnits() | number }}</span>
+          <span class="tile__value" data-testid="tile-total-units">
+            <ng-container *ngTemplateOutlet="dayValue; context: { $implicit: shownTotalUnits() }" />
+          </span>
         </article>
 
         <article class="tile">
@@ -123,7 +150,11 @@
             </span>
             <span class="tile__label">{{ t().statActiveUnits }}</span>
           </div>
-          <span class="tile__value">{{ shownActiveUnits() | number }}</span>
+          <span class="tile__value" data-testid="tile-active-units">
+            <ng-container
+              *ngTemplateOutlet="dayValue; context: { $implicit: shownActiveUnits() }"
+            />
+          </span>
         </article>
 
         <article class="tile">
@@ -144,7 +175,11 @@
             </span>
             <span class="tile__label">{{ t().statActiveCycles }}</span>
           </div>
-          <span class="tile__value">{{ shownCyclesRunning() | number }}</span>
+          <span class="tile__value" data-testid="tile-cycles-running">
+            <ng-container
+              *ngTemplateOutlet="dayValue; context: { $implicit: shownCyclesRunning() }"
+            />
+          </span>
         </article>
 
         <article class="tile">
@@ -166,7 +201,11 @@
             </span>
             <span class="tile__label">{{ t().statFingerlings }}</span>
           </div>
-          <span class="tile__value">{{ shownFingerlings() | number }}</span>
+          <span class="tile__value" data-testid="tile-fingerlings">
+            <ng-container
+              *ngTemplateOutlet="dayValue; context: { $implicit: shownFingerlings() }"
+            />
+          </span>
         </article>
       </section>
 
@@ -327,25 +366,40 @@
   </div>
 
   <aside class="dash-side">
+    <!-- The summary shares the TILES' computeds for its first two rows, so it
+         drifted with them and has to move with them: a rail reading today's
+         volume beside a past date's unit count is the same bug, one column
+         over. -->
     <div class="side-card">
       <h3>{{ t().sideSummary }}</h3>
       <div class="side-stat">
         <span>{{ t().sideAllUnits }}</span>
-        <strong>{{ shownTotalUnits() }}</strong>
+        <strong data-testid="side-total-units">
+          <ng-container *ngTemplateOutlet="dayValue; context: { $implicit: shownTotalUnits() }" />
+        </strong>
       </div>
       <div class="side-stat">
         <span>{{ t().sideActiveUnits }}</span>
-        <strong>{{ shownActiveUnits() }}</strong>
+        <strong data-testid="side-active-units">
+          <ng-container *ngTemplateOutlet="dayValue; context: { $implicit: shownActiveUnits() }" />
+        </strong>
       </div>
       <div class="side-stat">
         <span>{{ t().sideTotalVolume }}</span>
-        <strong>{{ shownVolumeM3() }}</strong>
+        <strong data-testid="side-volume">
+          <ng-container *ngTemplateOutlet="dayValue; context: { $implicit: shownVolumeM3() }" />
+        </strong>
       </div>
     </div>
 
     <div class="side-card">
       <h3>{{ t().sideByStatus }}</h3>
-      <div class="mini-bars">
+      <!-- All three rows survive every state, so the card does not change
+           height as the date changes. A null count is a date with no answer
+           yet: the track stays empty and the count is a dash, never the bars
+           the previous date left behind. The line under the strip below is
+           what says WHICH non-answer it is. -->
+      <div class="mini-bars" data-testid="units-by-status">
         @for (bar of shownUnitsByStatus(); track bar.status) {
           <div class="mini-bars__row">
             <span class="mini-bars__label">{{ statusLabel(bar.status) }}</span>
@@ -356,7 +410,7 @@
                 [style.width.%]="bar.percent"
               ></div>
             </div>
-            <span class="mini-bars__count">{{ bar.count }}</span>
+            <span class="mini-bars__count">{{ bar.count ?? '—' }}</span>
           </div>
         }
       </div>
@@ -412,17 +466,27 @@
       <!-- Shown only away from today, because on today there is nothing to
            explain: the numbers are the live ones. -->
       @if (!viewingToday()) {
+        <!-- This line EXPLAINS the dashes and skeletons in every card above
+             it, so it has to be deciding on the same thing they are. Reading
+             dayLoading/dayError/day() itself was how it could say "Showing
+             <date>" while the cards were still loading it - a late response
+             for a date no longer selected clears both flags. -->
         <p class="mini-cal__state">
-          @if (dayLoading()) {
-            {{ t().dayLoading }}
-          } @else if (dayError()) {
-            {{ t().dayFailed }}
-          } @else if (!dayHasHistory()) {
-            <!-- Zeros here would read as "the farm was empty", which is a
-                 different claim from "we have no record". -->
-            {{ t().dayNoHistory }} {{ day()?.historyStartsOn }}.
-          } @else {
-            {{ t().dayViewing }} {{ selectedDate() }}.
+          @switch (dayViewState()) {
+            @case ('loading') {
+              {{ t().dayLoading }}
+            }
+            @case ('failed') {
+              {{ t().dayFailed }}
+            }
+            @case ('noHistory') {
+              <!-- Zeros here would read as "the farm was empty", which is a
+                   different claim from "we have no record". -->
+              {{ t().dayNoHistory }} {{ day()?.historyStartsOn }}.
+            }
+            @default {
+              {{ t().dayViewing }} {{ selectedDate() }}.
+            }
           }
           <button type="button" class="mini-cal__today" (click)="backToToday()">
             {{ t().dayBackToToday }}
@@ -433,8 +497,25 @@
 
     <div class="side-card side-card--ring">
       <h3>{{ t().sideActiveRing }}</h3>
-      <div class="ring" [style.--percent]="shownActivePercent()">
-        <span class="ring__value">{{ shownActivePercent() }}%</span>
+      <!-- The gauge empties to 0 rather than holding the last date's arc: a
+           filled ring is a claim about the selected date as much as the number
+           inside it is. The `%` sign is why this slot is spelled out instead
+           of going through #dayValue - a dash does not take a unit. -->
+      <div class="ring" [style.--percent]="shownActivePercent() ?? 0">
+        <span class="ring__value" data-testid="ring-value">
+          @if (shownActivePercent() !== null) {
+            {{ shownActivePercent() }}%
+          } @else if (dayViewState() === 'loading') {
+            <span class="day-skeleton" role="img" [attr.aria-label]="t().dayLoading"></span>
+          } @else {
+            <span
+              class="day-blank"
+              role="img"
+              [attr.aria-label]="dayViewState() === 'failed' ? t().dayFailed : t().dayNoRecord"
+              >—</span
+            >
+          }
+        </span>
       </div>
       <p class="ring__caption">{{ t().sideActiveRingCaption }}</p>
     </div>
@@ -456,7 +537,9 @@
         @if (canManageUsers() && activeFarmId() !== null) {
           <div class="side-stat">
             <span>{{ t().sideTotalMembers }}</span>
-            <strong>{{ shownMembers() ?? '-' }}</strong>
+            <strong data-testid="side-members">
+              <ng-container *ngTemplateOutlet="dayValue; context: { $implicit: shownMembers() }" />
+            </strong>
           </div>
         }
       </div>
