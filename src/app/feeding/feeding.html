@@ -6,6 +6,28 @@
     </div>
   </header>
 
+  <!-- The cycle being fed, chosen HERE (2026-09-19) rather than on
+       Production first. Outside the loading branch, so picking a cycle does
+       not take the picker away while its feeds load. Never in task mode: the
+       task names its cycle, and the shared selection is not touched. The age
+       under it is the server's, and it is what decides which feeds qualify. -->
+  @if (!taskContext && (hasActiveCycle() || cycle())) {
+    <section class="card" data-panel="picker">
+      <app-cycle-picker
+        [cycles]="cycles()"
+        [selectedId]="selectedCycleId()"
+        (picked)="pickCycle($event)"
+      />
+      <!-- `!== null`, not truthiness: 0 months is a real age - fingerlings,
+           the most common one - and a plain @if hid it. -->
+      @if (!loading() && cycle() && cycleAgeMonths() !== null) {
+        <p class="picker__age" data-testid="cycle-age">
+          {{ t().contextAge }} <strong>{{ cycleAgeMonths() }} {{ t().ageMonths }}</strong>
+        </p>
+      }
+    </section>
+  }
+
   @if (loading()) {
     <p class="panel-status">{{ t().loading }}</p>
   } @else if (loadErrorMessage(); as message) {
@@ -20,10 +42,16 @@
       <header class="card__head">
         <h2 class="card__title">{{ t().noCycleTitle }}</h2>
       </header>
-      <p class="no-cycle__body">{{ t().noCycleMessage }}</p>
-      <div class="no-cycle__actions">
-        <app-button (clicked)="goToProduction()">{{ t().goToProduction }}</app-button>
-      </div>
+      <!-- With cycles running, the picker above is the way out; with none, a
+           cycle has to be started on Production. -->
+      @if (hasActiveCycle() && !taskContext) {
+        <p class="no-cycle__body">{{ t().noCyclePick }}</p>
+      } @else {
+        <p class="no-cycle__body">{{ t().noActiveCycle }}</p>
+        <div class="no-cycle__actions">
+          <app-button (clicked)="goToProduction()">{{ t().goToProduction }}</app-button>
+        </div>
+      }
     </section>
   } @else {
     <!-- Work on the left, summary rail on the right. Nothing on the rail costs
@@ -58,17 +86,21 @@
           </section>
         }
 
+        <!-- Task mode only: the picker is not shown, so this line says which
+             cycle the task's feeding is for. -->
+        @if (taskContext) {
         <section class="card" data-panel="context">
           <p class="context__line">
             {{ t().contextLabel }}:
             <strong>{{ cycle()!.speciesName }}</strong>
             &middot; {{ t().contextUnit }} <strong>{{ cycle()!.unit.code }}</strong> &middot;
             {{ cycle()!.stockingDate }}
-            @if (cycleAgeMonths(); as age) {
-              &middot; {{ t().contextAge }} <strong>{{ age }} {{ t().ageMonths }}</strong>
+            @if (cycleAgeMonths() !== null) {
+              &middot; {{ t().contextAge }} <strong>{{ cycleAgeMonths() }} {{ t().ageMonths }}</strong>
             }
           </p>
         </section>
+        }
 
         <!-- The server's "nothing in the store fits fish this age". A hard
            banner, above the form, because the answer is not on this screen:

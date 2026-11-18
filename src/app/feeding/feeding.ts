@@ -11,7 +11,7 @@ import { FarmSelectionService } from '../core/services/farm-selection';
 import { FeedService } from '../core/services/feed';
 import { LanguageService } from '../core/services/language';
 import { ProductionService } from '../core/services/production';
-import { Cycle } from '../core/models/cycle';
+import { Cycle, CYCLE_ACTIVE } from '../core/models/cycle';
 import { FeedStockBalance, FeedingLog, SuitableFeedType } from '../core/models/feed';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
@@ -24,6 +24,7 @@ import { EmptyState } from '../shared/ui/empty-state/empty-state';
 import { DatePickerCard, isoDate } from '../shared/ui/date-picker-card/date-picker-card';
 import { FormField } from '../shared/ui/form-field/form-field';
 import { Toast } from '../shared/ui/toast/toast';
+import { CyclePicker } from '../shared/ui/cycle-picker/cycle-picker';
 import { FEEDING_I18N } from './feeding.i18n';
 
 const UNKNOWN_FAILURE = new ApiError({
@@ -92,6 +93,7 @@ export interface FeedingTaskContext {
     DatePickerCard,
     FormField,
     Toast,
+    CyclePicker,
   ],
   templateUrl: './feeding.html',
   styleUrl: './feeding.scss',
@@ -143,6 +145,15 @@ export class Feeding {
 
   /** Resolved - null both when nothing is selected and when the stored id is stale. */
   readonly cycle = signal<Cycle | null>(null);
+
+  /** Every cycle of the active farm - what the picker offers, the running ones. */
+  readonly cycles = signal<readonly Cycle[]>([]);
+  readonly hasActiveCycle = computed(() =>
+    this.cycles().some((cycle) => cycle.status === CYCLE_ACTIVE),
+  );
+  /** The stored choice, for the picker - resolved or not; see CyclePicker. */
+  readonly selectedCycleId = computed(() => this.cycleSelection.selectedCycleId());
+
   readonly feedTypes = signal<readonly SuitableFeedType[]>([]);
   readonly noSuitableFeed = signal(false);
   /**
@@ -373,27 +384,34 @@ export class Feeding {
     this.task.set(null);
 
     const selectedId = this.activeCycleId();
-    if (selectedId === null) {
-      this.cycle.set(null);
-      this.loading.set(false);
-      return;
-    }
 
-    // The stored id is checked against THIS farm's cycles rather than sent to
+    // The farm's cycles, asked even with nothing selected: the picker offers
+    // them. The stored id is checked against THIS answer rather than sent to
     // the API, so an id left over from another farm produces the "pick a
-    // cycle" panel instead of a FORBIDDEN nobody can interpret.
+    // cycle" state instead of a FORBIDDEN nobody can interpret.
     this.productionService.listCycles().subscribe({
       next: (cycles) => {
-        const cycle = cycles.find((c) => Number(c.cycleId) === selectedId) ?? null;
+        this.cycles.set(cycles);
+        const cycle =
+          selectedId === null ? null : (cycles.find((c) => Number(c.cycleId) === selectedId) ?? null);
         this.cycle.set(cycle);
 
         if (!cycle) {
-          // Production owns the selection; this screen does not rewrite it.
+          // Nothing chosen at all, and ONE cycle running: that is the one.
+          // Written to the shared selection, which reloads this screen
+          // through the effect above. Never in task mode (the task names its
+          // cycle), and never over a stale id - another farm's choice is not
+          // this screen's to rewrite; the picker says "choose" instead.
+          const running = cycles.filter((c) => c.status === CYCLE_ACTIVE);
+          if (!this.taskContext && selectedId === null && running.length === 1) {
+            this.cycleSelection.select(Number(running[0].cycleId));
+            return;
+          }
           this.loading.set(false);
           return;
         }
 
-        this.fetchCycleData(selectedId);
+        this.fetchCycleData(Number(cycle.cycleId));
       },
       error: (err: unknown) => {
         this.cycle.set(null);
@@ -471,6 +489,11 @@ export class Feeding {
 
   goToProduction(): void {
     void this.router.navigateByUrl('/production');
+  }
+
+  /** The picker's choice, into the selection Production and Water Quality share. */
+  pickCycle(cycleId: number): void {
+    this.cycleSelection.select(cycleId);
   }
 
   goToFeedCatalog(): void {

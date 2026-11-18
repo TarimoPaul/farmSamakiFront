@@ -6,6 +6,21 @@
     </div>
   </header>
 
+  <!-- The cycle being recorded against, chosen HERE (2026-09-19) rather than
+       on Production first. Outside the loading branch below, so picking a
+       cycle does not take the picker away while its readings load. It names
+       the cycle - unit, fish, stocking date - so the old one-line context
+       card above the form went with it. -->
+  @if (hasActiveCycle() || cycle()) {
+    <section class="card" data-panel="context">
+      <app-cycle-picker
+        [cycles]="cycles()"
+        [selectedId]="selectedCycleId()"
+        (picked)="pickCycle($event)"
+      />
+    </section>
+  }
+
   @if (loading()) {
     <p class="panel-status">{{ t().loading }}</p>
   } @else if (loadErrorMessage(); as message) {
@@ -15,15 +30,20 @@
     </div>
   } @else if (!cycle()) {
     <!-- Not a failure: nothing has gone wrong, there is simply no cycle to
-           record against. It gets a card and a way out, not a red panel. -->
+           record against yet. With cycles running, the picker above is the
+           way out; with none, a cycle has to be started on Production. -->
     <section class="card" data-panel="no-cycle">
       <header class="card__head">
         <h2 class="card__title">{{ t().noCycleTitle }}</h2>
       </header>
-      <p class="no-cycle__body">{{ t().noCycleMessage }}</p>
-      <div class="no-cycle__actions">
-        <app-button (clicked)="goToProduction()">{{ t().goToProduction }}</app-button>
-      </div>
+      @if (hasActiveCycle()) {
+        <p class="no-cycle__body">{{ t().noCyclePick }}</p>
+      } @else {
+        <p class="no-cycle__body">{{ t().noActiveCycle }}</p>
+        <div class="no-cycle__actions">
+          <app-button (clicked)="goToProduction()">{{ t().goToProduction }}</app-button>
+        </div>
+      }
     </section>
   } @else {
     <!-- Work on the left, summary rail on the right. Nothing on the rail costs
@@ -31,14 +51,6 @@
          filters what this screen already holds. -->
     <div class="module-layout">
       <div class="module-layout__main">
-        <section class="card" data-panel="context">
-          <p class="context__line">
-            {{ t().contextLabel }}:
-            <strong>{{ cycle()!.speciesName }}</strong>
-            &middot; {{ t().contextUnit }} <strong>{{ cycle()!.unit.code }}</strong> &middot;
-            {{ cycle()!.stockingDate }}
-          </p>
-        </section>
 
         <!-- The form is the WRITE permission, and it is simply absent without
            it: a VIEWER reads the table below and is offered nothing. -->

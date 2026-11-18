@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
 import { LanguageService } from '../../../core/services/language';
 
 /**
@@ -29,6 +29,14 @@ const LOCALE = { sw: 'sw-TZ', en: 'en-GB' } as const;
 @Component({
   selector: 'app-topbar-clock',
   template: `
+    @if (variant() === 'line') {
+      <!-- The phone header's second line, under the farm name: the date that
+           the task sheet counts in, and the time, in one short read-out. Not
+           a control, so nothing to tap and no tab stop. -->
+      <time class="clock-line" [attr.datetime]="now().toISOString()">
+        {{ shortDateLabel() }} · {{ timeLabel() }} EAT
+      </time>
+    } @else {
     <time
       class="clock"
       tabindex="0"
@@ -54,12 +62,23 @@ const LOCALE = { sw: 'sw-TZ', en: 'en-GB' } as const;
       <span class="clock__time">{{ timeLabel() }}</span>
       <span class="clock__date">{{ dateLabel() }}</span>
     </time>
+    }
   `,
   styles: `
     :host {
       position: relative;
       display: flex;
       flex: none;
+    }
+    .clock-line {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
     }
     .clock {
       display: flex;
@@ -136,8 +155,21 @@ const LOCALE = { sw: 'sw-TZ', en: 'en-GB' } as const;
 export class TopbarClock {
   private readonly languageService = inject(LanguageService);
 
+  /** `chip`: the topbar's own clock. `line`: one line of text, for the phone header. */
+  readonly variant = input<'chip' | 'line'>('chip');
+
   readonly now = signal(new Date());
   readonly open = signal(false);
+
+  /** "Jmos 19 Sep" - short enough to share a line with the time on a phone. */
+  readonly shortDateLabel = computed(() =>
+    new Intl.DateTimeFormat(LOCALE[this.languageService.lang()], {
+      timeZone: FARM_TIME_ZONE,
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(this.now()),
+  );
 
   readonly timeLabel = computed(() =>
     new Intl.DateTimeFormat(LOCALE[this.languageService.lang()], {

@@ -6,11 +6,11 @@ const SELECTED_CYCLE_KEY = 'samakiFarm.selectedCycleId';
  * The cycle the user is currently working on.
  *
  * Every day-to-day log the app will grow - a water reading, a feeding, a
- * completed task - is about ONE cycle, and none of those screens has any
- * business knowing which. So the choice is made once, on Production, and read
- * from here. That is the whole reason this service exists: without it each log
- * screen would need its own cycle picker, and a hardcoded id would be the
- * shortcut somebody eventually took.
+ * completed task - is about ONE cycle. The choice is made in ONE place and read
+ * from here, so every screen agrees on it: picked on Production, or - since
+ * 2026-09-19 - with the shared CyclePicker at the top of Feeding and Water
+ * Quality, so a worker at the tank no longer goes to Production and back
+ * first. Whichever screen picks, the others follow.
  *
  * Deliberately modelled on FarmSelectionService, including the persistence:
  * a page refresh in the middle of recording readings must not silently drop

@@ -72,6 +72,202 @@
   box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
 }
 
+// ── The "Leo" card ───────────────────────────────────────────────────────
+// First on the screen at every width: today's tasks, and the next one. The
+// same white card as its neighbours, told apart by a brand stripe down its
+// left edge and the one solid brand button on the dashboard - the reference's
+// hero, in this app's colours. The bar is DONE only, in --color-active, as on
+// Daily Tasks; closed is a number, never progress.
+.today-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.05rem 1.25rem 1.15rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 20px -14px rgba(15, 35, 60, 0.45);
+
+  // The stripe as an overlay the tile's way (see .tile::before), so it
+  // follows the rounded corners rather than meeting them square.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border-left: 5px solid var(--color-brand);
+    pointer-events: none;
+  }
+}
+
+.today-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--on-surface);
+  }
+}
+
+.today-card__count {
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+
+  strong {
+    font-size: 1.35rem;
+    color: var(--on-surface);
+  }
+}
+
+.today-card__bar {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.today-card__fill {
+  display: block;
+  height: 100%;
+  background: var(--color-active);
+  transition: width 0.25s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.today-card__line {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.today-card__overdue {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.today-card__next {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  background: var(--surface-alt);
+
+  strong {
+    font-size: 0.95rem;
+    color: var(--on-surface);
+  }
+}
+
+.today-card__next-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.today-card__next-where {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+// The dashboard's one solid brand button: --brand-strong holds white text in
+// both themes (see styles.scss).
+.today-card__open {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 1rem;
+  border-radius: var(--radius);
+  background: var(--brand-strong);
+  color: var(--brand-contrast);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+}
+
+// A phone: the button across the card, where the thumb can take it.
+@media (max-width: 480px) {
+  .today-card__open {
+    align-self: stretch;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+// The title on the left and, where a card has one, its action on the right -
+// the reference's "Popular Services ... See all ›".
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+// "Ona zote (6) ›" - phone only. On a desktop the table shows every row and
+// there is nothing to open.
+.cycles-toggle {
+  display: none;
+  flex: none;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--brand-dark);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--brand-soft);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+}
+
+@media (max-width: 860px) {
+  .cycles-toggle {
+    display: block;
+  }
+
+  // Rows past the preview wait for "Ona zote". Hidden, not removed, so the
+  // count on the button and the rows behind it can never disagree.
+  .table-card:not(.table-card--expanded) .cycle-row--extra {
+    display: none;
+  }
+
+  // The last row SHOWN closes the card like a last row: its rule was drawn
+  // for a row below it that is now hidden.
+  .table-card:not(.table-card--expanded) tr:has(+ .cycle-row--extra) {
+    &,
+    td {
+      border-bottom: 0;
+    }
+  }
+}
+
 .card-heading h2 {
   margin: 0;
   font-size: 1rem;
@@ -337,16 +533,21 @@ td {
   grid-template-rows: minmax(0, 1fr);
   gap: 1.25rem;
 
+  // One column, and rows sized by their content again: the date picker now
+  // comes out of the rail to sit ABOVE the main column (see .dash-side), and
+  // a capped first row would give it the whole screen's height.
   @media (max-width: 1280px) {
-    grid-template-columns: 1fr;
+    flex: none;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    align-content: start;
   }
 
-  // A phone or tablet: the rail comes back BELOW the main column (see
-  // .dash-side), so the rows are sized by their content again and the page
-  // scrolls - capping the row here would clip the rail off the bottom.
+  // A phone or tablet: the rest of the rail comes back BELOW the main column,
+  // two across where the width allows and one where not. The main column and
+  // the picker span the row.
   @media (max-width: 860px) {
-    flex: none;
-    grid-template-rows: auto;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 1rem;
   }
 }
@@ -396,20 +597,45 @@ td {
   min-height: 0;
   overflow-y: auto;
 
-  // Dropped on a laptop, where the grid above collapses to one column.
+  // Below 1280px the rail stops being a box: its cards become items of the
+  // .dash-layout grid, so each can be placed on its own.
+  //
+  // The date picker (side-card--picker) comes straight AFTER the main column,
+  // under Active Cycles - the user's order (2026-09-19): "Leo", the tiles,
+  // Units by Type, Active Cycles, then the picker, which follows the numbers
+  // it moves rather than sitting above them. The main column keeps its own
+  // source order at every width; only the rail's cards are re-placed. It used to be hidden on a
+  // laptop and last of all on a phone, under every other rail card too.
+  //
+  // The other cards are dropped on a laptop, where the tables need the width
+  // (that decision stands), and come back after the picker on a phone.
   @media (max-width: 1280px) {
-    display: none;
+    display: contents;
+
+    > .side-card {
+      align-self: start;
+      order: 1;
+    }
+
+    > .side-card--picker {
+      order: 0;
+    }
   }
 
-  // ...but NOT on a phone or tablet. The rail holds the date picker - the one
-  // control that changes every number on this screen - so hiding it there
-  // took the feature away rather than the clutter. It returns under the main
-  // column, its cards two across where the width allows and one where not.
-  @media (max-width: 860px) {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    align-items: start;
-    overflow: visible;
+  // The laptop band only. Hidden with a range rather than hidden-then-shown,
+  // so on a phone each card keeps its own display (the ring card is a flex).
+  @media (min-width: 861px) and (max-width: 1280px) {
+    > .side-card:not(.side-card--picker) {
+      display: none;
+    }
+  }
+}
+
+// Across the whole row on a phone, where the rest of the rail goes two across.
+@media (max-width: 860px) {
+  .dash-layout__main,
+  .dash-side > .side-card--picker {
+    grid-column: 1 / -1;
   }
 }
 
@@ -470,6 +696,9 @@ td {
   border: 1px solid transparent;
   border-radius: 10px;
   background: none;
+  // Said, not inherited: a <button> takes the browser's own ButtonText, which
+  // is black - so in dark mode every day but today was black on the dark card.
+  color: var(--on-surface);
   font: inherit;
   cursor: pointer;
 

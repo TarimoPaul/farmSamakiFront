@@ -21,6 +21,19 @@ import { EmptyState } from '../shared/ui/empty-state/empty-state';
 import { StatusBadge } from '../shared/ui/status-badge/status-badge';
 import { Toast } from '../shared/ui/toast/toast';
 import { DAILY_TASKS_I18N } from './daily-tasks.i18n';
+// "Today" and the time of day are the FARM's (Africa/Nairobi), never the
+// browser's: the backend counts today in that zone. The grouping and the
+// next-task rule are shared with the Dashboard's "Leo" card, so the two can
+// never name a different next task.
+import { farmNowTime, farmToday } from '../core/farm-time';
+import {
+  TaskGroup,
+  groupTasksByUnit,
+  isClosedTask,
+  nextOutstandingTask,
+  twinGroups,
+  twinLabel,
+} from '../core/daily-task-sheet';
 
 const UNKNOWN_FAILURE = new ApiError({
   message: 'Unrecognised failure',
@@ -29,39 +42,7 @@ const UNKNOWN_FAILURE = new ApiError({
   source: 'graphql',
 });
 
-/**
- * The farm's timezone, and the ONLY definition of "today" this screen uses.
- *
- * Not the browser's. The backend resolves an omitted date to today in
- * Africa/Nairobi - the schema says so outright - so a client that asked "what
- * day is it here?" would disagree with the server for anyone whose laptop is
- * on another timezone, and would disagree by a whole day for a few hours
- * either side of midnight. Both the default date and the future-date test
- * below are computed in the farm's day, so the screen and the API always mean
- * the same thing by "today".
- */
-const FARM_TIME_ZONE = 'Africa/Nairobi';
-
-/** One unit's tasks for the day, which is how the list is grouped. */
-interface TaskGroup {
-  /** unitCode + speciesName - two cycles in one unit are still two groups. */
-  key: string;
-  unitCode: string | null;
-  speciesName: string | null;
-  tasks: DailyTaskStatus[];
-  /** Counted over the WHOLE group, so the heading stays true under a filter. */
-  done: number;
-  /** Closed without a record - never folded into `done`. */
-  closed: number;
-  total: number;
-}
-
 export type TaskFilter = 'all' | 'outstanding' | 'done' | 'closed';
-
-/** Closed without a feeding record: not done, not outstanding. See the model. */
-export function isClosedTask(task: DailyTaskStatus): boolean {
-  return task.status === CLOSED_NO_RECORD;
-}
 
 /** The date heading's locale per UI language. */
 const DATE_LOCALE = { sw: 'sw-TZ', en: 'en-GB' } as const;
@@ -187,6 +168,16 @@ export class DailyTasks {
    */
   readonly isFuture = computed(() => this.date() > this.today);
 
+  /**
+   * Is a loaded, non-empty sheet on screen? The rail's counted cards - summary,
+   * next, by-unit - are drawn only then. The picker beside them is drawn
+   * always: it is the one way to another day, and an empty, failed or loading
+   * day must not take it away.
+   */
+  readonly sheetShown = computed(
+    () => !this.loading() && !this.loadError() && this.tasks().length > 0,
+  );
+
   readonly doneCount = computed(() => this.tasks().filter((task) => task.done).length);
   readonly closedCount = computed(() => this.tasks().filter(isClosedTask).length);
   /** Neither done nor closed - the only rows reminders still chase. */
@@ -270,21 +261,57 @@ export class DailyTasks {
    */
   readonly nextTask = computed(() => {
     const t = this.t();
-    const outstanding = this.groups()
-      .flatMap((group) => group.tasks.map((task) => ({ task, group })))
-      .filter(({ task }) => !task.done && !isClosedTask(task))
-      .sort((a, b) => a.task.scheduledTime.localeCompare(b.task.scheduledTime));
-    const pick =
-      outstanding.find(({ task }) => task.scheduledTime >= this.nowTime()) ?? outstanding[0];
+    const pick = nextOutstandingTask(this.groups(), this.nowTime());
     if (!pick) {
       return null;
     }
     const where = pick.group.unitCode ? `${t.unitLabel} ${pick.group.unitCode}` : t.noUnit;
+    const twin = this.groupTwinLabel(pick.group);
     return {
       task: pick.task,
-      label: `${where} · ${pick.group.speciesName ?? t.noSpecies}`,
+      label: `${where} · ${pick.group.speciesName ?? t.noSpecies}${twin ? ` · ${twin}` : ''}`,
     };
   });
+
+  // ── Twin cycles ────────────────────────────────────────────────────────
+  //
+  // Two cycles of the same fish in one tank make two groups with the same
+  // heading ("Kitengo P1 · Kambale"). What tells them apart is when the fish
+  // went in - "imepandwa 15 Sep" - so that is added to THEIR headings only.
+  //
+  // The dates are asked for only when the sheet has twins, which is rare:
+  // every other sheet costs no extra request. A failed ask leaves the map
+  // empty, and the twins are told apart by their place, "(1)" and "(2)".
+
+  readonly twins = computed(() => twinGroups(this.groups()));
+  readonly stockingDates = signal<ReadonlyMap<number, string>>(new Map());
+  private stockingDatesRequested = false;
+
+  private readonly resetStockingDates = effect(() => {
+    // Another farm has other cycles.
+    this.farmSelection.selectedFarmId();
+    this.stockingDates.set(new Map());
+    this.stockingDatesRequested = false;
+  });
+
+  private readonly loadStockingDates = effect(() => {
+    if (this.twins().size === 0 || this.stockingDatesRequested) {
+      return;
+    }
+    this.stockingDatesRequested = true;
+    this.dailyTasksService.cycleStockingDates().subscribe({
+      next: (dates) => this.stockingDates.set(dates),
+      error: () => this.stockingDates.set(new Map()),
+    });
+  });
+
+  /** "imepandwa 15 Sep" for a twin group, null for every other. */
+  groupTwinLabel(group: TaskGroup): string | null {
+    return twinLabel(group, this.twins(), this.stockingDates(), {
+      stocked: this.t().stockedOn,
+      locale: DATE_LOCALE[this.languageService.lang()],
+    });
+  }
 
   /**
    * The tasks, grouped by the unit they happen in and sorted the way the day
@@ -295,51 +322,7 @@ export class DailyTasks {
    * from the cycle - so they get a group of their own, last, rather than
    * being dropped or silently labelled as somebody else's tank.
    */
-  readonly groups = computed<TaskGroup[]>(() => {
-    const groups = new Map<string, TaskGroup>();
-
-    for (const task of this.tasks()) {
-      const key = `${task.unitCode ?? ''}|${task.speciesName ?? ''}`;
-      const existing = groups.get(key);
-      if (existing) {
-        existing.tasks.push(task);
-      } else {
-        groups.set(key, {
-          key,
-          unitCode: task.unitCode,
-          speciesName: task.speciesName,
-          tasks: [task],
-          done: 0,
-          closed: 0,
-          total: 0,
-        });
-      }
-    }
-
-    for (const group of groups.values()) {
-      group.total = group.tasks.length;
-      group.done = group.tasks.filter((task) => task.done).length;
-      group.closed = group.tasks.filter(isClosedTask).length;
-    }
-
-    const ordered = [...groups.values()].sort((a, b) => {
-      // Unit-less groups last: they are the exception, and burying the
-      // exception under the tanks is the right way round for a work sheet.
-      if (a.unitCode === null || b.unitCode === null) {
-        return a.unitCode === b.unitCode ? 0 : a.unitCode === null ? 1 : -1;
-      }
-      return (
-        a.unitCode.localeCompare(b.unitCode) ||
-        (a.speciesName ?? '').localeCompare(b.speciesName ?? '')
-      );
-    });
-
-    for (const group of ordered) {
-      group.tasks.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
-    }
-
-    return ordered;
-  });
+  readonly groups = computed<TaskGroup[]>(() => groupTasksByUnit(this.tasks()));
 
   /** The groups under the current filter; a group with nothing left to show is dropped. */
   readonly visibleGroups = computed<TaskGroup[]>(() => {
@@ -726,59 +709,4 @@ function formatDay(date: string, locale: string): string {
   } catch {
     return date;
   }
-}
-
-/** HH:mm now in the farm's timezone - see FARM_TIME_ZONE. */
-function farmNowTime(): string {
-  try {
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: FARM_TIME_ZONE,
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(new Date());
-    const hour = parts.find((p) => p.type === 'hour')?.value;
-    const minute = parts.find((p) => p.type === 'minute')?.value;
-    if (hour && minute) {
-      return `${hour}:${minute}`;
-    }
-  } catch {
-    // Falls through to the local clock below.
-  }
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-}
-
-/**
- * Today as YYYY-MM-DD in the farm's timezone - see FARM_TIME_ZONE.
- *
- * Built from `formatToParts` rather than from a formatted string, so the
- * layout is ours and not the runtime's: `toLocaleDateString` with a locale
- * tag would be at the mercy of whichever ICU data the browser ships. If Intl
- * refuses the zone outright, the browser's own day is the honest fallback - a
- * date one day out beats a screen that will not render.
- */
-function farmToday(): string {
-  try {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: FARM_TIME_ZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(new Date());
-
-    const part = (type: string): string => parts.find((p) => p.type === type)?.value ?? '';
-    const year = part('year');
-    const month = part('month');
-    const day = part('day');
-    if (year && month && day) {
-      return `${year}-${month}-${day}`;
-    }
-  } catch {
-    // Falls through to the local day below.
-  }
-
-  const now = new Date();
-  const pad = (value: number): string => String(value).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }

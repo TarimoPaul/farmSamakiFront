@@ -7,7 +7,7 @@ import { FarmSelectionService } from '../core/services/farm-selection';
 import { LanguageService } from '../core/services/language';
 import { ProductionService } from '../core/services/production';
 import { WaterQualityService } from '../core/services/water-quality';
-import { Cycle } from '../core/models/cycle';
+import { Cycle, CYCLE_ACTIVE } from '../core/models/cycle';
 import { WaterQualityLog } from '../core/models/water-quality';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { ERROR_CODE } from '../core/models/error-codes';
@@ -20,6 +20,7 @@ import { EmptyState } from '../shared/ui/empty-state/empty-state';
 import { DatePickerCard, isoDate } from '../shared/ui/date-picker-card/date-picker-card';
 import { FormField } from '../shared/ui/form-field/form-field';
 import { Toast } from '../shared/ui/toast/toast';
+import { CyclePicker } from '../shared/ui/cycle-picker/cycle-picker';
 import { WATER_QUALITY_I18N } from './water-quality.i18n';
 
 const UNKNOWN_FAILURE = new ApiError({
@@ -36,9 +37,10 @@ const UNKNOWN_FAILURE = new ApiError({
  * The shape worth copying is here rather than in any single line of it:
  *
  *  1. THE CYCLE COMES FROM THE SELECTION, never from a route param and never
- *     hardcoded. This screen holds no picker of its own - Production owns
- *     that - and it renders an explanation, not an error, when nothing is
- *     selected.
+ *     hardcoded. The selection is SHARED with Production and Feeding, and
+ *     since 2026-09-19 it can be made here too, with the cycle picker at the
+ *     top of the screen: a worker at the tank no longer goes to Production
+ *     and back first. Nothing selected is an explanation, not an error.
  *  2. THE STORED ID IS RESOLVED AGAINST THE BACKEND before it is used. The
  *     cycles query takes no argument, so a stale id from another farm is
  *     caught by simply not being in the answer, and is never sent anywhere.
@@ -60,6 +62,7 @@ const UNKNOWN_FAILURE = new ApiError({
     DatePickerCard,
     FormField,
     Toast,
+    CyclePicker,
   ],
   templateUrl: './water-quality.html',
   styleUrl: './water-quality.scss',
@@ -84,6 +87,15 @@ export class WaterQuality {
    * against, and the way out is the same one panel.
    */
   readonly cycle = signal<Cycle | null>(null);
+
+  /** Every cycle of the active farm - what the picker offers, the running ones. */
+  readonly cycles = signal<readonly Cycle[]>([]);
+  readonly hasActiveCycle = computed(() =>
+    this.cycles().some((cycle) => cycle.status === CYCLE_ACTIVE),
+  );
+  /** The stored choice, for the picker - resolved or not; see CyclePicker. */
+  readonly selectedCycleId = computed(() => this.cycleSelection.selectedCycleId());
+
   readonly readings = signal<readonly WaterQualityLog[]>([]);
   private readonly datePicker = viewChild(DatePickerCard);
 
@@ -218,31 +230,38 @@ export class WaterQuality {
     this.readings.set([]);
 
     const selectedId = this.cycleSelection.selectedCycleId();
-    if (selectedId === null) {
-      this.cycle.set(null);
-      this.loading.set(false);
-      return;
-    }
 
-    // Step one: what cycles does THIS farm have? The stored id is checked
+    // Step one: what cycles does THIS farm have? Asked even with nothing
+    // selected, because the picker offers them. The stored id is checked
     // against that answer rather than sent to the API, so an id left over
-    // from another farm produces the "pick a cycle" panel instead of a
+    // from another farm produces the "pick a cycle" state instead of a
     // FORBIDDEN the user cannot interpret.
     this.productionService.listCycles().subscribe({
       next: (cycles) => {
-        const cycle = cycles.find((c) => Number(c.cycleId) === selectedId) ?? null;
+        this.cycles.set(cycles);
+        const cycle =
+          selectedId === null ? null : (cycles.find((c) => Number(c.cycleId) === selectedId) ?? null);
         this.cycle.set(cycle);
 
         if (!cycle) {
-          // The stored selection is NOT cleared from here: Production owns
-          // that choice, and silently rewriting it from a screen the user
-          // may have opened by accident would lose a selection that is
-          // merely about a farm they are about to switch back to.
+          // Nothing chosen at all, and ONE cycle running: that is the one -
+          // there is nothing to choose between. Written to the shared
+          // selection, which reloads this screen through the effect above.
+          //
+          // Only when NOTHING is chosen. A stale id - another farm's - is
+          // left alone: rewriting it from a screen somebody may have opened
+          // by accident would lose a choice that is merely about a farm they
+          // are about to switch back to. The picker says "choose" instead.
+          const running = cycles.filter((c) => c.status === CYCLE_ACTIVE);
+          if (selectedId === null && running.length === 1) {
+            this.cycleSelection.select(Number(running[0].cycleId));
+            return;
+          }
           this.loading.set(false);
           return;
         }
 
-        this.fetchReadings(selectedId);
+        this.fetchReadings(Number(cycle.cycleId));
       },
       error: (err: unknown) => {
         this.cycle.set(null);
@@ -267,6 +286,11 @@ export class WaterQuality {
 
   goToProduction(): void {
     void this.router.navigateByUrl('/production');
+  }
+
+  /** The picker's choice, into the selection Production and Feeding share. */
+  pickCycle(cycleId: number): void {
+    this.cycleSelection.select(cycleId);
   }
 
   /**

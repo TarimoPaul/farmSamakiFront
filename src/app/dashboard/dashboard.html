@@ -23,6 +23,61 @@
     } @else if (errorMessage()) {
       <p class="dash-status dash-status--error">{{ errorMessage() }}</p>
     } @else {
+      <!-- "Leo": what is left to do today, and the next thing - the
+           reference's hero banner, first on the screen. Always the farm's
+           TODAY, whatever the week strip shows. Hidden, not an error, when
+           its own request fails - see Dashboard.loadToday. -->
+      @if (!todayFailed()) {
+        <section class="today-card" data-testid="today-card" aria-labelledby="today-title">
+          <div class="today-card__head">
+            <h2 id="today-title">{{ t().todayTitle }}</h2>
+            @if (todayTasks() && todayTotal() > 0) {
+              <span class="today-card__count" data-testid="today-count">
+                <strong>{{ todayDone() }}</strong> / {{ todayTotal() }}
+              </span>
+            }
+          </div>
+
+          @if (todayTasks() === null) {
+            <p class="today-card__line">{{ t().loading }}</p>
+          } @else if (todayTotal() === 0) {
+            <p class="today-card__line">{{ t().todayNone }}</p>
+          } @else {
+            <div
+              class="today-card__bar"
+              role="progressbar"
+              [attr.aria-valuenow]="todayPercent()"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-label]="t().todayTitle"
+            >
+              <span class="today-card__fill" [style.width.%]="todayPercent()"></span>
+            </div>
+            <p class="today-card__line" data-testid="today-meta">
+              {{ todayDone() }} {{ t().todayDone }}
+              @if (todayClosed() > 0) {
+                · {{ todayClosed() }} {{ t().todayClosed }}
+              }
+              @if (todayOverdue() > 0) {
+                · <span class="today-card__overdue">{{ todayOverdue() }} {{ t().todayOverdue }}</span>
+              }
+            </p>
+
+            @if (todayNext(); as next) {
+              <div class="today-card__next" data-testid="today-next">
+                <span class="today-card__next-label">{{ t().todayNext }}</span>
+                <strong>{{ next.task.taskType }} · {{ next.task.scheduledTime }}</strong>
+                <span class="today-card__next-where">{{ next.where }}</span>
+              </div>
+            } @else {
+              <p class="today-card__line">{{ t().todayAllDone }}</p>
+            }
+          }
+
+          <a class="today-card__open" routerLink="/daily-tasks">{{ t().todayOpen }} ›</a>
+        </section>
+      }
+
       <!-- Tile anatomy: a thin brand accent on the top edge, a brand-tinted
              icon-chip with the label beside it, the number below. All four
              chips are the same - the ICON tells the tiles apart, never a
@@ -192,12 +247,31 @@
         }
       </section>
 
-      <section class="table-card">
+      <section class="table-card" [class.table-card--expanded]="cyclesExpanded()">
         <div class="card-heading">
           <div>
             <h2>{{ t().tableTitle }}</h2>
             <p>{{ t().tableSubtitle }}</p>
           </div>
+          <!-- Phone only (see .cycles-toggle): the first three cycles, then
+               "Ona zote" opens the rest IN PLACE, the reference's "See all ›".
+               In place rather than a link to Production because this list
+               follows the picked date, and Production shows today only. -->
+          @if (dayViewState() === 'rows' && shownCycles().length > cyclesPreview) {
+            <button
+              type="button"
+              class="cycles-toggle"
+              data-testid="cycles-toggle"
+              [attr.aria-expanded]="cyclesExpanded()"
+              (click)="cyclesExpanded.set(!cyclesExpanded())"
+            >
+              @if (cyclesExpanded()) {
+                {{ t().seeLess }}
+              } @else {
+                {{ t().seeAll }} ({{ shownCycles().length }}) ›
+              }
+            </button>
+          }
         </div>
 
         <!-- The table follows the SAME date as the tiles. Away from today it
@@ -227,11 +301,11 @@
               </tr>
             </thead>
             <tbody>
-              @for (cycle of shownCycles(); track cycle.cycleId) {
+              @for (cycle of shownCycles(); track cycle.cycleId; let i = $index) {
                 <!-- data-label: on a phone each row is stacked into a small
                      card, and the header row is gone - so every cell names
                      itself (see the table block in dashboard.scss). -->
-                <tr data-testid="cycle-row">
+                <tr data-testid="cycle-row" [class.cycle-row--extra]="i >= cyclesPreview">
                   <td [attr.data-label]="t().colUnit">{{ cycle.unit.code }}</td>
                   <td [attr.data-label]="t().colSpecies">{{ cycle.speciesName }}</td>
                   <td [attr.data-label]="t().colStockingDate">{{ cycle.stockingDate }}</td>
@@ -290,8 +364,10 @@
 
     <!-- The date picker. Paging the strip does NOT change the numbers - only
          clicking a day does, which is why the arrows and the days are separate
-         controls rather than one "current week" state. -->
-    <div class="side-card">
+         controls rather than one "current week" state.
+         side-card--picker: below 1280px it leaves the rail to sit right
+         under Active Cycles - see .dash-side. -->
+    <div class="side-card side-card--picker">
       <div class="mini-cal__head">
         <h3>{{ t().sideThisWeek }}</h3>
         <span class="mini-cal__nav">

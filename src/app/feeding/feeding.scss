@@ -222,3 +222,15 @@
   font-size: 0.85rem;
   color: var(--muted);
 }
+
+/* The fishes' age under the cycle picker: the server's count, and what
+   decides which feeds the form offers. */
+.picker__age {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+
+  strong {
+    color: var(--on-surface);
+  }
+}

@@ -394,6 +394,56 @@ describe('DailyTasks', () => {
       expect(text(fixture)).toContain('Huna ruhusa ya kuona taarifa hizi');
       expect(text(fixture)).toContain('Jaribu tena');
     });
+
+    // The picker used to be drawn only beside a loaded, non-empty sheet, so an
+    // empty or failed day - reached from a link with ?date= - left no way to
+    // another day, not even back to today (seen on a farm with no cycle).
+    it('keeps the picker, and a way back to today, beside an empty day', async () => {
+      // Any past day: what matters is that it is not today.
+      const { fixture, httpMock } = setup(READER, { queryParams: { date: '2026-01-05' } });
+
+      await load(fixture, httpMock, { data: { farmDailyTasks: [] } });
+
+      expect(panel(fixture, 'empty')).toBeTruthy();
+      expect(railCard(fixture, 'date')?.querySelector('app-date-picker-card')).toBeTruthy();
+      expect(text(fixture)).toContain(DAILY_TASKS_I18N.sw.dayBackToToday);
+      // Counted cards would be zeros saying nothing - they wait for a sheet.
+      expect(railCard(fixture, 'summary')).toBeNull();
+      expect(railCard(fixture, 'by-unit')).toBeNull();
+    });
+
+    it('keeps the picker beside a failed day', async () => {
+      const { fixture, httpMock } = setup(READER);
+
+      fixture.detectChanges();
+      gql(httpMock, 'FarmDailyTasks').flush(FORBIDDEN);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(all(fixture, 'load-error')).toHaveLength(1);
+      expect(railCard(fixture, 'date')?.querySelector('app-date-picker-card')).toBeTruthy();
+      expect(railCard(fixture, 'summary')).toBeNull();
+    });
+
+    it('keeps the picker while a new day loads, without the old day\'s counts', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+      expect(railCard(fixture, 'summary')).toBeTruthy();
+
+      component.onDatePicked(new Date(2026, 0, 5));
+      fixture.detectChanges();
+
+      // Asked, not yet answered.
+      expect(component.loading()).toBe(true);
+      expect(railCard(fixture, 'date')?.querySelector('app-date-picker-card')).toBeTruthy();
+      expect(railCard(fixture, 'summary')).toBeNull();
+      expect(railCard(fixture, 'by-unit')).toBeNull();
+
+      gql(httpMock, 'FarmDailyTasks').flush(TASKS);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(railCard(fixture, 'summary')).toBeTruthy();
+    });
   });
 
   describe('the date picker', () => {
@@ -423,6 +473,42 @@ describe('DailyTasks', () => {
 
       // Seven days, and the whole week is reachable by keyboard.
       expect(railCard(fixture, 'date')?.querySelectorAll('.cal__day').length).toBe(7);
+    });
+
+    it('offers no future day on the strip, and clicking one fetches nothing', async () => {
+      const { fixture, component, httpMock } = setup(READER);
+      await load(fixture, httpMock);
+
+      // By the ISO date the label ENDS with, never the label's words - the
+      // suite runs in Swahili, and matching on "Show date" quietly selected
+      // nothing at all.
+      const isoOf = (day: HTMLButtonElement) =>
+        /\d{4}-\d{2}-\d{2}$/.exec(day.getAttribute('aria-label') ?? '')?.[0] ?? '';
+      const strip = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.cal__day'),
+      ];
+      const future = strip.filter((day) => isoOf(day) > component.today);
+      expect(strip.length).toBe(7);
+
+      // The strip always draws the week HOLDING today, so there is a future
+      // day to prove something about on six weekdays out of seven. On a
+      // Sunday there is none, and this test would otherwise pass by finding
+      // nothing - so say so out loud instead.
+      if (future.length === 0) {
+        expect(isoOf(strip[6])).toBe(component.today);
+        return;
+      }
+
+      // The disabled days are EXACTLY the days after the farm's today.
+      expect(strip.filter((day) => day.disabled).map(isoOf)).toEqual(future.map(isoOf));
+      for (const day of future) {
+        day.click();
+      }
+      fixture.detectChanges();
+
+      expect(component.date()).toBe(component.today);
+      // The real proof: no request was made for a day that has not happened.
+      httpMock.verify();
     });
 
     it("rings the FARM's today, not the browser's", async () => {

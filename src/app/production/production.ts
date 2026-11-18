@@ -191,8 +191,14 @@ export class Production {
   // The card STYLES are shared rather than copied: see _side-card.scss.
 
   // ── The date being looked at ───────────────────────────────────────────
-  readonly selectedDate = signal(isoDate(new Date()));
-  readonly viewingToday = computed(() => this.selectedDate() === isoDate(new Date()));
+  // The FARM's day, not the browser's - the same `today()` the event form's
+  // [max] refuses by. These disagreed: the form capped a date in Africa/
+  // Nairobi while the strip and `viewingToday` read the laptop's clock, so
+  // off EAT (and for a few hours either side of midnight anywhere) the
+  // calendar rang one day while the form refused another. Now the shading,
+  // the "Back to today" target and the form's cap are one date.
+  readonly selectedDate = signal(today());
+  readonly viewingToday = computed(() => this.selectedDate() === today());
   readonly day = signal<DashboardDay | null>(null);
   readonly dayLoading = signal(false);
   readonly dayError = signal<ApiError | null>(null);
@@ -377,7 +383,7 @@ export class Production {
   }
 
   backToToday(): void {
-    this.selectedDate.set(isoDate(new Date()));
+    this.selectedDate.set(today());
     this.day.set(null);
     this.dayError.set(null);
     this.datePicker()?.resetWeek();
@@ -734,11 +740,20 @@ export class Production {
     const ready = this.readyCycleIds();
     return [
       { label: t.colCycleUnit, value: (cycle) => cycle.unit.code },
-      { label: t.colCycleSpecies, value: (cycle) => cycle.speciesName },
-      { label: t.colCycleStocked, value: (cycle) => cycle.stockingDate },
+      {
+        label: t.colCycleSpecies,
+        shortLabel: t.colCycleSpeciesShort,
+        value: (cycle) => cycle.speciesName,
+      },
+      {
+        label: t.colCycleStocked,
+        shortLabel: t.colCycleStockedShort,
+        value: (cycle) => cycle.stockingDate,
+      },
       { label: t.colCycleFingerlings, value: (cycle) => String(cycle.fingerlingsCount) },
       {
         label: t.colCycleExpected,
+        shortLabel: t.colCycleExpectedShort,
         // The badge is part of the CELL because that is where the date it
         // refers to is. It says the prediction has come due and nothing more;
         // a column cannot mutate anything, which is exactly the property this

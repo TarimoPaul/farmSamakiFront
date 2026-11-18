@@ -16,6 +16,17 @@ import { DASHBOARD_I18N } from './dashboard.i18n';
 import { ApiError, isApiError } from '../core/models/api-error';
 import { apiErrorMessage } from '../core/i18n/error-messages';
 import { unitTypeLabel } from '../core/i18n/unit-types';
+import { DailyTasksService } from '../core/services/daily-tasks';
+import { DailyTaskStatus } from '../core/models/daily-task';
+import { farmNowTime, farmToday } from '../core/farm-time';
+import {
+  groupTasksByUnit,
+  isClosedTask,
+  isOutstandingTask,
+  nextOutstandingTask,
+  twinGroups,
+  twinLabel,
+} from '../core/daily-task-sheet';
 
 const DASHBOARD_QUERY = `
   query {
@@ -300,6 +311,15 @@ export class Dashboard {
    * the PREVIOUS date, after a failure it is null, and a date before our
    * records has nothing worth drawing - in all three the card says so instead.
    */
+  /**
+   * On a phone the Active Cycles card shows this many rows until "Ona zote"
+   * is pressed - the user's call (2026-09-19): below it sits the date picker,
+   * and a long farm's cycles pushed it a screen or more out of reach. The
+   * desktop table always shows every row; the limit is CSS, below 860px.
+   */
+  readonly cyclesPreview = 3;
+  readonly cyclesExpanded = signal(false);
+
   readonly dayViewState = computed<'rows' | 'loading' | 'failed' | 'noHistory'>(() => {
     if (this.viewingToday()) {
       return 'rows';
@@ -423,6 +443,79 @@ export class Dashboard {
   private readonly load = effect(() => {
     this.farmSelection.selectedFarmId();
     this.fetch();
+  });
+
+  // ── The "Leo" card ─────────────────────────────────────────────────────
+  //
+  // The reference's hero banner, for a farm: what is left to do TODAY, and
+  // the next thing. First on the screen at every width - the user's call,
+  // 2026-09-19. It is always about the farm's today, whatever day the week
+  // strip is showing: it answers "what now?", not "what happened then?".
+  //
+  // Its OWN request, not a field of DASHBOARD_QUERY, for the reason the org
+  // counts give below: a failure here must not blank the whole dashboard. A
+  // failed or refused load hides the card and nothing else notices.
+
+  private readonly dailyTasksService = inject(DailyTasksService);
+
+  /** Null while loading; the card is hidden entirely when `todayFailed`. */
+  readonly todayTasks = signal<readonly DailyTaskStatus[] | null>(null);
+  readonly todayFailed = signal(false);
+
+  /** The farm's clock when the dashboard opened - the same "once" rule as Daily Tasks. */
+  readonly todayNowTime = signal(farmNowTime());
+
+  private readonly loadToday = effect(() => {
+    this.farmSelection.selectedFarmId();
+    this.todayTasks.set(null);
+    this.todayFailed.set(false);
+    this.dailyTasksService.farmTasks(farmToday()).subscribe({
+      next: (tasks) => this.todayTasks.set(tasks),
+      error: () => this.todayFailed.set(true),
+    });
+  });
+
+  readonly todayTotal = computed(() => this.todayTasks()?.length ?? 0);
+  readonly todayDone = computed(() => this.todayTasks()?.filter((task) => task.done).length ?? 0);
+  readonly todayClosed = computed(() => this.todayTasks()?.filter(isClosedTask).length ?? 0);
+  /** DONE only - a closed task is not progress, exactly as on Daily Tasks. */
+  readonly todayPercent = computed(() =>
+    this.todayTotal() === 0 ? 0 : Math.round((this.todayDone() * 100) / this.todayTotal()),
+  );
+  /** Outstanding and scheduled before the farm's clock: "Muda umepita" on Daily Tasks. */
+  readonly todayOverdue = computed(
+    () =>
+      this.todayTasks()?.filter(
+        (task) => isOutstandingTask(task) && task.scheduledTime < this.todayNowTime(),
+      ).length ?? 0,
+  );
+
+  /** The same next task Daily Tasks names - one shared rule, see core. */
+  readonly todayNext = computed(() => {
+    const tasks = this.todayTasks();
+    if (!tasks) {
+      return null;
+    }
+    const groups = groupTasksByUnit(tasks);
+    const pick = nextOutstandingTask(groups, this.todayNowTime());
+    if (!pick) {
+      return null;
+    }
+    const t = this.t();
+    const where = pick.group.unitCode ? `${t.todayUnit} ${pick.group.unitCode}` : t.todayNoUnit;
+    // Two cycles of this fish in this unit: say which, as Daily Tasks does.
+    // The stocking dates are already on the page, from DASHBOARD_QUERY.
+    const twin = twinLabel(
+      pick.group,
+      twinGroups(groups),
+      new Map(this.cycles().map((cycle) => [Number(cycle.cycleId), cycle.stockingDate])),
+      { stocked: t.todayStocked, locale: this.languageService.lang() === 'sw' ? 'sw-TZ' : 'en-GB' },
+    );
+    const withSpecies = pick.group.speciesName ? `${where} · ${pick.group.speciesName}` : where;
+    return {
+      task: pick.task,
+      where: twin ? `${withSpecies} · ${twin}` : withSpecies,
+    };
   });
 
   /**

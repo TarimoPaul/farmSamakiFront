@@ -603,22 +603,98 @@ a.nav-item {
   padding: 0;
 }
 
-.dash-menu {
+// ── Tab bar: the phone's own nav ─────────────────────────────────────────
+// Below 860px, the last row of the screen: four screens and "Zaidi", one tap
+// each, where the thumb already is. The topbar ☰ it replaces made every move
+// two taps, the first of them at the far corner of the screen.
+//
+// A flex ROW OF .dash-main, not `position: fixed`: .dash-content above it is
+// the scroller, so the bar stays put with nothing layered over the screen and
+// no padding to reserve under the last card. It bleeds through the canvas's
+// 0.75rem to the phone's edges, and pads the home indicator out of its way.
+.tabbar {
   display: none;
-  flex: none;
-  width: var(--control-h);
-  height: var(--control-h);
+}
+
+@media (max-width: 860px) {
+  .tabbar {
+    flex: none;
+    display: flex;
+    gap: 0.25rem;
+    // -0.75rem = the canvas padding on a phone (.dash-shell), taken back.
+    margin: 0 -0.75rem -0.75rem;
+    padding: 0.4rem 0.5rem max(0.4rem, env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -10px 24px -18px rgba(15, 35, 60, 0.35);
+  }
+}
+
+.tabbar__item {
+  flex: 1 1 0;
+  min-width: 0;
+  // Above the 44px touch minimum: icon, label and the pill's padding.
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--on-surface);
+  gap: 0.2rem;
+  padding: 0.3rem 0.2rem;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-decoration: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+  }
+}
+
+// The tab you are on: the brand's soft pill, like the reference's green one.
+// --brand-dark, not --brand, for the words - it flips with the theme and
+// holds 4.5:1 on --brand-soft in both.
+.tabbar__item--active {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+
+  .tabbar__label {
+    font-weight: 700;
+  }
+}
+
+.tabbar__icon {
+  display: flex;
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
+  }
+}
+
+// One line, cut rather than wrapped: a two-line tab would make the bar jump
+// in height when the language is switched.
+.tabbar__label {
+  max-width: 100%;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabbar__item {
+    transition: none;
   }
 }
 
@@ -628,10 +704,55 @@ a.nav-item {
   display: none;
 }
 
+// Theme and log out, at the drawer's foot - the phone header gave them up.
+// Hidden on a desktop, where both are on the topbar.
+.sidebar__prefs {
+  display: none;
+}
+
 @media (max-width: 860px) {
-  .dash-menu {
+  .sidebar__prefs {
+    flex: none;
     display: flex;
+    gap: 0.5rem;
   }
+
+  .sidebar__pref {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    svg {
+      flex: none;
+      width: 17px;
+      height: 17px;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    &:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+  }
+}
+
+@media (max-width: 860px) {
 
   .dash-scrim {
     display: block;
@@ -762,7 +883,8 @@ a.nav-item {
   border-radius: 16px;
   background: var(--surface);
 
-  // Seven controls on one 350px row: every rem of gap is worth fighting for.
+  // Six controls on one 350px row (the ☰ moved to the tab bar): every rem of
+  // gap is still worth fighting for.
   @media (max-width: 480px) {
     gap: 0.375rem;
     padding: 0.45rem;
@@ -794,6 +916,114 @@ a.nav-item {
   .dash-content ::ng-deep > router-outlet {
     display: none;
   }
+}
+
+// ── The phone header ─────────────────────────────────────────────────────
+// Below 860px the topbar stops being a card of six controls and becomes a
+// header, like the reference's: WHERE you are on the left (the farm, and the
+// farm's date and time under it), search and SW|EN on the right. The clock
+// chip and farm chip give way to the place block; theme and log out move to
+// the drawer's foot (.sidebar__prefs). Chosen with the user 2026-09-19.
+.dash-place {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .dash-topbar {
+    padding: 0.15rem 0.1rem 0.1rem 0.25rem;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .dash-place {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  // Prefixed for the weight: .dash-farm and .dash-logout set their own
+  // display further down this file, and would win a tie.
+  .dash-topbar {
+    .dash-actions > app-topbar-clock,
+    .dash-farm,
+    .dash-actions > app-theme-toggle,
+    .dash-logout {
+      display: none;
+    }
+  }
+}
+
+.dash-place__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.dash-place__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.dash-place__farm {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+
+  // The ring goes round the name, which is what a finger aimed at.
+  &:focus-within {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+.dash-place__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--on-surface);
+}
+
+.dash-place__chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+// Laid invisibly over the name and chevron: a tap lands on the real select,
+// so the phone's own picker opens - the same trick the farm chip uses.
+.dash-place__select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
 // Everything right of the search, pushed to the end as one group.

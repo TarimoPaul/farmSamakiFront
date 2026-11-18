@@ -233,6 +233,17 @@ const NAV_GROUPS: readonly ShellNavGroup[] = [
 ];
 
 /**
+ * The phone tab bar's entries, by nav key. `label` is the SHORT word under the
+ * icon - five tabs share 375px, and "Kazi za Kila Siku" does not fit one.
+ */
+const TABS: readonly { key: ShellNavItem['key']; label: ShellNavItem['key'] }[] = [
+  { key: 'navDashboard', label: 'navDashboard' },
+  { key: 'navDailyTasks', label: 'tabDailyTasks' },
+  { key: 'navProduction', label: 'navProduction' },
+  { key: 'navFeeding', label: 'navFeeding' },
+];
+
+/**
  * The signed-in chrome: sidebar, nav, topbar. Screens project their content
  * into it and own nothing else.
  *
@@ -297,6 +308,17 @@ export class AppShell {
   readonly activeFarmId = computed(() => this.authService.currentUser()?.farmId ?? null);
 
   /**
+   * The phone header's farm name - of the farm the backend is APPLYING, so it
+   * can never name one that is not in use. Null until my-farms answers, when
+   * it failed, and for ROOT before it picks: the header then says "Chagua
+   * shamba…" to ROOT and the brand to anyone else.
+   */
+  readonly activeFarmName = computed(() => {
+    const id = this.activeFarmId();
+    return this.farms().find((farm) => farm.farmId === id)?.name ?? null;
+  });
+
+  /**
    * The farm list, for the switcher - `GET /api/auth/my-farms`, not
    * `GET /api/farms`. The latter needs `manage_farms`, which a member of two
    * farms does not hold; my-farms answers each caller with exactly the farms
@@ -318,7 +340,10 @@ export class AppShell {
    */
   private farmsRequested = false;
   private readonly loadFarms = effect(() => {
-    if (!this.canSelectFarm() || this.farmsRequested) {
+    // EVERY account now, not only one with farms to switch between: the
+    // phone header names the farm you are in, and /me carries its id but not
+    // its name. One request per session, and my-farms needs no permission.
+    if (!this.currentUser() || this.farmsRequested) {
       return;
     }
     this.farmsRequested = true;
@@ -373,7 +398,8 @@ export class AppShell {
 
   /**
    * Closes the drawer and, if focus was inside it, hands focus back to the
-   * menu button - otherwise it would fall to <body> as the drawer hides.
+   * menu button - "Zaidi" on the tab bar - otherwise it would fall to <body>
+   * as the drawer hides.
    *
    * Navigation closes the drawer too (closeDrawerOnNavigate), but does NOT
    * come through here: on a new screen, focus belongs to the new screen.
@@ -382,7 +408,11 @@ export class AppShell {
     const focusWasInside = !!this.sidebarEl()?.nativeElement.contains(document.activeElement);
     this.sidebar.closeDrawer();
     if (focusWasInside) {
-      this.menuButton()?.nativeElement.focus();
+      // After the render, not now: the menu button sits inside <main>, which
+      // is still `inert` until the closed state is rendered, and a browser
+      // refuses focus to an inert element - it fell to <body> (seen in Chrome;
+      // jsdom does not enforce inert, so the spec alone never caught it).
+      afterNextRender(() => this.menuButton()?.nativeElement.focus(), { injector: this.injector });
     }
   }
 
@@ -487,6 +517,25 @@ export class AppShell {
 
   /** Every visible entry, flattened - for "which one is active?". */
   private readonly visibleItems = computed(() => this.navGroups().flatMap((group) => group.items));
+
+  /**
+   * The phone tab bar: these entries, in this order, each only if this
+   * account can see it in the sidebar - drawn FROM the visible nav, so the
+   * two can never disagree about who may open what.
+   *
+   * Chosen with the user on 2026-09-19 over "Maji instead of Uzalishaji": the
+   * phone is used by supervisors as much as by workers at the tank. Water
+   * quality and everything else is one tap further, behind "Zaidi".
+   */
+  readonly tabs = computed(() =>
+    TABS.flatMap(({ key, label }) => {
+      const item = this.visibleItems().find((entry) => entry.key === key && !!entry.route);
+      return item ? [{ item, label }] : [];
+    }),
+  );
+
+  /** "Zaidi" is lit on any screen that has no tab of its own - /profile too. */
+  readonly moreActive = computed(() => !this.tabs().some((tab) => this.isActive(tab.item)));
 
   // ── The nav's scroll affordance ────────────────────────────────────────
   //
